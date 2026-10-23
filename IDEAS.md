@@ -24,10 +24,12 @@ Clickable concept: [builder-concept.html](https://shuang-dl.github.io/product-to
 2. The same popup loads that page with the builder tools around it:
    - **Toolbox** on the side: pointer (click an element), box (draw around an area), text formatting, colours.
    - **Box tool and groups:** draw around several things, e.g. a group of menu items, and they become one step, highlighted as a single area with one popup. A box that only covers one thing snaps to that element.
-   - **Storyboard** along the bottom: each step becomes a card, in order, showing the flow. Click a card to edit it; × removes it.
-3. Selecting something opens the step box right next to it, looking like the final tour popup. You type the title and text there, format it, and add images.
-4. Each step sets how the tour **continues**: a Next button, clicking the highlighted element, or typing text into it.
-5. **Preview** plays the tour from the storyboard. **View tour file** shows the file it would publish.
+   - **Storyboard** along the bottom: the tour's flow as cards, in order, ending with **+ Step** and **+ Page**. Click a card to edit it; × removes it.
+3. **+ Step** adds an empty step to the storyboard first. Highlighting only works while a step is active, so nothing gets added by an accidental click.
+4. **+ Page** asks for a page path (e.g. `/leases`). Steps added after it happen on that page. This becomes `page` on those steps in the tour file, the same field multi-page tours use today.
+5. Picking something for the active step opens the step box right next to it, looking like the final tour popup. You type the title and text there, format it, and add images.
+6. Each step sets how the tour **continues**: a Next button, clicking the highlighted element, or typing text into it.
+7. **Preview** plays the tour from the storyboard. **View tour file** shows the file it would publish.
 
 **Notes on how it could fit the current setup**
 

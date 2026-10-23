@@ -84,8 +84,17 @@
     .chip { font-size: 11px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 0 6px; }
     .card .x { position: absolute; top: 4px; right: 6px; border: 0; background: none; color: var(--muted); }
     .arrow { align-self: center; color: var(--muted); }
-    .card.start-card { flex-basis: 140px; border-style: dashed; border-color: var(--border); }
-    .empty { align-self: center; color: var(--muted); font-size: 13px; }
+    .card[role=button] { cursor: pointer; }
+    .card.page-card { flex-basis: 140px; border-style: dashed; border-color: var(--border); }
+    .card.draft { border-style: dashed; border-color: var(--accent); }
+    .card.draft .t { color: var(--muted); font-weight: 500; font-style: italic; }
+    .adders { flex: 0 0 auto; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+    .add { border: 2px dashed var(--border); background: transparent; color: var(--accent); border-radius: 10px; padding: 7px 14px; font-weight: 600; white-space: nowrap; }
+    .add:hover { border-color: var(--accent); }
+    .add-page input { width: 170px; padding: 7px 10px; border: 2px solid var(--accent); border-radius: 10px; background: var(--card); color: var(--text); font: inherit; font-size: 13px; }
+    .stage:not(.picking) .dl { cursor: default; }
+    .stage.picking .dl { cursor: crosshair; }
+    .stage:not(.picking) .draw-surface { cursor: not-allowed; }
 
     /* panels */
     .panel { position: absolute; left: 64px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.2); z-index: 6; width: 220px; font-size: 13px; }
@@ -167,7 +176,7 @@
         <button class="tool" id="textTool" data-tip="Text: edit the step's text">T</button>
         <button class="tool" id="colorTool" data-tip="Colors">◐</button>
         <hr>
-        <button class="tool" id="undoTool" data-tip="Remove last step">↶</button>
+        <button class="tool" id="undoTool" data-tip="Remove last storyboard item">↶</button>
       </div>
 
       <div class="stage" id="stage">
@@ -235,7 +244,9 @@
     const PICKABLE = '[data-cy], [data-intercom-target], [aria-label], button, a, input, tr, h1';
     const ADVANCE = { next: 'Next button', click: 'Click the element', type: 'Type text' };
 
-    const state = { name: '', url: '', steps: [], tool: 'pointer', current: null, previewing: false };
+    // flow: the storyboard, in order. { type: 'page', path } or { type: 'step', page, draft?, els, ... }.
+    // active: index of the step being picked or edited; highlighting only works while a step is active.
+    const state = { name: '', flow: [], tool: 'pointer', active: null, previewing: false, addingPage: false };
 
     // fake tenant rows
     $('#rows').innerHTML = [
@@ -248,8 +259,12 @@
       t.textContent = msg;
       t.hidden = false;
       clearTimeout(toast.timer);
-      toast.timer = setTimeout(() => (t.hidden = true), 2200);
+      toast.timer = setTimeout(() => (t.hidden = true), 2600);
     }
+    const pathOf = (url) => { try { return new URL(url).pathname; } catch { return url.startsWith('/') ? url : '/' + url; } };
+    const currentPage = () => [...state.flow].reverse().find((i) => i.type === 'page').path;
+    const steps = () => state.flow.filter((i) => i.type === 'step' && !i.draft);
+    const showPage = (path) => ($('#wsUrl').textContent = `https://app.doorloop.com${path}  (sample page)`);
 
     // ---------- opening the builder ----------
     $('#create').onclick = () => ($('#startModal').hidden = false);
@@ -257,13 +272,14 @@
     $('#startForm').onsubmit = (e) => {
       e.preventDefault();
       state.name = $('#tourName').value.trim();
-      state.url = $('#tourUrl').value.trim();
+      state.flow = [{ type: 'page', path: pathOf($('#tourUrl').value.trim()) }];
+      state.active = null;
       $('#wsName').textContent = state.name;
-      $('#wsUrl').textContent = state.url + '  (sample page)';
+      showPage(currentPage());
       $('#startModal').hidden = true;
       $('#wsModal').hidden = false;
       renderStory();
-      toast('Pick something to highlight: click it, or switch to the box tool and draw around it.');
+      toast('Click + Step in the storyboard to add the first step.');
     };
     $('#closeWs').onclick = () => ($('#wsModal').hidden = true);
 
@@ -297,6 +313,46 @@
       return { text: el.innerText.trim().split('\n')[0] };
     }
 
+    // ---------- storyboard actions ----------
+    function addStep() {
+      const draft = state.flow.findIndex((i) => i.draft);
+      if (draft !== -1) {
+        activate(draft);
+        return toast('Finish this step first: pick something to highlight.');
+      }
+      clearSelection();
+      state.flow.push({ type: 'step', draft: true, page: currentPage() });
+      state.active = state.flow.length - 1;
+      renderStory();
+      toast('Step added. Now click something on the page, or use the box tool to draw around it.');
+    }
+    function addPage(path) {
+      clearSelection();
+      state.flow = state.flow.filter((i) => !i.draft);
+      state.active = null;
+      state.flow.push({ type: 'page', path: pathOf(path) });
+      showPage(currentPage());
+      renderStory();
+      toast(`Steps you add now happen on ${pathOf(path)}. Click + Step.`);
+    }
+    function activate(i) {
+      clearSelection();
+      state.active = i;
+      const item = state.flow[i];
+      showPage(item.page);
+      if (item.draft) renderStory();
+      else select(item.els);
+    }
+    function removeItem(i) {
+      if (i === 0) return;
+      clearSelection();
+      state.flow.splice(i, 1);
+      if (state.active === i) state.active = null;
+      else if (state.active > i) state.active--;
+      showPage(currentPage());
+      renderStory();
+    }
+
     // ---------- tools ----------
     document.querySelectorAll('[data-tool]').forEach((b) => (b.onclick = () => setTool(b.dataset.tool)));
     function setTool(tool) {
@@ -308,16 +364,14 @@
     $('#textTool').onclick = () => {
       const t = document.querySelector('.pop .text');
       if (t) t.focus();
-      else toast('Select an element first, then edit its text.');
+      else toast('Add a step and pick what it highlights, then edit its text.');
     };
     $('#colorTool').onclick = () => ($('#colorPanel').hidden = !$('#colorPanel').hidden);
     document.querySelectorAll('#colorPanel input').forEach((i) => (i.oninput = () => document.documentElement.style.setProperty(i.dataset.var, i.value)));
-    $('#undoTool').onclick = () => {
-      if (!state.steps.length) return;
-      state.steps.pop();
-      closeEditor();
-      renderStory();
-    };
+    $('#undoTool').onclick = () => removeItem(state.flow.length - 1);
+
+    const canPick = () => state.active !== null && !state.previewing;
+    const needStep = () => toast('Click + Step first, then pick what it highlights.');
 
     // pointer: hover + click on the sample page
     const dl = $('#dl');
@@ -327,7 +381,7 @@
       hoverBox = null;
     }
     dl.addEventListener('mousemove', (e) => {
-      if (state.tool !== 'pointer' || state.previewing) return;
+      if (state.tool !== 'pointer' || !canPick()) return clearHover();
       const el = e.target.closest(PICKABLE);
       if (!el || !dl.contains(el)) return clearHover();
       if (!hoverBox) {
@@ -341,15 +395,17 @@
     dl.addEventListener('click', (e) => {
       e.preventDefault();
       if (state.tool !== 'pointer' || state.previewing) return;
+      if (!canPick()) return needStep();
       const el = e.target.closest(PICKABLE);
       if (el && dl.contains(el)) select([el]);
     }, true);
 
-    // box: draw a rectangle, snap to the element that overlaps it best
+    // box: draw a rectangle; groups everything inside it, or snaps to the best single match
     let drawStart = null;
     let drawn = null;
     const surface = $('#drawSurface');
     surface.addEventListener('mousedown', (e) => {
+      if (!canPick()) return needStep();
       const o = inner.getBoundingClientRect();
       drawStart = { x: e.clientX - o.left, y: e.clientY - o.top };
       drawn?.remove();
@@ -408,17 +464,16 @@
     let selBox = null;
     let pop = null;
 
-    // els: one element, or a group picked with the box tool (highlighted as one area)
-    function select(els, stepIndex = null) {
+    // Highlight els (one element, or a box-tool group) for the active step and open its editor.
+    function select(els) {
       clearHover();
-      closeEditor();
-      const existing = stepIndex !== null ? state.steps[stepIndex] : null;
-      state.current = { els, index: stepIndex };
+      clearSelection();
       selBox = document.createElement('div');
       selBox.className = 'sel-box';
       $('#layer').append(selBox);
       place(selBox, unionRect(els));
-      openEditor(els, existing);
+      const item = state.flow[state.active];
+      openEditor(els, item.draft ? null : item);
       renderStory();
     }
 
@@ -458,7 +513,7 @@
         </div>
         <div class="actions">
           <button class="link" data-cancel>Cancel</button>
-          <button class="tb" data-save>${step ? 'Update step' : 'Add to storyboard'}</button>
+          <button class="tb" data-save>Save step</button>
         </div>`;
       $('#layer').append(pop);
 
@@ -488,70 +543,120 @@
         };
         reader.readAsDataURL(f);
       };
-      pop.querySelector('[data-cancel]').onclick = () => { closeEditor(); renderStory(); };
+      // Cancel keeps an unfinished step active so you can pick something else; it leaves a saved step as it was.
+      pop.querySelector('[data-cancel]').onclick = () => {
+        clearSelection();
+        if (!state.flow[state.active].draft) state.active = null;
+        renderStory();
+      };
       pop.querySelector('[data-save]').onclick = () => {
         if (!title.innerText.trim()) return toast('Give the step a title.');
-        const data = { els, target, label: single ? labelFor(els[0]) : `${els.length} items`, titleHtml: title.innerHTML, textHtml: text.innerHTML, advanceOn: advance.value };
-        if (state.current.index !== null) state.steps[state.current.index] = data;
-        else state.steps.push(data);
-        closeEditor();
+        const page = state.flow[state.active].page;
+        state.flow[state.active] = { type: 'step', page, els, target, label: single ? labelFor(els[0]) : `${els.length} items`, titleHtml: title.innerHTML, textHtml: text.innerHTML, advanceOn: advance.value };
+        state.active = null;
+        clearSelection();
         renderStory();
-        toast('Step saved. Pick the next thing to highlight.');
+        toast('Step saved. Click + Step to add another, or + Page if the next step is on another page.');
       };
       title.focus();
     }
 
-    function closeEditor() {
+    function clearSelection() {
       pop?.remove();
       selBox?.remove();
       pop = selBox = null;
-      state.current = null;
     }
 
     // ---------- storyboard ----------
     function renderStory() {
       const story = $('#story');
-      const path = (() => { try { return new URL(state.url).pathname; } catch { return state.url; } })();
-      const parts = [`<div class="card start-card"><div class="n">Start</div><div class="t">${path}</div><div class="chips"><span class="chip">${state.steps.length} step${state.steps.length === 1 ? '' : 's'}</span></div></div>`];
-      state.steps.forEach((s, i) => {
-        parts.push('<span class="arrow">→</span>');
-        parts.push(`<button class="card ${state.current?.index === i ? 'on' : ''}" data-i="${i}">
-          <span class="x" data-del="${i}" title="Delete step">×</span>
-          <div class="n">Step ${i + 1}</div>
-          <div class="t"></div>
-          <div class="chips"><span class="chip"></span><span class="chip">${ADVANCE[s.advanceOn]}</span></div>
-        </button>`);
-      });
-      if (!state.steps.length) parts.push('<span class="empty">Steps you add show up here, in order.</span>');
-      story.innerHTML = parts.join('');
-      story.querySelectorAll('.card[data-i]').forEach((c) => {
-        const s = state.steps[c.dataset.i];
-        const tmp = document.createElement('div');
-        tmp.innerHTML = s.titleHtml;
-        c.querySelector('.t').textContent = tmp.innerText;
-        c.querySelector('.chip').textContent = s.label;
-        c.onclick = (e) => {
-          if (e.target.dataset.del !== undefined) {
-            state.steps.splice(+e.target.dataset.del, 1);
-            closeEditor();
-            return renderStory();
+      story.replaceChildren();
+      let stepNo = 0;
+      state.flow.forEach((item, i) => {
+        if (i > 0) story.append(Object.assign(document.createElement('span'), { className: 'arrow', textContent: '→' }));
+        const card = document.createElement('div');
+        card.className = 'card';
+        if (item.type === 'page') {
+          const count = state.flow.slice(i + 1).findIndex((x) => x.type === 'page');
+          const n = (count === -1 ? state.flow.slice(i + 1) : state.flow.slice(i + 1, i + 1 + count)).filter((x) => x.type === 'step').length;
+          card.classList.add('page-card');
+          card.innerHTML = `<div class="n">${i === 0 ? 'Start page' : 'Page'}</div><div class="t"></div><div class="chips"><span class="chip">${n} step${n === 1 ? '' : 's'}</span></div>`;
+          card.querySelector('.t').textContent = item.path;
+        } else {
+          stepNo++;
+          card.setAttribute('role', 'button');
+          card.tabIndex = 0;
+          card.classList.toggle('on', state.active === i);
+          card.classList.toggle('draft', !!item.draft);
+          card.innerHTML = `<div class="n">Step ${stepNo}</div><div class="t"></div><div class="chips"></div>`;
+          if (item.draft) {
+            card.querySelector('.t').textContent = 'Pick something to highlight…';
+          } else {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = item.titleHtml;
+            card.querySelector('.t').textContent = tmp.innerText;
+            card.querySelector('.chips').append(
+              Object.assign(document.createElement('span'), { className: 'chip', textContent: item.label }),
+              Object.assign(document.createElement('span'), { className: 'chip', textContent: ADVANCE[item.advanceOn] })
+            );
           }
-          select(s.els, +c.dataset.i);
-        };
+          card.onclick = () => activate(i);
+        }
+        if (i > 0) {
+          const x = Object.assign(document.createElement('button'), { className: 'x', title: 'Remove', textContent: '×' });
+          x.onclick = (e) => { e.stopPropagation(); removeItem(i); };
+          card.append(x);
+        }
+        story.append(card);
       });
+
+      const adders = document.createElement('div');
+      adders.className = 'adders';
+      const addStepBtn = Object.assign(document.createElement('button'), { className: 'add', textContent: '+ Step' });
+      addStepBtn.onclick = addStep;
+      adders.append(addStepBtn);
+      if (state.addingPage) {
+        const form = document.createElement('form');
+        form.className = 'add-page';
+        const input = Object.assign(document.createElement('input'), { placeholder: 'Page path, e.g. /leases', required: true });
+        input.onkeydown = (e) => { if (e.key === 'Escape') { state.addingPage = false; renderStory(); } };
+        form.onsubmit = (e) => { e.preventDefault(); state.addingPage = false; addPage(input.value.trim()); };
+        form.append(input);
+        adders.append(form);
+        setTimeout(() => input.focus());
+      } else {
+        const addPageBtn = Object.assign(document.createElement('button'), { className: 'add', textContent: '+ Page' });
+        addPageBtn.onclick = () => { state.addingPage = true; renderStory(); };
+        adders.append(addPageBtn);
+      }
+      if (state.flow.length > 0) story.append(Object.assign(document.createElement('span'), { className: 'arrow', textContent: '→' }));
+      story.append(adders);
+      $('#stage').classList.toggle('picking', canPick());
     }
 
     // ---------- preview ----------
     $('#previewBtn').onclick = () => {
-      if (!state.steps.length) return toast('Add a step first.');
-      closeEditor();
+      if (!steps().length) return toast('Add a step first.');
+      clearSelection();
+      state.active = null;
       state.previewing = true;
+      renderStory();
       showPreview(0);
     };
+    function endPreview(msg) {
+      state.previewing = false;
+      clearSelection();
+      showPage(currentPage());
+      renderStory();
+      if (msg) toast(msg);
+    }
     function showPreview(i) {
-      closeEditor();
-      if (i >= state.steps.length) { state.previewing = false; renderStory(); return toast('End of tour.'); }
-      const s = state.steps[i];
+      clearSelection();
+      const all = steps();
+      if (i >= all.length) return endPreview('End of tour.');
+      const s = all[i];
+      if (i > 0 && s.page !== all[i - 1].page) toast(`The tour moves to ${s.page}`);
+      showPage(s.page);
       selBox = document.createElement('div');
       selBox.className = 'sel-box';
       $('#layer').append(selBox);
@@ -561,13 +666,13 @@
       const p = popoverAt(s.els);
       Object.assign(pop.style, { left: p.left + 'px', top: p.top + 'px' });
       pop.innerHTML = `<div class="body"><div class="title"></div><div class="text"></div></div>
-        <div class="actions"><span style="font-size:12px;opacity:.7">${i + 1} of ${state.steps.length}</span><span></span></div>`;
+        <div class="actions"><span style="font-size:12px;opacity:.7">${i + 1} of ${all.length}</span><span></span></div>`;
       pop.querySelector('.title').innerHTML = s.titleHtml;
       pop.querySelector('.text').innerHTML = s.textHtml;
       const actions = pop.querySelector('.actions span:last-child');
       const go = () => showPreview(i + 1);
       if (s.advanceOn === 'next') {
-        const b = Object.assign(document.createElement('button'), { className: 'tb', textContent: i === state.steps.length - 1 ? 'Done' : 'Next' });
+        const b = Object.assign(document.createElement('button'), { className: 'tb', textContent: i === all.length - 1 ? 'Done' : 'Next' });
         b.onclick = go;
         actions.append(b);
       } else if (s.advanceOn === 'click') {
@@ -581,7 +686,7 @@
         pop.querySelector('.body').append(input);
       }
       const stop = Object.assign(document.createElement('button'), { className: 'link', textContent: 'Exit preview' });
-      stop.onclick = () => { state.previewing = false; closeEditor(); renderStory(); };
+      stop.onclick = () => endPreview();
       pop.querySelector('.actions').prepend(stop);
       $('#layer').append(pop);
     }
@@ -590,12 +695,14 @@
     $('#fileBtn').onclick = () => {
       const plain = (html) => { const d = document.createElement('div'); d.innerHTML = html; return d.innerText.trim(); };
       const id = state.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const start = state.flow[0].path;
       const tour = {
         id,
         title: state.name,
-        page: (() => { try { return new URL(state.url).pathname; } catch { return state.url; } })(),
+        page: start,
         theme: Object.fromEntries([...document.querySelectorAll('#colorPanel input')].map((i) => [i.dataset.var.replace('--tour-', ''), i.value])),
-        steps: state.steps.map((s) => ({
+        steps: steps().map((s) => ({
+          ...(s.page !== start ? { page: s.page } : {}),
           target: s.target,
           title: plain(s.titleHtml),
           text: plain(s.textHtml),
@@ -604,9 +711,11 @@
           ...(/<img\b/.test(s.textHtml) ? { images: ['(uploaded image)'] } : {}),
         })),
       };
+      const drafts = state.flow.filter((i) => i.draft).length;
       $('#fileOut').textContent =
         JSON.stringify(tour, null, 2) +
-        '\n\n// Not in the tour format yet: "theme", "formattedText", "images", advanceOn "type", and a list as "target" (groups).';
+        '\n\n// Not in the tour format yet: "theme", "formattedText", "images", advanceOn "type", and a list as "target" (groups).' +
+        (drafts ? '\n// Steps with nothing highlighted yet are left out.' : '');
       $('#filebox').hidden = false;
     };
     $('#closeFile').onclick = () => ($('#filebox').hidden = true);
