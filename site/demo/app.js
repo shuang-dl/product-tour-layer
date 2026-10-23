@@ -483,8 +483,8 @@
 
   render();
 
-  // Real tours, run by the same engine the extension uses.
-  fetch('tours.json', { cache: 'no-store' })
+  // Real tours, run by the same engine the extension uses. Not inside the tour builder, which draws its own.
+  if (window.self === window.top) fetch('tours.json', { cache: 'no-store' })
     .then((r) => r.json())
     .then(({ tours }) => window.TourLayer.init({ tours, basePath: ROOT }))
     .catch((e) => console.warn('[demo] tours not loaded', e));

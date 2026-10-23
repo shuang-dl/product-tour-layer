@@ -44,7 +44,8 @@
     .tool[data-tip]:hover::after { content: attr(data-tip); position: absolute; left: 48px; white-space: nowrap; background: #222; color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; z-index: 5; }
     .tools hr { width: 100%; border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
     .stage { position: relative; overflow: auto; background: #e9edf3; padding: 16px; }
-    .stage-inner { position: relative; min-width: 760px; }
+    .stage-inner { position: relative; min-width: 1100px; height: 100%; min-height: 560px; }
+    #frame { display: block; width: 100%; height: 100%; border: 0; border-radius: 8px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
     .layer { position: absolute; inset: 0; pointer-events: none; }
     .draw-surface { position: absolute; inset: 0; cursor: crosshair; display: none; }
     .mode-box .draw-surface { display: block; }
@@ -92,8 +93,6 @@
     .add { border: 2px dashed var(--border); background: transparent; color: var(--accent); border-radius: 10px; padding: 7px 14px; font-weight: 600; white-space: nowrap; }
     .add:hover { border-color: var(--accent); }
     .add-page input { width: 170px; padding: 7px 10px; border: 2px solid var(--accent); border-radius: 10px; background: var(--card); color: var(--text); font: inherit; font-size: 13px; }
-    .stage:not(.picking) .dl { cursor: default; }
-    .stage.picking .dl { cursor: crosshair; }
     .stage:not(.picking) .draw-surface { cursor: not-allowed; }
 
     /* panels */
@@ -108,28 +107,6 @@
     .toast { position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 30; }
     .toast[hidden] { display: none; }
 
-    /* sample DoorLoop page */
-    .dl { display: grid; grid-template-columns: 210px 1fr; background: #fff; color: #1a1a1a; border-radius: 8px; overflow: hidden; min-height: 520px; font-size: 13px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
-    .dl aside { background: #f7f7f5; padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; }
-    .dl .logo { font-weight: 800; padding: 4px 8px 10px; }
-    .dl aside button { text-align: left; border: 1px solid #e3e3e0; background: #fff; border-radius: 6px; padding: 6px 8px; margin-bottom: 4px; color: inherit; }
-    .dl aside .create { background: #0b1f44; color: #fff; border: 0; }
-    .dl aside a { display: block; padding: 6px 8px; border-radius: 6px; color: inherit; text-decoration: none; }
-    .dl aside a.sub { padding-left: 24px; }
-    .dl aside a.active { background: #fff; font-weight: 600; }
-    .dl main { padding: 16px 20px; }
-    .dl .head { display: flex; justify-content: space-between; align-items: center; }
-    .dl h1 { font-size: 20px; margin: 0; }
-    .dl .new { background: #d8f34a; border: 0; border-radius: 6px; padding: 6px 12px; font-weight: 600; }
-    .dl .bar { display: flex; gap: 8px; margin: 16px 0 10px; align-items: center; }
-    .dl .bar input { border: 1px solid #ddd; border-radius: 6px; padding: 6px 8px; width: 220px; font: inherit; }
-    .dl .bar button { border: 1px solid #ddd; background: #fff; border-radius: 6px; padding: 5px 9px; color: inherit; }
-    .dl .bar .sp { flex: 1; }
-    .dl table { width: 100%; border-collapse: collapse; }
-    .dl th, .dl td { text-align: left; padding: 9px 6px; border-bottom: 1px solid #eee; }
-    .dl th { color: #777; font-weight: 500; }
-    .dl .bal { color: #d23; text-align: right; }
-    .dl .status { color: #1a7f37; }
   </style>
 </head>
 <body>
@@ -139,8 +116,8 @@
     <p>A clickable draft of how tours could be built visually instead of by writing JSON. Nothing here is saved or published.</p>
     <p><button class="primary" id="create">+ Create new tour</button></p>
     <div class="note">
-      <strong>Concept only.</strong> DoorLoop can't be shown inside another site, so this draft uses a sample page that looks like DoorLoop.
-      In a real version the same tools would open on top of the live DoorLoop tab, through the extension.
+      <strong>Concept only.</strong> DoorLoop can't be shown inside another site, so this draft loads the <a href="demo/home">demo app</a> instead.
+      Browse it, add steps and pages, and preview the tour. In a real version the same tools would open on top of the live DoorLoop tab, through the extension.
     </div>
   </div>
 
@@ -150,8 +127,8 @@
       <h2>Create a new tour</h2>
       <label for="tourName">Tour name</label>
       <input id="tourName" value="Working with your tenant list" required>
-      <label for="tourUrl">Page where the tour starts</label>
-      <input id="tourUrl" value="https://app.doorloop.com/tenants" required>
+      <label for="tourUrl">Page where the tour starts (e.g. /home, /tenants, /properties)</label>
+      <input id="tourUrl" value="/tenants" required>
       <div class="row">
         <button type="button" class="ghost" id="cancelStart">Cancel</button>
         <button class="primary">Open page</button>
@@ -181,40 +158,7 @@
 
       <div class="stage" id="stage">
         <div class="stage-inner" id="stageInner">
-          <!-- Sample DoorLoop page (stand-in for the live page) -->
-          <div class="dl" id="dl">
-            <aside>
-              <div class="logo">doorloop</div>
-              <button data-cy="global-search-trigger">Search ⌘K</button>
-              <button class="create" data-cy="SideMenu-CreateNewMenu-Button">+ Create new</button>
-              <a href="#" data-cy="SideMenu-Main-Overview">Overview</a>
-              <a href="#" data-cy="SideMenu-Rentals-Properties">Rentals</a>
-              <a href="#" data-cy="SideMenu-Leasing-Leases">Leasing</a>
-              <a href="#" data-intercom-target="nav-side-menu-main-people">People</a>
-              <a href="#" class="sub active" data-cy="SideMenu-People-Tenants">Tenants</a>
-              <a href="#" class="sub" data-cy="SideMenu-People-Vendors">Vendors</a>
-              <a href="#" class="sub" data-cy="SideMenu-People-Prospects">Prospects</a>
-              <a href="#" data-cy="SideMenu-Accounting-Transactions">Accounting</a>
-              <a href="#" data-cy="SideMenu-Main-Reports">Reports</a>
-            </aside>
-            <main>
-              <div class="head">
-                <h1 data-cy="DetailScreen-ScreenTitle">Tenants</h1>
-                <button class="new">+ New lease</button>
-              </div>
-              <div class="bar">
-                <input aria-label="Search" placeholder="Search or filter...">
-                <button aria-label="Filter">Filter</button>
-                <span class="sp"></span>
-                <button aria-label="Columns">▥</button>
-                <button aria-label="Export">⤓</button>
-              </div>
-              <table>
-                <thead><tr><th>Tenant</th><th>Status</th><th>Email</th><th class="bal">Balance</th></tr></thead>
-                <tbody id="rows"></tbody>
-              </table>
-            </main>
-          </div>
+          <iframe id="frame" title="Demo app"></iframe>
           <div class="layer" id="layer"></div>
           <div class="draw-surface" id="drawSurface"></div>
         </div>
@@ -241,18 +185,13 @@
   <script>
     'use strict';
     const $ = (s) => document.querySelector(s);
-    const PICKABLE = '[data-cy], [data-intercom-target], [aria-label], button, a, input, tr, h1';
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const PICKABLE = '[data-cy], [data-intercom-target], [aria-label], [role=tab], button, a, input, tr, h1';
     const ADVANCE = { next: 'Next button', click: 'Click the element', type: 'Type text' };
 
-    // flow: the storyboard, in order. { type: 'page', path } or { type: 'step', page, draft?, els, ... }.
+    // flow: the storyboard, in order. { type: 'page', path } or { type: 'step', page, draft?, els, target, ... }.
     // active: index of the step being picked or edited; highlighting only works while a step is active.
     const state = { name: '', flow: [], tool: 'pointer', active: null, previewing: false, addingPage: false };
-
-    // fake tenant rows
-    $('#rows').innerHTML = [
-      ['Jordan Lee', '$1,200.00'], ['Priya Shah', '$0.00'], ['Marcus Bell', '$450.00'],
-      ['Ana Torres', '$2,000.00'], ['Sam Okafor', '$75.00'], ['Lena Fischer', '$0.00'],
-    ].map(([n, b]) => `<tr data-cy="list-engine-row"><td>${n}</td><td class="status">Current</td><td>${n.toLowerCase().replace(' ', '.')}@example.com</td><td class="bal">${b}</td></tr>`).join('');
 
     function toast(msg) {
       const t = $('#toast');
@@ -264,12 +203,87 @@
     const pathOf = (url) => { try { return new URL(url).pathname; } catch { return url.startsWith('/') ? url : '/' + url; } };
     const currentPage = () => [...state.flow].reverse().find((i) => i.type === 'page').path;
     const steps = () => state.flow.filter((i) => i.type === 'step' && !i.draft);
-    const showPage = (path) => ($('#wsUrl').textContent = `https://app.doorloop.com${path}  (sample page)`);
+    const showPage = (path) => ($('#wsUrl').textContent = `app.doorloop.com${path}  (demo app)`);
+
+    // ---------- the demo app, in a frame ----------
+    const frame = $('#frame');
+    const fwin = () => frame.contentWindow;
+    const fdoc = () => frame.contentDocument;
+    const framePath = () => {
+      const w = fwin();
+      return w && w.DEMO_ROOT ? w.location.pathname.slice(w.DEMO_ROOT.length) || '/' : null;
+    };
+    // Move the demo to a page. Once loaded, it uses the demo's own routing, so nothing reloads.
+    async function navigate(path) {
+      const w = fwin();
+      if (w && w.DEMO_ROOT) {
+        if (framePath() !== path) {
+          w.history.pushState({}, '', w.DEMO_ROOT + path);
+          w.dispatchEvent(new PopStateEvent('popstate'));
+        }
+        return;
+      }
+      await new Promise((resolve) => {
+        frame.addEventListener('load', resolve, { once: true });
+        frame.src = 'demo' + path;
+      });
+    }
+    const pickable = (node) => {
+      const el = node.closest && node.closest(PICKABLE);
+      return el && el !== fdoc().body ? el : null;
+    };
+    // Actually showing on screen: not clipped away (e.g. inside a closed menu section) or covered.
+    const visibleAt = (el) => {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return false;
+      const hit = fdoc().elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return !!hit && (hit === el || el.contains(hit));
+    };
+
+    frame.addEventListener('load', () => {
+      const doc = fdoc();
+      doc.addEventListener('mousemove', (e) => {
+        if (state.tool !== 'pointer' || !canPick()) return clearHover();
+        const el = pickable(e.target);
+        if (!el) return clearHover();
+        if (!hoverBox) {
+          hoverBox = document.createElement('div');
+          hoverBox.className = 'hover-box';
+          $('#layer').append(hoverBox);
+        }
+        place(hoverBox, rectIn(el), 2);
+      });
+      doc.documentElement.addEventListener('mouseleave', clearHover);
+      // With a step active, clicks pick; otherwise you can browse the demo normally.
+      doc.addEventListener('click', (e) => {
+        if (state.previewing || (canPick() && state.tool === 'pointer')) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        if (state.previewing || !canPick() || state.tool !== 'pointer') return;
+        const el = pickable(e.target);
+        if (el) select([el]);
+      }, true);
+      doc.addEventListener('scroll', refreshOverlay, true);
+    });
+
+    // Follow the demo's page as you browse it.
+    let shownPath = null;
+    setInterval(() => {
+      const p = framePath();
+      if (!p || p === shownPath || $('#wsModal').hidden) return;
+      shownPath = p;
+      clearHover();
+      if (!state.previewing) {
+        showPage(p);
+        if (shown && !shown.every((e) => e.isConnected)) clearSelection();
+      }
+    }, 300);
 
     // ---------- opening the builder ----------
     $('#create').onclick = () => ($('#startModal').hidden = false);
     $('#cancelStart').onclick = () => ($('#startModal').hidden = true);
-    $('#startForm').onsubmit = (e) => {
+    $('#startForm').onsubmit = async (e) => {
       e.preventDefault();
       state.name = $('#tourName').value.trim();
       state.flow = [{ type: 'page', path: pathOf($('#tourUrl').value.trim()) }];
@@ -279,16 +293,19 @@
       $('#startModal').hidden = true;
       $('#wsModal').hidden = false;
       renderStory();
-      toast('Click + Step in the storyboard to add the first step.');
+      await navigate(currentPage());
+      toast('Browse the demo if you like. Click + Step in the storyboard to add the first step.');
     };
     $('#closeWs').onclick = () => ($('#wsModal').hidden = true);
 
     // ---------- geometry helpers ----------
     const inner = $('#stageInner');
+    // Position of an element (in the demo frame or this page) relative to the stage.
     function rectIn(el) {
       const r = el.getBoundingClientRect();
       const o = inner.getBoundingClientRect();
-      return { left: r.left - o.left, top: r.top - o.top, width: r.width, height: r.height };
+      const f = el.ownerDocument === document ? { left: 0, top: 0 } : frame.getBoundingClientRect();
+      return { left: r.left + f.left - o.left, top: r.top + f.top - o.top, width: r.width, height: r.height };
     }
     function unionRect(els) {
       const rs = els.map(rectIn);
@@ -310,7 +327,29 @@
       if (el.dataset.intercomTarget) return `[data-intercom-target='${el.dataset.intercomTarget}']`;
       const aria = el.getAttribute('aria-label');
       if (aria) return `${el.tagName.toLowerCase()}[aria-label='${aria}']`;
-      return { text: el.innerText.trim().split('\n')[0] };
+      return { text: el.innerText.trim().split('\n')[0], selector: el.tagName.toLowerCase() };
+    }
+    // Find a saved target again (after the demo moved pages), the way the tour engine would.
+    function resolve(target) {
+      const doc = fdoc();
+      const one = (t) => {
+        const sized = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+        if (typeof t === 'string') return [...doc.querySelectorAll(t)].find(sized);
+        const want = t.text.trim().toLowerCase();
+        return [...doc.querySelectorAll(t.selector || 'button, a, [role="button"]')].find((el) => sized(el) && el.innerText.trim().split('\n')[0].trim().toLowerCase() === want);
+      };
+      const list = (Array.isArray(target) ? target : [target]).map(one);
+      return list.every(Boolean) ? list : null;
+    }
+    async function elsFor(step) {
+      await navigate(step.page);
+      if (step.els && step.els.every((e) => e.isConnected)) return step.els;
+      for (let i = 0; i < 20; i++) {
+        const els = resolve(step.target);
+        if (els) return els;
+        await sleep(100);
+      }
+      return null;
     }
 
     // ---------- storyboard actions ----------
@@ -321,27 +360,33 @@
         return toast('Finish this step first: pick something to highlight.');
       }
       clearSelection();
+      // Browsed to another page since the last page card? Add a card for it.
+      const here = framePath();
+      if (here && here !== currentPage()) state.flow.push({ type: 'page', path: here });
       state.flow.push({ type: 'step', draft: true, page: currentPage() });
       state.active = state.flow.length - 1;
       renderStory();
-      toast('Step added. Now click something on the page, or use the box tool to draw around it.');
+      toast('Step added. Now click something in the demo, or use the box tool to draw around it.');
     }
-    function addPage(path) {
+    async function addPage(path) {
       clearSelection();
       state.flow = state.flow.filter((i) => !i.draft);
       state.active = null;
       state.flow.push({ type: 'page', path: pathOf(path) });
-      showPage(currentPage());
       renderStory();
-      toast(`Steps you add now happen on ${pathOf(path)}. Click + Step.`);
+      await navigate(currentPage());
+      toast(`Now on ${currentPage()}. Click + Step to add steps for this page.`);
     }
-    function activate(i) {
+    async function activate(i) {
       clearSelection();
       state.active = i;
       const item = state.flow[i];
-      showPage(item.page);
-      if (item.draft) renderStory();
-      else select(item.els);
+      renderStory();
+      if (item.draft) return navigate(item.page);
+      const els = await elsFor(item);
+      if (state.active !== i) return;
+      if (!els) return toast(`Couldn't find “${item.label}” on ${item.page}.`);
+      select(els);
     }
     function removeItem(i) {
       if (i === 0) return;
@@ -349,7 +394,6 @@
       state.flow.splice(i, 1);
       if (state.active === i) state.active = null;
       else if (state.active > i) state.active--;
-      showPage(currentPage());
       renderStory();
     }
 
@@ -371,41 +415,19 @@
     $('#undoTool').onclick = () => removeItem(state.flow.length - 1);
 
     const canPick = () => state.active !== null && !state.previewing;
-    const needStep = () => toast('Click + Step first, then pick what it highlights.');
 
-    // pointer: hover + click on the sample page
-    const dl = $('#dl');
     let hoverBox = null;
     function clearHover() {
       hoverBox?.remove();
       hoverBox = null;
     }
-    dl.addEventListener('mousemove', (e) => {
-      if (state.tool !== 'pointer' || !canPick()) return clearHover();
-      const el = e.target.closest(PICKABLE);
-      if (!el || !dl.contains(el)) return clearHover();
-      if (!hoverBox) {
-        hoverBox = document.createElement('div');
-        hoverBox.className = 'hover-box';
-        $('#layer').append(hoverBox);
-      }
-      place(hoverBox, rectIn(el), 2);
-    });
-    dl.addEventListener('mouseleave', clearHover);
-    dl.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (state.tool !== 'pointer' || state.previewing) return;
-      if (!canPick()) return needStep();
-      const el = e.target.closest(PICKABLE);
-      if (el && dl.contains(el)) select([el]);
-    }, true);
 
-    // box: draw a rectangle; groups everything inside it, or snaps to the best single match
+    // box: draw a rectangle over the demo; groups everything inside it, or snaps to the best single match
     let drawStart = null;
     let drawn = null;
     const surface = $('#drawSurface');
     surface.addEventListener('mousedown', (e) => {
-      if (!canPick()) return needStep();
+      if (!canPick()) return toast('Click + Step first, then draw around what it highlights.');
       const o = inner.getBoundingClientRect();
       drawStart = { x: e.clientX - o.left, y: e.clientY - o.top };
       drawn?.remove();
@@ -425,7 +447,7 @@
       const d = { left: parseFloat(drawn.style.left), top: parseFloat(drawn.style.top), width: parseFloat(drawn.style.width), height: parseFloat(drawn.style.height) };
       const box = drawn;
       setTimeout(() => box.remove(), 600);
-      if (d.width < 6 || d.height < 6) return;
+      if (!(d.width >= 6 && d.height >= 6)) return;
       const group = elementsInBox(d);
       if (group.length > 1) {
         select(group);
@@ -436,42 +458,61 @@
       select([el]);
       toast(`Snapped to “${labelFor(el)}”`);
     });
-    // Everything mostly (60%+) inside the box. Nested matches collapse to the innermost ones,
-    // so a box around menu items picks the items, not their wrapper.
+    const overlap = (d, r) => {
+      const ix = Math.max(0, Math.min(d.left + d.width, r.left + r.width) - Math.max(d.left, r.left));
+      const iy = Math.max(0, Math.min(d.top + d.height, r.top + r.height) - Math.max(d.top, r.top));
+      return ix * iy;
+    };
+    // Everything visible and mostly (60%+) inside the box. Nested matches collapse to the outermost,
+    // so a box around a widget picks the widget, and a box around menu items picks the items.
     function elementsInBox(d) {
-      const inside = [...dl.querySelectorAll(PICKABLE)].filter((el) => {
+      const inside = [...fdoc().querySelectorAll(PICKABLE)].filter((el) => {
+        if (!visibleAt(el)) return false;
         const r = rectIn(el);
-        const ix = Math.max(0, Math.min(d.left + d.width, r.left + r.width) - Math.max(d.left, r.left));
-        const iy = Math.max(0, Math.min(d.top + d.height, r.top + r.height) - Math.max(d.top, r.top));
-        return r.width * r.height > 0 && (ix * iy) / (r.width * r.height) >= 0.6;
+        return overlap(d, r) / (r.width * r.height) >= 0.6;
       });
-      return inside.filter((el) => !inside.some((o) => o !== el && el.contains(o)));
+      return inside.filter((el) => !inside.some((o) => o !== el && o.contains(el)));
     }
     function closestElement(d) {
       let best = null, bestScore = 0;
-      dl.querySelectorAll(PICKABLE).forEach((el) => {
+      fdoc().querySelectorAll(PICKABLE).forEach((el) => {
+        if (!visibleAt(el)) return;
         const r = rectIn(el);
-        const ix = Math.max(0, Math.min(d.left + d.width, r.left + r.width) - Math.max(d.left, r.left));
-        const iy = Math.max(0, Math.min(d.top + d.height, r.top + r.height) - Math.max(d.top, r.top));
-        const inter = ix * iy;
+        const inter = overlap(d, r);
         const score = inter / (d.width * d.height + r.width * r.height - inter); // overlap ÷ combined area
         if (score > bestScore) { best = el; bestScore = score; }
       });
       return bestScore > 0.05 ? best : null;
     }
 
-    // ---------- step editor (looks like the tour popover itself) ----------
+    // ---------- highlight + step editor (looks like the tour popover itself) ----------
     let selBox = null;
     let pop = null;
+    let shown = null; // elements currently highlighted
 
-    // Highlight els (one element, or a box-tool group) for the active step and open its editor.
-    function select(els) {
-      clearHover();
+    function highlight(els) {
       clearSelection();
+      shown = els;
+      els[0].scrollIntoView({ block: 'nearest' });
       selBox = document.createElement('div');
       selBox.className = 'sel-box';
       $('#layer').append(selBox);
       place(selBox, unionRect(els));
+    }
+    function refreshOverlay() {
+      clearHover();
+      if (!shown || !shown.every((e) => e.isConnected)) return;
+      place(selBox, unionRect(shown));
+      if (pop) {
+        const p = popoverAt(shown);
+        Object.assign(pop.style, { left: p.left + 'px', top: p.top + 'px' });
+      }
+    }
+
+    // Highlight els (one element, or a box-tool group) for the active step and open its editor.
+    function select(els) {
+      clearHover();
+      highlight(els);
       const item = state.flow[state.active];
       openEditor(els, item.draft ? null : item);
       renderStory();
@@ -482,7 +523,7 @@
       const w = inner.clientWidth;
       const left = r.left + r.width + 320 < w ? r.left + r.width + 14 : Math.max(8, Math.min(r.left, w - 308));
       const top = r.left + r.width + 320 < w ? r.top : r.top + r.height + 14;
-      return { left, top };
+      return { left, top: Math.max(8, Math.min(top, inner.clientHeight - 260)) };
     }
 
     function openEditor(els, step) {
@@ -556,7 +597,7 @@
         state.active = null;
         clearSelection();
         renderStory();
-        toast('Step saved. Click + Step to add another, or + Page if the next step is on another page.');
+        toast('Step saved. Click + Step to add another, or + Page to move to another page.');
       };
       title.focus();
     }
@@ -564,7 +605,7 @@
     function clearSelection() {
       pop?.remove();
       selBox?.remove();
-      pop = selBox = null;
+      pop = selBox = shown = null;
     }
 
     // ---------- storyboard ----------
@@ -576,16 +617,18 @@
         if (i > 0) story.append(Object.assign(document.createElement('span'), { className: 'arrow', textContent: '→' }));
         const card = document.createElement('div');
         card.className = 'card';
+        card.setAttribute('role', 'button');
+        card.tabIndex = 0;
         if (item.type === 'page') {
-          const count = state.flow.slice(i + 1).findIndex((x) => x.type === 'page');
-          const n = (count === -1 ? state.flow.slice(i + 1) : state.flow.slice(i + 1, i + 1 + count)).filter((x) => x.type === 'step').length;
+          const next = state.flow.slice(i + 1).findIndex((x) => x.type === 'page');
+          const n = (next === -1 ? state.flow.slice(i + 1) : state.flow.slice(i + 1, i + 1 + next)).filter((x) => x.type === 'step').length;
           card.classList.add('page-card');
+          card.title = 'Go to this page';
           card.innerHTML = `<div class="n">${i === 0 ? 'Start page' : 'Page'}</div><div class="t"></div><div class="chips"><span class="chip">${n} step${n === 1 ? '' : 's'}</span></div>`;
           card.querySelector('.t').textContent = item.path;
+          card.onclick = () => navigate(item.path);
         } else {
           stepNo++;
-          card.setAttribute('role', 'button');
-          card.tabIndex = 0;
           card.classList.toggle('on', state.active === i);
           card.classList.toggle('draft', !!item.draft);
           card.innerHTML = `<div class="n">Step ${stepNo}</div><div class="t"></div><div class="chips"></div>`;
@@ -618,7 +661,8 @@
       if (state.addingPage) {
         const form = document.createElement('form');
         form.className = 'add-page';
-        const input = Object.assign(document.createElement('input'), { placeholder: 'Page path, e.g. /leases', required: true });
+        const here = framePath();
+        const input = Object.assign(document.createElement('input'), { placeholder: 'Page path, e.g. /leases', required: true, value: here && here !== currentPage() ? here : '' });
         input.onkeydown = (e) => { if (e.key === 'Escape') { state.addingPage = false; renderStory(); } };
         form.onsubmit = (e) => { e.preventDefault(); state.addingPage = false; addPage(input.value.trim()); };
         form.append(input);
@@ -629,12 +673,13 @@
         addPageBtn.onclick = () => { state.addingPage = true; renderStory(); };
         adders.append(addPageBtn);
       }
-      if (state.flow.length > 0) story.append(Object.assign(document.createElement('span'), { className: 'arrow', textContent: '→' }));
+      story.append(Object.assign(document.createElement('span'), { className: 'arrow', textContent: '→' }));
       story.append(adders);
       $('#stage').classList.toggle('picking', canPick());
     }
 
     // ---------- preview ----------
+    let previewRun = 0;
     $('#previewBtn').onclick = () => {
       if (!steps().length) return toast('Add a step first.');
       clearSelection();
@@ -644,26 +689,30 @@
       showPreview(0);
     };
     function endPreview(msg) {
+      previewRun++;
       state.previewing = false;
       clearSelection();
-      showPage(currentPage());
       renderStory();
       if (msg) toast(msg);
     }
-    function showPreview(i) {
+    async function showPreview(i) {
       clearSelection();
       const all = steps();
       if (i >= all.length) return endPreview('End of tour.');
+      const run = ++previewRun;
       const s = all[i];
       if (i > 0 && s.page !== all[i - 1].page) toast(`The tour moves to ${s.page}`);
       showPage(s.page);
-      selBox = document.createElement('div');
-      selBox.className = 'sel-box';
-      $('#layer').append(selBox);
-      place(selBox, unionRect(s.els));
+      const els = await elsFor(s);
+      if (run !== previewRun || !state.previewing) return;
+      if (!els) {
+        toast(`Couldn't find “${s.label}” on ${s.page}; skipping it.`);
+        return showPreview(i + 1);
+      }
+      highlight(els);
       pop = document.createElement('div');
       pop.className = 'pop';
-      const p = popoverAt(s.els);
+      const p = popoverAt(els);
       Object.assign(pop.style, { left: p.left + 'px', top: p.top + 'px' });
       pop.innerHTML = `<div class="body"><div class="title"></div><div class="text"></div></div>
         <div class="actions"><span style="font-size:12px;opacity:.7">${i + 1} of ${all.length}</span><span></span></div>`;
