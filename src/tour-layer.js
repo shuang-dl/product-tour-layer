@@ -7,6 +7,12 @@
   const STATE_KEY = 'tourLayer.state';
   const TARGET_TIMEOUT_MS = 8000;
   const OPTIONAL_TIMEOUT_MS = 1500;
+  // The agreed step box look. A tour's "style" block overrides any of these.
+  const DEFAULT_STYLE = {
+    frame: '#0b1f44', bandText: '#ffffff', button: '#d8f34a', buttonText: '#0b1f44', bodyText: '#1b1d21', bodyBg: '#ffffff',
+    headerHeight: 26, footerHeight: 48, sideBorder: 3, corners: 10,
+    titleSize: 'h2', titleAlign: 'left', textAlign: 'left',
+  };
   const POLL_MS = 250;
 
   let tours = [];
@@ -157,17 +163,16 @@
       element: el || undefined,
       popover: {
         title: escapeHtml(step.title),
-        description:
-          escapeHtml(step.text) +
-          (clickToAdvance ? '<p class="tour-layer-hint">Click the highlighted item to continue.</p>' : ''),
+        description: escapeHtml(step.text),
         showButtons: buttons,
         showProgress: true,
-        progressText: `${index + 1} of ${total}`,
+        progressText: `Step ${index + 1} of ${total}`,
         nextBtnText: index === total - 1 ? 'Done' : 'Next',
         prevBtnText: 'Back',
         onNextClick: () => goTo(tour, index + 1),
         onPrevClick: () => goTo(tour, index - 1, -1),
         onCloseClick: endTour,
+        onPopoverRender: (popover) => renderStepBox(popover, tour, step, clickToAdvance),
       },
     });
 
@@ -185,6 +190,32 @@
         { once: true, capture: true }
       );
     }
+  }
+
+  // Rebuild driver.js's popover into the step box: a header band (step count, close), a body
+  // (full-width image, heading title, text) and a footer band (Back, Next or a hint).
+  // driver.js's own button classes are kept, so its click handling still works.
+  function renderStepBox(p, tour, step, clickToAdvance) {
+    const s = Object.assign({}, DEFAULT_STYLE, tour.style);
+    const vars = {
+      '--tl-frame': s.frame, '--tl-band-text': s.bandText, '--tl-button': s.button, '--tl-button-text': s.buttonText,
+      '--tl-body-text': s.bodyText, '--tl-body-bg': s.bodyBg, '--tl-header-h': s.headerHeight + 'px',
+      '--tl-footer-h': s.footerHeight + 'px', '--tl-side': s.sideBorder + 'px', '--tl-corners': s.corners + 'px',
+      '--tl-title-align': s.titleAlign, '--tl-text-align': s.textAlign,
+    };
+    for (const [k, v] of Object.entries(vars)) p.wrapper.style.setProperty(k, v);
+
+    const title = document.createElement(s.titleSize);
+    title.id = 'driver-popover-title';
+    title.className = 'driver-popover-title tl-title';
+    title.textContent = step.title;
+    const body = el('div', { className: 'tl-body' });
+    if (step.image) body.append(el('img', { className: 'tl-img', src: step.image, alt: '' }));
+    body.append(el('div', { className: 'tl-pad' }, [title, p.description]));
+
+    const right = clickToAdvance ? el('span', { className: 'tl-hint', textContent: 'Click the highlighted item' }) : p.nextButton;
+    p.footer.replaceChildren(p.previousButton, right);
+    p.wrapper.replaceChildren(p.arrow, el('div', { className: 'tl-head' }, [p.progress, p.closeButton]), body, p.footer);
   }
 
   function onRoute() {
@@ -211,7 +242,31 @@
     .tour-layer-panel button:hover { background: #f0f4fb; }
     .tour-layer-panel small { display: block; color: #666; }
     .tour-layer-panel .tour-layer-heading { padding: 6px 10px; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
-    .tour-layer-popover .tour-layer-hint { margin: 8px 0 0; font-style: italic; color: #555; }
+    .driver-popover.tour-layer-popover { padding: 0; min-width: 300px; max-width: 340px; border-radius: var(--tl-corners); background: var(--tl-frame); color: var(--tl-body-text); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    .tour-layer-popover .tl-head, .tour-layer-popover .driver-popover-footer { display: flex; align-items: center; justify-content: space-between; margin: 0; color: var(--tl-band-text); }
+    .tour-layer-popover .tl-head { height: var(--tl-header-h); padding: 0 6px 0 10px; border-radius: var(--tl-corners) var(--tl-corners) 0 0; }
+    .tour-layer-popover .driver-popover-progress-text { color: inherit; font-size: 12px; }
+    .tour-layer-popover .driver-popover-close-btn { position: static; width: auto; height: auto; padding: 0 4px; color: inherit; font-size: 18px; line-height: 1; opacity: .85; }
+    .tour-layer-popover .driver-popover-close-btn:hover, .tour-layer-popover .driver-popover-close-btn:focus { color: inherit; opacity: 1; }
+    .tour-layer-popover .tl-body { margin: 0 var(--tl-side); background: var(--tl-body-bg); color: var(--tl-body-text); }
+    .tour-layer-popover .tl-img { display: block; width: 100%; max-height: 180px; object-fit: cover; }
+    .tour-layer-popover .tl-pad { padding: 14px 16px 16px; }
+    .tour-layer-popover .tl-title { display: block; margin: 0 0 6px; font-weight: 600; line-height: 1.25; text-align: var(--tl-title-align); color: inherit; }
+    .tour-layer-popover h1.tl-title { font-size: 22px; } .tour-layer-popover h2.tl-title { font-size: 18px; } .tour-layer-popover h3.tl-title { font-size: 16px; }
+    .tour-layer-popover .driver-popover-description { margin: 0; font-size: 14px; line-height: 1.5; text-align: var(--tl-text-align); color: inherit; }
+    .tour-layer-popover .driver-popover-footer { height: var(--tl-footer-h); padding: 0 10px 0 12px; gap: 8px; border-radius: 0 0 var(--tl-corners) var(--tl-corners); }
+    .tour-layer-popover .driver-popover-footer button { text-shadow: none; border: 0; font-size: 13px; }
+    .tour-layer-popover .driver-popover-prev-btn, .tour-layer-popover .driver-popover-prev-btn:hover, .tour-layer-popover .driver-popover-prev-btn:focus { background: none; color: inherit; padding: 2px 4px; }
+    .tour-layer-popover .driver-popover-next-btn, .tour-layer-popover .driver-popover-next-btn:hover, .tour-layer-popover .driver-popover-next-btn:focus {
+      margin-left: auto; background: var(--tl-button); color: var(--tl-button-text); font-weight: 600; border-radius: 6px;
+      padding: max(4px, calc((var(--tl-footer-h) - 22px) / 2.6)) calc(max(4px, calc((var(--tl-footer-h) - 22px) / 2.6)) + 10px); }
+    .tour-layer-popover .driver-popover-next-btn:hover { filter: brightness(.95); }
+    .tour-layer-popover .tl-hint { margin-left: auto; font-size: 12px; font-style: italic; }
+    .tour-layer-popover .driver-popover-arrow { border-color: transparent; }
+    .tour-layer-popover .driver-popover-arrow-side-left { border-left-color: var(--tl-frame); }
+    .tour-layer-popover .driver-popover-arrow-side-right { border-right-color: var(--tl-frame); }
+    .tour-layer-popover .driver-popover-arrow-side-top { border-top-color: var(--tl-frame); }
+    .tour-layer-popover .driver-popover-arrow-side-bottom { border-bottom-color: var(--tl-frame); }
   `;
 
   function el(tag, props, children) {

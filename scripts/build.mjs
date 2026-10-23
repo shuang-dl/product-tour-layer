@@ -8,8 +8,28 @@ import { execFileSync } from 'node:child_process';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 
-const TOUR_KEYS = ['id', 'title', 'description', 'page', 'steps'];
-const STEP_KEYS = ['target', 'title', 'text', 'page', 'advanceOn', 'optional'];
+const TOUR_KEYS = ['id', 'title', 'description', 'page', 'style', 'steps'];
+const STEP_KEYS = ['target', 'title', 'text', 'page', 'advanceOn', 'optional', 'image'];
+// The step box style (one per tour). Colours are #rrggbb, sizes are whole pixels in a range, the rest are choices.
+const STYLE_RULES = {
+  frame: 'color', bandText: 'color', button: 'color', buttonText: 'color', bodyText: 'color', bodyBg: 'color',
+  headerHeight: [16, 48], footerHeight: [32, 64], sideBorder: [0, 8], corners: [0, 16],
+  titleSize: ['h1', 'h2', 'h3'], titleAlign: ['left', 'center', 'right'], textAlign: ['left', 'center', 'right', 'justify'],
+};
+// An https URL or a path to an image file, with nothing that could break out of an attribute.
+const IMAGE = /^(https:\/\/|\/|\.{0,2}\/)?[^\s"'<>]+\.(png|jpe?g|gif|webp|svg)(\?[^\s"'<>]*)?$/i;
+
+function validateStyle(style, err) {
+  if (!style || typeof style !== 'object' || Array.isArray(style)) return err('"style" must be an object');
+  for (const [key, value] of Object.entries(style)) {
+    const rule = STYLE_RULES[key];
+    if (!rule) err(`style: unknown field "${key}"`);
+    else if (rule === 'color' && !/^#[0-9a-f]{6}$/i.test(value)) err(`style.${key} must be a colour like "#0b1f44"`);
+    else if (Array.isArray(rule) && typeof rule[0] === 'number' && !(Number.isInteger(value) && value >= rule[0] && value <= rule[1])) {
+      err(`style.${key} must be a whole number from ${rule[0]} to ${rule[1]}`);
+    } else if (Array.isArray(rule) && typeof rule[0] === 'string' && !rule.includes(value)) err(`style.${key} must be one of ${rule.join(', ')}`);
+  }
+}
 const isText = (v) => typeof v === 'string' && v.trim().length > 0;
 
 function validateTour(tour, file) {
@@ -22,6 +42,7 @@ function validateTour(tour, file) {
   if (!isText(tour.title)) err('"title" is required');
   if (tour.description !== undefined && !isText(tour.description)) err('"description" must be text');
   if (!/^\/[^*]*$/.test(tour.page || '')) err('"page" must be a path like "/tenants" (no "*": it is where the tour starts)');
+  if (tour.style !== undefined) validateStyle(tour.style, err);
   if (!Array.isArray(tour.steps) || !tour.steps.length) {
     err('"steps" must be a non-empty list');
     return errors;
@@ -39,6 +60,9 @@ function validateTour(tour, file) {
     if (step.advanceOn === 'click' && step.target === undefined) err(`${at}: "advanceOn": "click" needs a "target"`);
     if (step.optional !== undefined && typeof step.optional !== 'boolean') err(`${at}: "optional" must be true or false`);
     if (step.optional && step.target === undefined) err(`${at}: "optional" needs a "target"`);
+    if (step.image !== undefined && !(typeof step.image === 'string' && IMAGE.test(step.image))) {
+      err(`${at}: "image" must be an https URL or a path to a .png, .jpg, .gif, .webp or .svg file`);
+    }
     const t = step.target;
     if (t !== undefined && !isText(t) && !(t && typeof t === 'object' && isText(t.text))) {
       err(`${at}: "target" must be a CSS selector or { "text": "...", "selector": "..." }`);

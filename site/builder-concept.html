@@ -838,6 +838,11 @@
     }
 
     // ---------- tour file ----------
+    const STYLE_FIELDS = {
+      '--tour-frame': 'frame', '--tour-band-text': 'bandText', '--tour-button': 'button', '--tour-button-text': 'buttonText',
+      '--tour-body-text': 'bodyText', '--tour-body-bg': 'bodyBg', '--tour-header-h': 'headerHeight', '--tour-footer-h': 'footerHeight',
+      '--tour-side': 'sideBorder', '--tour-radius': 'corners',
+    };
     $('#fileBtn').onclick = () => {
       const plain = (html) => { const d = document.createElement('div'); d.innerHTML = html; return d.innerText.trim(); };
       const id = state.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -846,24 +851,28 @@
         id,
         title: state.name,
         page: start,
+        // Same field names the tour engine and the build check use.
         style: {
-          ...Object.fromEntries([...document.querySelectorAll('#stylePanel input')].map((i) => [i.dataset.var.replace('--tour-', ''), i.type === 'range' ? +i.value : i.value])),
-          ...style,
+          ...Object.fromEntries([...document.querySelectorAll('#stylePanel input')].map((i) => [STYLE_FIELDS[i.dataset.var], i.type === 'range' ? +i.value : i.value])),
+          titleSize: style.titleTag,
+          titleAlign: style.titleAlign,
+          textAlign: style.textAlign,
         },
-        steps: steps().map((s) => ({
+        steps: steps().map((s, i) => ({
           ...(s.page !== start ? { page: s.page } : {}),
           target: s.target,
           title: plain(s.titleHtml),
           text: plain(s.textHtml),
           ...(s.advanceOn !== 'next' ? { advanceOn: s.advanceOn } : {}),
           ...(/<(b|i|u|ul|font|span)\b/.test(s.textHtml) ? { formattedText: '(formatting kept)' } : {}),
-          ...(s.image ? { image: '(uploaded image)' } : {}),
+          ...(s.image ? { image: `images/${id}-step-${i + 1}.png` } : {}),
         })),
       };
       const drafts = state.flow.filter((i) => i.draft).length;
       $('#fileOut').textContent =
         JSON.stringify(tour, null, 2) +
-        '\n\n// Not in the tour format yet: "style", "image", "formattedText", advanceOn "type", and a list as "target" (groups).' +
+        '\n\n// Uploaded images would be saved next to the tour as the "image" path shown.' +
+        '\n// Not in the tour format yet: "formattedText", advanceOn "type", and a list as "target" (groups).' +
         (drafts ? '\n// Steps with nothing highlighted yet are left out.' : '');
       $('#filebox').hidden = false;
     };

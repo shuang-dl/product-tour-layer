@@ -65,6 +65,7 @@ Add `tours/<id>.json`:
 | `id` | kebab-case, must match the file name |
 | `title`, `description` | shown on the links page and in the launcher |
 | `page` | the DoorLoop path the tour starts on |
+| `style` | optional. How every step box in this tour looks (see below) |
 | `steps` | list of steps |
 
 | Step field | |
@@ -74,6 +75,29 @@ Add `tours/<id>.json`:
 | `page` | optional. The path this step belongs to (`*` matches one segment, e.g. `/tenants/*`). The tour waits until the user is on it |
 | `advanceOn` | `"next"` (default) or `"click"`: the user clicks the highlighted element to continue |
 | `optional` | `true` = skip this step if its target isn't on screen (e.g. "open the People menu" when it's already open) |
+| `image` | optional. An image shown full width at the top of the step: an `https://` URL or a path to a `.png`, `.jpg`, `.gif`, `.webp` or `.svg` file |
+
+**Step box style.** Each step shows as a box with a coloured header band (step count and close), a body (image, title, text) and a coloured footer band (Back and Next). One `style` per tour keeps every step consistent; any field left out uses the default.
+
+```json
+"style": { "frame": "#0f6e56", "button": "#ffffff", "buttonText": "#0f6e56", "titleSize": "h3" }
+```
+
+| Style field | Default | |
+|---|---|---|
+| `frame` | `#0b1f44` | header, footer and side borders |
+| `bandText` | `#ffffff` | text in the header and footer |
+| `button` / `buttonText` | `#d8f34a` / `#0b1f44` | the Next button |
+| `bodyText` / `bodyBg` | `#1b1d21` / `#ffffff` | the body |
+| `headerHeight` | `26` | px, 16 to 48 |
+| `footerHeight` | `48` | px, 32 to 64 |
+| `sideBorder` | `3` | px, 0 to 8 |
+| `corners` | `10` | px, 0 to 16 |
+| `titleSize` | `h2` | `h1` (22px), `h2` (18px) or `h3` (16px); a real heading tag |
+| `titleAlign` | `left` | `left`, `center` or `right` |
+| `textAlign` | `left` | `left`, `center`, `right` or `justify` (text is always 14px) |
+
+The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html)'s Tour style panel (◐) sets these visually, and "View tour file" writes them in this format.
 
 **Picking targets.** Prefer, in order: `data-cy` (DoorLoop's test ids, e.g. `[data-cy='SideMenu-People-Tenants']`), `data-intercom-target`, `aria-label`, then `{ "text": ... }`. Avoid class names; they change with every DoorLoop release. In DevTools, `document.querySelectorAll('[data-cy]')` lists what's available on a page.
 

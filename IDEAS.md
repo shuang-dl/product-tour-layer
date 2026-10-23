@@ -33,7 +33,7 @@ Clickable concept: [builder-concept.html](https://shuang-dl.github.io/product-to
 
 **Step box style (draft, agreed)**
 
-One style per tour: every step in a tour looks the same. Set in the builder's Tour style panel (◐), not per step. Built into the [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html); the real tour engine doesn't use it yet.
+One style per tour: every step in a tour looks the same. Set in the builder's Tour style panel (◐), not per step. Built into the [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html) and the real tour engine (the `style` block and step `image` in the tour file; see the README).
 
 - **Layout:** a white body framed by a coloured header band on top, a coloured footer band below, and thin borders of the same colour down both sides.
 - **Header band** (default 26px, adjustable 16–48): step count ("Step 2 of 5") and the close ×.

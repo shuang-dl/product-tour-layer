@@ -6,7 +6,8 @@
   "steps": [
     {
       "title": "Welcome",
-      "text": "This is your Overview dashboard. It pulls together what needs your attention across your portfolio."
+      "text": "This is your Overview dashboard. It pulls together what needs your attention across your portfolio.",
+      "image": "tour-welcome.svg"
     },
     {
       "target": "[data-cy='global-search-trigger']",

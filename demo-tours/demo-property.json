@@ -3,6 +3,16 @@
   "title": "Look inside a property",
   "description": "From your property list to a property's units (two pages).",
   "page": "/properties",
+  "style": {
+    "frame": "#0f6e56",
+    "button": "#ffffff",
+    "buttonText": "#0f6e56",
+    "headerHeight": 30,
+    "footerHeight": 52,
+    "corners": 4,
+    "titleSize": "h3",
+    "textAlign": "left"
+  },
   "steps": [
     {
       "target": "[data-cy='DetailScreen-ScreenTitle']",

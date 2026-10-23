@@ -8,7 +8,8 @@ import { fileURLToPath } from 'node:url';
 const dist = join(dirname(fileURLToPath(import.meta.url)), '../dist');
 const PREFIX = '/product-tour-layer';
 const PORT = Number(process.env.PORT) || 4173;
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.zip': 'application/zip' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.zip': 'application/zip',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' };
 
 createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');

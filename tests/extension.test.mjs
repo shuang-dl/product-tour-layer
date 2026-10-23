@@ -32,6 +32,8 @@ try {
   check('tour starts from ?tour=', (await title(page)) === 'Find a tenant');
   check('?tour= stripped from URL', !page.url().includes('tour='), page.url());
   check('driver.css injected', (await page.locator('.driver-popover').evaluate((e) => getComputedStyle(e).position)) === 'fixed');
+  check('step box header shows step count', (await page.locator('.tl-head').textContent()).includes('Step 1 of 5'));
+  check('default style applied', (await page.locator('.driver-popover').evaluate((e) => getComputedStyle(e).backgroundColor)) === 'rgb(11, 31, 68)');
   await page.click('.driver-popover-next-btn');
   check('optional step shows when its target is visible', (await title(page)) === 'Open People');
   await page.click('#people');
@@ -73,12 +75,19 @@ try {
     r.fulfill({
       contentType: 'application/json',
       headers: { 'access-control-allow-origin': '*' },
-      body: JSON.stringify({ tours: [{ id: 'remote-test', title: 'Remote', page: '/home', steps: [{ title: 'From GitHub Pages', text: 'hi' }] }] }),
+      body: JSON.stringify({ tours: [{
+        id: 'remote-test', title: 'Remote', page: '/home',
+        style: { frame: '#123456', titleSize: 'h1' },
+        steps: [{ title: 'From GitHub Pages', text: 'hi', image: 'https://example.com/pic.png' }],
+      }] }),
     })
   );
   const page3 = await ctx.newPage();
   await page3.goto('https://acme.app.doorloop.com/home?tour=remote-test');
   check('uses published tours when reachable', (await title(page3)) === 'From GitHub Pages');
+  check("tour's style block applied", (await page3.locator('.driver-popover').evaluate((e) => getComputedStyle(e).backgroundColor)) === 'rgb(18, 52, 86)');
+  check('title uses the chosen heading tag', (await page3.locator('.tl-title').evaluate((e) => e.tagName)) === 'H1');
+  check('step image shown', (await page3.locator('.tl-img').count()) === 1);
   await page3.click('.driver-popover-close-btn');
   await page3.waitForTimeout(300);
   check('close button ends the tour', (await page3.locator('.driver-popover').count()) === 0);
