@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DoorLoop Product Tours</title>
+  <style>
+    :root { --bg: #f6f8fb; --card: #fff; --text: #1a1a1a; --muted: #5b6472; --accent: #1665d8; --border: #e2e7ef; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #11151c; --card: #1a2029; --text: #e8ecf2; --muted: #9aa4b2; --accent: #5b9bff; --border: #2a323e; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 16px; }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    h2 { margin: 40px 0 12px; font-size: 18px; }
+    p { color: var(--muted); margin: 0 0 16px; }
+    ol { color: var(--muted); padding-left: 20px; }
+    a { color: var(--accent); }
+    .tours { display: grid; gap: 12px; }
+    .tour { display: block; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; text-decoration: none; color: inherit; }
+    .tour:hover { border-color: var(--accent); }
+    .tour strong { display: block; color: var(--text); }
+    .tour span { color: var(--muted); font-size: 14px; }
+    .tour em { float: right; font-style: normal; color: var(--accent); font-size: 14px; }
+    code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>DoorLoop Product Tours</h1>
+    <p>Proof of concept: guided tours that run on top of DoorLoop without changing its code. Pick a tour and it opens the right page in DoorLoop and starts.</p>
+
+    <div class="tours" id="tours"><p>Loading tours…</p></div>
+
+    <h2>One-time setup</h2>
+    <ol>
+      <li>Install the <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener">Tampermonkey</a> browser extension.</li>
+      <li>Install the <a href="tour-layer.user.js">tour layer script</a> and click <strong>Install</strong> in the Tampermonkey tab that opens.</li>
+      <li>Log in to DoorLoop in the same browser, then click a tour above.</li>
+    </ol>
+    <p>On any DoorLoop page that has tours, a <strong>Tours</strong> button appears in the bottom-right corner.</p>
+  </main>
+  <script>
+    fetch('tours.json', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then(({ tours }) => {
+        const list = document.getElementById('tours');
+        list.replaceChildren(...tours.map((t) => {
+          const a = document.createElement('a');
+          a.className = 'tour';
+          a.href = `https://app.doorloop.com${t.page}?tour=${encodeURIComponent(t.id)}`;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          const go = document.createElement('em');
+          go.textContent = `${t.steps.length} steps →`;
+          const title = document.createElement('strong');
+          title.textContent = t.title;
+          const desc = document.createElement('span');
+          desc.textContent = t.description || '';
+          a.append(go, title, desc);
+          return a;
+        }));
+      })
+      .catch(() => { document.getElementById('tours').textContent = 'Could not load tours.json.'; });
+  </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{
+  "id": "find-a-tenant",
+  "title": "Find a tenant",
+  "description": "Go from the dashboard to a tenant's profile (spans two pages).",
+  "page": "/home",
+  "steps": [
+    {
+      "title": "Find a tenant",
+      "text": "Let's find a tenant's profile, starting from the side menu."
+    },
+    {
+      "page": "/home",
+      "target": "[data-cy='SideMenu-People-Tenants']",
+      "title": "Open Tenants",
+      "text": "Tenants are under People in the side menu.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/tenants",
+      "target": "input[aria-label='Search']",
+      "title": "Search the list",
+      "text": "Type part of a name, email, or phone number to find who you're looking for."
+    },
+    {
+      "page": "/tenants",
+      "target": "[data-cy='list-engine-row']",
+      "title": "Open a profile",
+      "text": "Click any row to open that tenant's profile: lease, balance, payments, and messages in one place."
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "id": "home-overview",
+  "title": "Your Overview dashboard",
+  "description": "A quick look around the home screen.",
+  "page": "/home",
+  "steps": [
+    {
+      "title": "Welcome to DoorLoop",
+      "text": "This is your Overview dashboard. It pulls together what needs your attention across your portfolio. Let's take a quick look around."
+    },
+    {
+      "target": "[data-cy='global-search-trigger']",
+      "title": "Search anything",
+      "text": "Find any tenant, property, unit, or transaction from here. Press Cmd+K (Ctrl+K on Windows) to open it from anywhere."
+    },
+    {
+      "target": "[data-cy='SideMenu-CreateNewMenu-Button']",
+      "title": "Create new",
+      "text": "Add a new lease, tenant, payment, task, and more without leaving the page you're on."
+    },
+    {
+      "target": "[data-cy='Widget-dashboards.thingsToDo']",
+      "title": "Things to do",
+      "text": "Items that need action, like expiring leases and outstanding balances, show up here."
+    },
+    {
+      "target": "[data-cy='Widget-dashboards.occupancyRate']",
+      "title": "Occupancy rate",
+      "text": "See how many of your units are occupied at a glance."
+    },
+    {
+      "target": "[data-cy='TrainingHubV2-DockButton']",
+      "title": "Help & training",
+      "text": "Open guides and training videos whenever you get stuck."
+    }
+  ]
+}

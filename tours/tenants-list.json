@@ -1,0 +1,38 @@
+{
+  "id": "tenants-list",
+  "title": "Working with your tenant list",
+  "description": "Search, filter, and export tenants.",
+  "page": "/tenants",
+  "steps": [
+    {
+      "target": "[data-cy='DetailScreen-ScreenTitle']",
+      "title": "Tenants",
+      "text": "Every tenant across your properties lives here."
+    },
+    {
+      "target": "input[aria-label='Search']",
+      "title": "Search or filter",
+      "text": "Type a name, email, or phone number to narrow the list."
+    },
+    {
+      "target": "button[aria-label='Filter']",
+      "title": "Filters",
+      "text": "Filter by property, lease status, balance, and more."
+    },
+    {
+      "target": "button[aria-label='Columns']",
+      "title": "Choose columns",
+      "text": "Pick which details show in the table."
+    },
+    {
+      "target": "button[aria-label='Export']",
+      "title": "Export",
+      "text": "Download the current list, with your filters applied."
+    },
+    {
+      "target": { "text": "New lease" },
+      "title": "Start a new lease",
+      "text": "Ready to move someone in? Start a lease here and DoorLoop creates the tenant for you."
+    }
+  ]
+}
