@@ -122,6 +122,7 @@
     if (step.page && !pageMatches(step.page, location.pathname)) {
       // Wrong page for this step: pause until the route watcher sees the right one.
       destroyDriver();
+      renderLauncher();
       return;
     }
     const timeout = step.optional ? OPTIONAL_TIMEOUT_MS : TARGET_TIMEOUT_MS;
