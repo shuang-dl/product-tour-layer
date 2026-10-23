@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tour Builder Concept</title>
+  <style>
+    :root {
+      --bg: #f6f8fb; --card: #fff; --text: #1a1a1a; --muted: #5b6472; --accent: #1665d8; --border: #e2e7ef;
+      --tour-bg: #ffffff; --tour-border: #1665d8; --tour-text: #1a1a1a; --tour-button: #1665d8;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #11151c; --card: #1a2029; --text: #e8ecf2; --muted: #9aa4b2; --accent: #5b9bff; --border: #2a323e; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, sans-serif; }
+    button { font: inherit; cursor: pointer; }
+    .intro { max-width: 760px; margin: 0 auto; padding: 48px 16px; }
+    .intro h1 { margin: 0 0 8px; font-size: 28px; }
+    .intro p { color: var(--muted); }
+    .note { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; font-size: 14px; color: var(--muted); }
+    .primary { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font-weight: 600; }
+    .ghost { background: transparent; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; }
+    a { color: var(--accent); }
+
+    /* modal */
+    .backdrop { position: fixed; inset: 0; background: rgba(10, 15, 25, .55); display: grid; place-items: center; z-index: 10; }
+    .backdrop[hidden] { display: none; }
+    .start { background: var(--card); border-radius: 12px; padding: 24px; width: min(480px, calc(100vw - 32px)); }
+    .start h2 { margin: 0 0 16px; font-size: 20px; }
+    .start label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+    .start input { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
+    .start .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
+    /* workspace */
+    .ws { position: fixed; inset: 12px; background: var(--card); border-radius: 12px; display: grid; grid-template: auto 1fr auto / 56px 1fr; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+    .ws-top { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .ws-top strong { white-space: nowrap; }
+    .ws-top .url { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); background: var(--bg); border-radius: 6px; padding: 5px 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tools { border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; padding: 8px; }
+    .tool { width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font-size: 16px; display: grid; place-items: center; position: relative; }
+    .tool:hover { background: var(--bg); }
+    .tool.on { background: var(--accent); color: #fff; }
+    .tool[data-tip]:hover::after { content: attr(data-tip); position: absolute; left: 48px; white-space: nowrap; background: #222; color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; z-index: 5; }
+    .tools hr { width: 100%; border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
+    .stage { position: relative; overflow: auto; background: #e9edf3; padding: 16px; }
+    .stage-inner { position: relative; min-width: 760px; }
+    .layer { position: absolute; inset: 0; pointer-events: none; }
+    .draw-surface { position: absolute; inset: 0; cursor: crosshair; display: none; }
+    .mode-box .draw-surface { display: block; }
+    .hover-box, .sel-box, .drawn-box { position: absolute; border-radius: 6px; pointer-events: none; }
+    .hover-box { outline: 2px dashed var(--accent); background: rgba(22, 101, 216, .06); }
+    .sel-box { outline: 3px solid var(--tour-border); box-shadow: 0 0 0 9999px rgba(10, 15, 25, .35); }
+    .drawn-box { border: 2px dashed #e5484d; background: rgba(229, 72, 77, .08); }
+
+    /* tour step popover (edit + preview) */
+    .pop { position: absolute; width: 300px; background: var(--tour-bg); color: var(--tour-text); border: 2px solid var(--tour-border); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.25); pointer-events: auto; z-index: 3; font-size: 14px; }
+    .pop .fmt { display: flex; gap: 2px; padding: 6px; border-bottom: 1px solid rgba(0,0,0,.08); flex-wrap: wrap; }
+    .pop .fmt button { border: 0; background: transparent; color: inherit; border-radius: 4px; min-width: 26px; height: 26px; }
+    .pop .fmt button:hover { background: rgba(0,0,0,.07); }
+    .pop .fmt input[type=color] { width: 26px; height: 26px; border: 0; padding: 0; background: none; }
+    .pop .body { padding: 10px 12px; }
+    .pop .title { font-weight: 700; font-size: 16px; outline: none; margin-bottom: 4px; }
+    .pop .text { outline: none; min-height: 40px; }
+    .pop .text img { max-width: 100%; border-radius: 6px; margin-top: 6px; }
+    .pop [contenteditable]:empty::before { content: attr(data-placeholder); opacity: .45; }
+    .pop .meta { font-size: 12px; opacity: .75; margin-top: 8px; display: grid; gap: 6px; }
+    .pop .meta code { font-size: 11px; word-break: break-all; }
+    .pop select { font: inherit; font-size: 12px; padding: 3px; border-radius: 6px; }
+    .pop .actions { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px 10px; }
+    .pop .actions .tb { background: var(--tour-button); color: #fff; border: 0; border-radius: 6px; padding: 5px 12px; }
+    .pop .actions .link { background: none; border: 0; color: inherit; opacity: .7; padding: 4px; }
+    .pop .actions { gap: 8px; }
+    .pop .hint { font-size: 12px; font-style: italic; opacity: .75; margin-top: 8px; }
+    .pop .typed { width: 100%; margin-top: 8px; padding: 6px 8px; border: 1px solid rgba(0,0,0,.2); border-radius: 6px; font: inherit; }
+
+    /* storyboard */
+    .story { grid-column: 1 / -1; border-top: 1px solid var(--border); padding: 10px 14px; display: flex; gap: 8px; align-items: stretch; overflow-x: auto; min-height: 112px; }
+    .card { flex: 0 0 168px; background: var(--bg); border: 2px solid transparent; border-radius: 10px; padding: 8px 10px; text-align: left; color: var(--text); position: relative; }
+    .card.on { border-color: var(--accent); }
+    .card .n { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .card .t { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .card .chips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+    .chip { font-size: 11px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 0 6px; }
+    .card .x { position: absolute; top: 4px; right: 6px; border: 0; background: none; color: var(--muted); }
+    .arrow { align-self: center; color: var(--muted); }
+    .card.start-card { flex-basis: 140px; border-style: dashed; border-color: var(--border); }
+    .empty { align-self: center; color: var(--muted); font-size: 13px; }
+
+    /* panels */
+    .panel { position: absolute; left: 64px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.2); z-index: 6; width: 220px; font-size: 13px; }
+    .panel[hidden] { display: none; }
+    .panel h3 { margin: 0 0 8px; font-size: 13px; }
+    .panel label { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; }
+    .filebox { position: fixed; inset: 40px; background: var(--card); border-radius: 12px; z-index: 20; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+    .filebox[hidden] { display: none; }
+    .filebox header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .filebox pre { margin: 0; padding: 16px; overflow: auto; flex: 1; font-size: 12px; }
+    .toast { position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 30; }
+    .toast[hidden] { display: none; }
+
+    /* sample DoorLoop page */
+    .dl { display: grid; grid-template-columns: 210px 1fr; background: #fff; color: #1a1a1a; border-radius: 8px; overflow: hidden; min-height: 520px; font-size: 13px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+    .dl aside { background: #f7f7f5; padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; }
+    .dl .logo { font-weight: 800; padding: 4px 8px 10px; }
+    .dl aside button { text-align: left; border: 1px solid #e3e3e0; background: #fff; border-radius: 6px; padding: 6px 8px; margin-bottom: 4px; color: inherit; }
+    .dl aside .create { background: #0b1f44; color: #fff; border: 0; }
+    .dl aside a { display: block; padding: 6px 8px; border-radius: 6px; color: inherit; text-decoration: none; }
+    .dl aside a.sub { padding-left: 24px; }
+    .dl aside a.active { background: #fff; font-weight: 600; }
+    .dl main { padding: 16px 20px; }
+    .dl .head { display: flex; justify-content: space-between; align-items: center; }
+    .dl h1 { font-size: 20px; margin: 0; }
+    .dl .new { background: #d8f34a; border: 0; border-radius: 6px; padding: 6px 12px; font-weight: 600; }
+    .dl .bar { display: flex; gap: 8px; margin: 16px 0 10px; align-items: center; }
+    .dl .bar input { border: 1px solid #ddd; border-radius: 6px; padding: 6px 8px; width: 220px; font: inherit; }
+    .dl .bar button { border: 1px solid #ddd; background: #fff; border-radius: 6px; padding: 5px 9px; color: inherit; }
+    .dl .bar .sp { flex: 1; }
+    .dl table { width: 100%; border-collapse: collapse; }
+    .dl th, .dl td { text-align: left; padding: 9px 6px; border-bottom: 1px solid #eee; }
+    .dl th { color: #777; font-weight: 500; }
+    .dl .bal { color: #d23; text-align: right; }
+    .dl .status { color: #1a7f37; }
+  </style>
+</head>
+<body>
+  <div class="intro">
+    <p><a href="./">← All tours</a></p>
+    <h1>Tour builder: concept</h1>
+    <p>A clickable draft of how tours could be built visually instead of by writing JSON. Nothing here is saved or published.</p>
+    <p><button class="primary" id="create">+ Create new tour</button></p>
+    <div class="note">
+      <strong>Concept only.</strong> DoorLoop can't be shown inside another site, so this draft uses a sample page that looks like DoorLoop.
+      In a real version the same tools would open on top of the live DoorLoop tab, through the extension.
+    </div>
+  </div>
+
+  <!-- Step 1: where does the tour start? -->
+  <div class="backdrop" id="startModal" hidden>
+    <form class="start" id="startForm">
+      <h2>Create a new tour</h2>
+      <label for="tourName">Tour name</label>
+      <input id="tourName" value="Working with your tenant list" required>
+      <label for="tourUrl">Page where the tour starts</label>
+      <input id="tourUrl" value="https://app.doorloop.com/tenants" required>
+      <div class="row">
+        <button type="button" class="ghost" id="cancelStart">Cancel</button>
+        <button class="primary">Open page</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Step 2: the builder -->
+  <div class="backdrop" id="wsModal" hidden>
+    <div class="ws" id="ws">
+      <div class="ws-top">
+        <strong id="wsName"></strong>
+        <span class="url" id="wsUrl"></span>
+        <button class="ghost" id="previewBtn">▶ Preview</button>
+        <button class="ghost" id="fileBtn">View tour file</button>
+        <button class="ghost" id="closeWs">Close</button>
+      </div>
+
+      <div class="tools">
+        <button class="tool on" data-tool="pointer" data-tip="Pointer: click an element">↖</button>
+        <button class="tool" data-tool="box" data-tip="Box: draw around an area">▭</button>
+        <button class="tool" id="textTool" data-tip="Text: edit the step's text">T</button>
+        <button class="tool" id="colorTool" data-tip="Colors">◐</button>
+        <hr>
+        <button class="tool" id="undoTool" data-tip="Remove last step">↶</button>
+      </div>
+
+      <div class="stage" id="stage">
+        <div class="stage-inner" id="stageInner">
+          <!-- Sample DoorLoop page (stand-in for the live page) -->
+          <div class="dl" id="dl">
+            <aside>
+              <div class="logo">doorloop</div>
+              <button data-cy="global-search-trigger">Search ⌘K</button>
+              <button class="create" data-cy="SideMenu-CreateNewMenu-Button">+ Create new</button>
+              <a href="#" data-cy="SideMenu-Main-Overview">Overview</a>
+              <a href="#" data-cy="SideMenu-Rentals-Properties">Rentals</a>
+              <a href="#" data-cy="SideMenu-Leasing-Leases">Leasing</a>
+              <a href="#" data-intercom-target="nav-side-menu-main-people">People</a>
+              <a href="#" class="sub active" data-cy="SideMenu-People-Tenants">Tenants</a>
+              <a href="#" class="sub" data-cy="SideMenu-People-Vendors">Vendors</a>
+              <a href="#" class="sub" data-cy="SideMenu-People-Prospects">Prospects</a>
+              <a href="#" data-cy="SideMenu-Accounting-Transactions">Accounting</a>
+              <a href="#" data-cy="SideMenu-Main-Reports">Reports</a>
+            </aside>
+            <main>
+              <div class="head">
+                <h1 data-cy="DetailScreen-ScreenTitle">Tenants</h1>
+                <button class="new">+ New lease</button>
+              </div>
+              <div class="bar">
+                <input aria-label="Search" placeholder="Search or filter...">
+                <button aria-label="Filter">Filter</button>
+                <span class="sp"></span>
+                <button aria-label="Columns">▥</button>
+                <button aria-label="Export">⤓</button>
+              </div>
+              <table>
+                <thead><tr><th>Tenant</th><th>Status</th><th>Email</th><th class="bal">Balance</th></tr></thead>
+                <tbody id="rows"></tbody>
+              </table>
+            </main>
+          </div>
+          <div class="layer" id="layer"></div>
+          <div class="draw-surface" id="drawSurface"></div>
+        </div>
+      </div>
+
+      <div class="story" id="story"></div>
+
+      <div class="panel" id="colorPanel" hidden style="top: 200px">
+        <h3>Tour colors</h3>
+        <label>Background <input type="color" data-var="--tour-bg" value="#ffffff"></label>
+        <label>Border <input type="color" data-var="--tour-border" value="#1665d8"></label>
+        <label>Text <input type="color" data-var="--tour-text" value="#1a1a1a"></label>
+        <label>Buttons <input type="color" data-var="--tour-button" value="#1665d8"></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="filebox" id="filebox" hidden>
+    <header><strong>Tour file this would produce</strong><button class="ghost" id="closeFile">Close</button></header>
+    <pre id="fileOut"></pre>
+  </div>
+  <div class="toast" id="toast" hidden></div>
+
+  <script>
+    'use strict';
+    const $ = (s) => document.querySelector(s);
+    const PICKABLE = '[data-cy], [data-intercom-target], [aria-label], button, a, input, tr, h1';
+    const ADVANCE = { next: 'Next button', click: 'Click the element', type: 'Type text' };
+
+    const state = { name: '', url: '', steps: [], tool: 'pointer', current: null, previewing: false };
+
+    // fake tenant rows
+    $('#rows').innerHTML = [
+      ['Jordan Lee', '$1,200.00'], ['Priya Shah', '$0.00'], ['Marcus Bell', '$450.00'],
+      ['Ana Torres', '$2,000.00'], ['Sam Okafor', '$75.00'], ['Lena Fischer', '$0.00'],
+    ].map(([n, b]) => `<tr data-cy="list-engine-row"><td>${n}</td><td class="status">Current</td><td>${n.toLowerCase().replace(' ', '.')}@example.com</td><td class="bal">${b}</td></tr>`).join('');
+
+    function toast(msg) {
+      const t = $('#toast');
+      t.textContent = msg;
+      t.hidden = false;
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => (t.hidden = true), 2200);
+    }
+
+    // ---------- opening the builder ----------
+    $('#create').onclick = () => ($('#startModal').hidden = false);
+    $('#cancelStart').onclick = () => ($('#startModal').hidden = true);
+    $('#startForm').onsubmit = (e) => {
+      e.preventDefault();
+      state.name = $('#tourName').value.trim();
+      state.url = $('#tourUrl').value.trim();
+      $('#wsName').textContent = state.name;
+      $('#wsUrl').textContent = state.url + '  (sample page)';
+      $('#startModal').hidden = true;
+      $('#wsModal').hidden = false;
+      renderStory();
+      toast('Pick something to highlight: click it, or switch to the box tool and draw around it.');
+    };
+    $('#closeWs').onclick = () => ($('#wsModal').hidden = true);
+
+    // ---------- geometry helpers ----------
+    const inner = $('#stageInner');
+    function rectIn(el) {
+      const r = el.getBoundingClientRect();
+      const o = inner.getBoundingClientRect();
+      return { left: r.left - o.left, top: r.top - o.top, width: r.width, height: r.height };
+    }
+    function place(div, r, pad = 4) {
+      Object.assign(div.style, { left: r.left - pad + 'px', top: r.top - pad + 'px', width: r.width + pad * 2 + 'px', height: r.height + pad * 2 + 'px' });
+    }
+    function labelFor(el) {
+      return el.getAttribute('aria-label') || el.innerText.trim().split('\n')[0].slice(0, 28) || el.tagName.toLowerCase();
+    }
+    // Same preference order as the README: data-cy, data-intercom-target, aria-label, then visible text.
+    function targetFor(el) {
+      if (el.dataset.cy) return `[data-cy='${el.dataset.cy}']`;
+      if (el.dataset.intercomTarget) return `[data-intercom-target='${el.dataset.intercomTarget}']`;
+      const aria = el.getAttribute('aria-label');
+      if (aria) return `${el.tagName.toLowerCase()}[aria-label='${aria}']`;
+      return { text: el.innerText.trim().split('\n')[0] };
+    }
+
+    // ---------- tools ----------
+    document.querySelectorAll('[data-tool]').forEach((b) => (b.onclick = () => setTool(b.dataset.tool)));
+    function setTool(tool) {
+      state.tool = tool;
+      document.querySelectorAll('[data-tool]').forEach((b) => b.classList.toggle('on', b.dataset.tool === tool));
+      $('#stage').classList.toggle('mode-box', tool === 'box');
+      clearHover();
+    }
+    $('#textTool').onclick = () => {
+      const t = document.querySelector('.pop .text');
+      if (t) t.focus();
+      else toast('Select an element first, then edit its text.');
+    };
+    $('#colorTool').onclick = () => ($('#colorPanel').hidden = !$('#colorPanel').hidden);
+    document.querySelectorAll('#colorPanel input').forEach((i) => (i.oninput = () => document.documentElement.style.setProperty(i.dataset.var, i.value)));
+    $('#undoTool').onclick = () => {
+      if (!state.steps.length) return;
+      state.steps.pop();
+      closeEditor();
+      renderStory();
+    };
+
+    // pointer: hover + click on the sample page
+    const dl = $('#dl');
+    let hoverBox = null;
+    function clearHover() {
+      hoverBox?.remove();
+      hoverBox = null;
+    }
+    dl.addEventListener('mousemove', (e) => {
+      if (state.tool !== 'pointer' || state.previewing) return;
+      const el = e.target.closest(PICKABLE);
+      if (!el || !dl.contains(el)) return clearHover();
+      if (!hoverBox) {
+        hoverBox = document.createElement('div');
+        hoverBox.className = 'hover-box';
+        $('#layer').append(hoverBox);
+      }
+      place(hoverBox, rectIn(el), 2);
+    });
+    dl.addEventListener('mouseleave', clearHover);
+    dl.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (state.tool !== 'pointer' || state.previewing) return;
+      const el = e.target.closest(PICKABLE);
+      if (el && dl.contains(el)) select(el);
+    }, true);
+
+    // box: draw a rectangle, snap to the element that overlaps it best
+    let drawStart = null;
+    let drawn = null;
+    const surface = $('#drawSurface');
+    surface.addEventListener('mousedown', (e) => {
+      const o = inner.getBoundingClientRect();
+      drawStart = { x: e.clientX - o.left, y: e.clientY - o.top };
+      drawn?.remove();
+      drawn = document.createElement('div');
+      drawn.className = 'drawn-box';
+      $('#layer').append(drawn);
+    });
+    surface.addEventListener('mousemove', (e) => {
+      if (!drawStart) return;
+      const o = inner.getBoundingClientRect();
+      const x = e.clientX - o.left, y = e.clientY - o.top;
+      place(drawn, { left: Math.min(x, drawStart.x), top: Math.min(y, drawStart.y), width: Math.abs(x - drawStart.x), height: Math.abs(y - drawStart.y) }, 0);
+    });
+    window.addEventListener('mouseup', () => {
+      if (!drawStart) return;
+      drawStart = null;
+      const d = { left: parseFloat(drawn.style.left), top: parseFloat(drawn.style.top), width: parseFloat(drawn.style.width), height: parseFloat(drawn.style.height) };
+      const box = drawn;
+      setTimeout(() => box.remove(), 600);
+      if (d.width < 6 || d.height < 6) return;
+      const el = closestElement(d);
+      if (!el) return toast('No element there. Try drawing a bit bigger.');
+      select(el);
+      toast(`Snapped to “${labelFor(el)}”`);
+    });
+    function closestElement(d) {
+      let best = null, bestScore = 0;
+      dl.querySelectorAll(PICKABLE).forEach((el) => {
+        const r = rectIn(el);
+        const ix = Math.max(0, Math.min(d.left + d.width, r.left + r.width) - Math.max(d.left, r.left));
+        const iy = Math.max(0, Math.min(d.top + d.height, r.top + r.height) - Math.max(d.top, r.top));
+        const inter = ix * iy;
+        const score = inter / (d.width * d.height + r.width * r.height - inter); // overlap ÷ combined area
+        if (score > bestScore) { best = el; bestScore = score; }
+      });
+      return bestScore > 0.05 ? best : null;
+    }
+
+    // ---------- step editor (looks like the tour popover itself) ----------
+    let selBox = null;
+    let pop = null;
+
+    function select(el, stepIndex = null) {
+      clearHover();
+      closeEditor();
+      const existing = stepIndex !== null ? state.steps[stepIndex] : null;
+      state.current = { el, index: stepIndex };
+      selBox = document.createElement('div');
+      selBox.className = 'sel-box';
+      $('#layer').append(selBox);
+      place(selBox, rectIn(el));
+      openEditor(el, existing);
+      renderStory();
+    }
+
+    function popoverAt(el) {
+      const r = rectIn(el);
+      const w = inner.clientWidth;
+      const left = r.left + r.width + 320 < w ? r.left + r.width + 14 : Math.max(8, Math.min(r.left, w - 308));
+      const top = r.left + r.width + 320 < w ? r.top : r.top + r.height + 14;
+      return { left, top };
+    }
+
+    function openEditor(el, step) {
+      pop = document.createElement('div');
+      pop.className = 'pop';
+      const p = popoverAt(el);
+      pop.style.left = p.left + 'px';
+      pop.style.top = p.top + 'px';
+      pop.innerHTML = `
+        <div class="fmt">
+          <button data-cmd="bold" title="Bold"><b>B</b></button>
+          <button data-cmd="italic" title="Italic"><i>I</i></button>
+          <button data-cmd="underline" title="Underline"><u>U</u></button>
+          <button data-cmd="insertUnorderedList" title="Bullet list">•≡</button>
+          <input type="color" title="Text color" value="#1665d8">
+          <button data-img title="Add image">🖼</button>
+          <input type="file" accept="image/*" hidden>
+        </div>
+        <div class="body">
+          <div class="title" contenteditable data-placeholder="Step title"></div>
+          <div class="text" contenteditable data-placeholder="What should people know here?"></div>
+          <div class="meta">
+            <label>Continue when: <select>
+              ${Object.entries(ADVANCE).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}
+            </select></label>
+            <span>Anchored to <code></code></span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="link" data-cancel>Cancel</button>
+          <button class="tb" data-save>${step ? 'Update step' : 'Add to storyboard'}</button>
+        </div>`;
+      $('#layer').append(pop);
+
+      const title = pop.querySelector('.title');
+      const text = pop.querySelector('.text');
+      const advance = pop.querySelector('select');
+      title.innerHTML = step ? step.titleHtml : '';
+      text.innerHTML = step ? step.textHtml : '';
+      advance.value = step ? step.advanceOn : el.matches('input') ? 'type' : 'next';
+      const target = targetFor(el);
+      pop.querySelector('code').textContent = typeof target === 'string' ? target : `text “${target.text}”`;
+
+      pop.querySelectorAll('[data-cmd]').forEach((b) => (b.onmousedown = (e) => { e.preventDefault(); document.execCommand(b.dataset.cmd); }));
+      pop.querySelector('input[type=color]').oninput = (e) => document.execCommand('foreColor', false, e.target.value);
+      const file = pop.querySelector('input[type=file]');
+      pop.querySelector('[data-img]').onclick = () => file.click();
+      file.onchange = () => {
+        const f = file.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = document.createElement('img');
+          img.src = reader.result;
+          text.append(img);
+        };
+        reader.readAsDataURL(f);
+      };
+      pop.querySelector('[data-cancel]').onclick = () => { closeEditor(); renderStory(); };
+      pop.querySelector('[data-save]').onclick = () => {
+        if (!title.innerText.trim()) return toast('Give the step a title.');
+        const data = { el, target, label: labelFor(el), titleHtml: title.innerHTML, textHtml: text.innerHTML, advanceOn: advance.value };
+        if (state.current.index !== null) state.steps[state.current.index] = data;
+        else state.steps.push(data);
+        closeEditor();
+        renderStory();
+        toast('Step saved. Pick the next thing to highlight.');
+      };
+      title.focus();
+    }
+
+    function closeEditor() {
+      pop?.remove();
+      selBox?.remove();
+      pop = selBox = null;
+      state.current = null;
+    }
+
+    // ---------- storyboard ----------
+    function renderStory() {
+      const story = $('#story');
+      const path = (() => { try { return new URL(state.url).pathname; } catch { return state.url; } })();
+      const parts = [`<div class="card start-card"><div class="n">Start</div><div class="t">${path}</div><div class="chips"><span class="chip">${state.steps.length} step${state.steps.length === 1 ? '' : 's'}</span></div></div>`];
+      state.steps.forEach((s, i) => {
+        parts.push('<span class="arrow">→</span>');
+        parts.push(`<button class="card ${state.current?.index === i ? 'on' : ''}" data-i="${i}">
+          <span class="x" data-del="${i}" title="Delete step">×</span>
+          <div class="n">Step ${i + 1}</div>
+          <div class="t"></div>
+          <div class="chips"><span class="chip"></span><span class="chip">${ADVANCE[s.advanceOn]}</span></div>
+        </button>`);
+      });
+      if (!state.steps.length) parts.push('<span class="empty">Steps you add show up here, in order.</span>');
+      story.innerHTML = parts.join('');
+      story.querySelectorAll('.card[data-i]').forEach((c) => {
+        const s = state.steps[c.dataset.i];
+        const tmp = document.createElement('div');
+        tmp.innerHTML = s.titleHtml;
+        c.querySelector('.t').textContent = tmp.innerText;
+        c.querySelector('.chip').textContent = s.label;
+        c.onclick = (e) => {
+          if (e.target.dataset.del !== undefined) {
+            state.steps.splice(+e.target.dataset.del, 1);
+            closeEditor();
+            return renderStory();
+          }
+          select(s.el, +c.dataset.i);
+        };
+      });
+    }
+
+    // ---------- preview ----------
+    $('#previewBtn').onclick = () => {
+      if (!state.steps.length) return toast('Add a step first.');
+      closeEditor();
+      state.previewing = true;
+      showPreview(0);
+    };
+    function showPreview(i) {
+      closeEditor();
+      if (i >= state.steps.length) { state.previewing = false; renderStory(); return toast('End of tour.'); }
+      const s = state.steps[i];
+      selBox = document.createElement('div');
+      selBox.className = 'sel-box';
+      $('#layer').append(selBox);
+      place(selBox, rectIn(s.el));
+      pop = document.createElement('div');
+      pop.className = 'pop';
+      const p = popoverAt(s.el);
+      Object.assign(pop.style, { left: p.left + 'px', top: p.top + 'px' });
+      pop.innerHTML = `<div class="body"><div class="title"></div><div class="text"></div></div>
+        <div class="actions"><span style="font-size:12px;opacity:.7">${i + 1} of ${state.steps.length}</span><span></span></div>`;
+      pop.querySelector('.title').innerHTML = s.titleHtml;
+      pop.querySelector('.text').innerHTML = s.textHtml;
+      const actions = pop.querySelector('.actions span:last-child');
+      const go = () => showPreview(i + 1);
+      if (s.advanceOn === 'next') {
+        const b = Object.assign(document.createElement('button'), { className: 'tb', textContent: i === state.steps.length - 1 ? 'Done' : 'Next' });
+        b.onclick = go;
+        actions.append(b);
+      } else if (s.advanceOn === 'click') {
+        pop.querySelector('.body').append(Object.assign(document.createElement('div'), { className: 'hint', textContent: 'Click the highlighted item to continue.' }));
+        selBox.style.pointerEvents = 'auto';
+        selBox.style.cursor = 'pointer';
+        selBox.onclick = go;
+      } else {
+        const input = Object.assign(document.createElement('input'), { className: 'typed', placeholder: 'Type here, then press Enter' });
+        input.onkeydown = (e) => e.key === 'Enter' && input.value.trim() && go();
+        pop.querySelector('.body').append(input);
+      }
+      const stop = Object.assign(document.createElement('button'), { className: 'link', textContent: 'Exit preview' });
+      stop.onclick = () => { state.previewing = false; closeEditor(); renderStory(); };
+      pop.querySelector('.actions').prepend(stop);
+      $('#layer').append(pop);
+    }
+
+    // ---------- tour file ----------
+    $('#fileBtn').onclick = () => {
+      const plain = (html) => { const d = document.createElement('div'); d.innerHTML = html; return d.innerText.trim(); };
+      const id = state.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const tour = {
+        id,
+        title: state.name,
+        page: (() => { try { return new URL(state.url).pathname; } catch { return state.url; } })(),
+        theme: Object.fromEntries([...document.querySelectorAll('#colorPanel input')].map((i) => [i.dataset.var.replace('--tour-', ''), i.value])),
+        steps: state.steps.map((s) => ({
+          target: s.target,
+          title: plain(s.titleHtml),
+          text: plain(s.textHtml),
+          ...(s.advanceOn !== 'next' ? { advanceOn: s.advanceOn } : {}),
+          ...(/<(b|i|u|ul|font|span)\b/.test(s.textHtml) ? { formattedText: '(formatting kept)' } : {}),
+          ...(/<img\b/.test(s.textHtml) ? { images: ['(uploaded image)'] } : {}),
+        })),
+      };
+      $('#fileOut').textContent =
+        JSON.stringify(tour, null, 2) +
+        '\n\n// Not in the tour format yet: "theme", "formattedText", "images", and advanceOn "type".';
+      $('#filebox').hidden = false;
+    };
+    $('#closeFile').onclick = () => ($('#filebox').hidden = true);
+  </script>
+</body>
+</html>

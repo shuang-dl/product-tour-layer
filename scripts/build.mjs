@@ -76,6 +76,7 @@ await rm(dist, { recursive: true, force: true });
 await mkdir(dist);
 await writeFile(join(dist, 'tours.json'), JSON.stringify({ tours }, null, 2));
 await copyFile(join(root, 'site/index.html'), join(dist, 'index.html'));
+await copyFile(join(root, 'site/builder-concept.html'), join(dist, 'builder-concept.html'));
 
 // Chrome extension: everything it runs is bundled, nothing loads from a CDN.
 const ext = join(dist, 'extension');
