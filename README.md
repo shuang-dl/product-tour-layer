@@ -88,6 +88,10 @@ Add `tours/<id>.json`:
 
 A GitHub Actions workflow (`.github/workflows/pages.yml`) runs the tour check and the extension test on every pull request. On merge to `main` it publishes the links page, `tours.json`, and the extension zip to GitHub Pages, usually within a minute.
 
+## Ideas
+
+Future ideas, such as a visual tour builder, are collected in [IDEAS.md](IDEAS.md).
+
 ## Path to production
 
 The extension only does three things: load driver.js, load `tour-layer.js`, and call `TourLayer.init({ tours })` (see `extension/content.js`). If DoorLoop's app did the same, customers would get tours with nothing to install. The engine and tour files carry over unchanged.
