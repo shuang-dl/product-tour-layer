@@ -23,7 +23,7 @@ Clickable concept: [builder-concept.html](https://shuang-dl.github.io/product-to
 1. **Create new tour** button opens a popup asking for the tour name and the page where the tour starts.
 2. The same popup loads that page with the builder tools around it:
    - **Toolbox** on the side: pointer (click an element), box (draw around an area), text formatting, colours.
-  - **Box tool and groups:** draw around several things, e.g. a group of menu items, and they become one step, highlighted as a single area with one popup. A box that only covers one thing snaps to that element.
+   - **Box tool and groups:** draw around several things, e.g. a group of menu items, and they become one step, highlighted as a single area with one popup. A box that only covers one thing snaps to that element.
    - **Storyboard** along the bottom: each step becomes a card, in order, showing the flow. Click a card to edit it; × removes it.
 3. Selecting something opens the step box right next to it, looking like the final tour popup. You type the title and text there, format it, and add images.
 4. Each step sets how the tour **continues**: a Next button, clicking the highlighted element, or typing text into it.
@@ -34,7 +34,6 @@ Clickable concept: [builder-concept.html](https://shuang-dl.github.io/product-to
 - DoorLoop can't be shown inside another site, so the real builder can't be a popup on the links page showing live DoorLoop. It would open on top of the DoorLoop tab itself, through the extension. The concept uses a sample page instead.
 - "Type text to continue" would be a new `advanceOn` option in the engine.
 - Groups would need the engine to accept a list of targets and highlight the area around all of them. driver.js highlights one element, so the engine would place an invisible box over the group and highlight that.
-
 - The builder could produce the same tour files that live in `tours/` today. The engine and publishing wouldn't change.
 - Picking an element would need to produce a target that survives DoorLoop releases. Prefer `data-cy`, `data-intercom-target` and `aria-label` over class names, as described under "Picking targets" in the README.
 - Images, styling and formatted text would each need new fields in the tour format, plus checks in `scripts/build.mjs`. Formatted text must stay safe: allow a limited set of formatting, never raw HTML.
