@@ -4,7 +4,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN.
 
-**Links page:** https://shuang-dl.github.io/product-tour-layer/ (live once publishing is set up; see [Publishing](#publishing))
+**Links page:** https://shuang-dl.github.io/product-tour-layer/
 
 ## How it works
 
@@ -23,13 +23,13 @@ links page ──click──▶ app.doorloop.com/tenants?tour=tenants-list
 
 ## Try it
 
-1. Build it: `node scripts/build.mjs` (Node 18+). The extension lands in `dist/extension/`.
-2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select `dist/extension`.
-3. Log in to DoorLoop, then open a tour link, e.g. `https://app.doorloop.com/tenants?tour=tenants-list`. Or open any page that has tours and use the **Tours** button in the bottom-right corner.
+1. Download [doorloop-tours-extension.zip](https://shuang-dl.github.io/product-tour-layer/doorloop-tours-extension.zip) and unzip it (or run `node scripts/build.mjs` and use `dist/extension/`).
+2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select the folder.
+3. Log in to DoorLoop, then click a tour on the [links page](https://shuang-dl.github.io/product-tour-layer/). Or open any page that has tours and use the **Tours** button in the bottom-right corner.
 
 Tours included: `home-overview` (`/home`), `tenants-list` (`/tenants`), and `find-a-tenant` (starts on `/home`, continues on `/tenants`).
 
-Once publishing is set up, the links page lists every tour and offers the extension as a zip, and new or edited tours reach installed extensions without a reinstall. Until then the extension uses the tours bundled into it at build time, so rebuild and click the reload icon on `chrome://extensions` after editing a tour.
+New and edited tours reach installed extensions on the next page refresh once merged to `main`. Reinstall only when the extension code changes. If GitHub Pages can't be reached, the extension uses the copy of the tours bundled into it at build time.
 
 For wider internal rollout without Developer mode: publish it to the Chrome Web Store as unlisted or private to the DoorLoop domain, or have a Google Workspace admin force-install it on staff browsers.
 
@@ -67,7 +67,7 @@ Add `tours/<id>.json`:
 
 **Picking targets.** Prefer, in order: `data-cy` (DoorLoop's test ids, e.g. `[data-cy='SideMenu-People-Tenants']`), `data-intercom-target`, `aria-label`, then `{ "text": ... }`. Avoid class names; they change with every DoorLoop release. In DevTools, `document.querySelectorAll('[data-cy]')` lists what's available on a page.
 
-**Check your tour:** `node scripts/build.mjs` validates every tour and fails with a list of problems if any are wrong.
+**Check your tour:** `node scripts/build.mjs` validates every tour and fails with a list of problems if any are wrong. CI runs the same check on every pull request.
 
 ## Layout
 
@@ -79,10 +79,11 @@ Add `tours/<id>.json`:
 | `extension/` | Chrome extension manifest and loader (`content.js`) |
 | `vendor/driver.js/` | highlight/popover library (MIT), bundled into the extension |
 | `scripts/build.mjs` | validation + build site and extension into `dist/` |
+| `.github/workflows/pages.yml` | validate on PRs, publish to GitHub Pages on `main` |
 
 ## Publishing
 
-Planned, not live yet: a GitHub Actions workflow (`.github/workflows/pages.yml`) that runs the tour check on every pull request and, on merge to `main`, publishes the links page, `tours.json`, and the extension zip to GitHub Pages. It needs a GitHub token allowed to push workflow files before it can be added.
+A GitHub Actions workflow (`.github/workflows/pages.yml`) runs the tour check on every pull request. On merge to `main` it publishes the links page, `tours.json`, and the extension zip to GitHub Pages, usually within a minute.
 
 ## Path to production
 
