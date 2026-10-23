@@ -1,0 +1,92 @@
+// Loads the built extension (dist/extension) into Chromium and runs the tours against a mock DoorLoop page.
+// Run: npm test   (after node scripts/build.mjs). Set CHROME_PATH to use a specific Chromium binary.
+import { chromium } from 'playwright';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const EXT = join(root, 'dist/extension');
+const MOCK = readFileSync(join(root, 'tests/mock-doorloop.html'), 'utf8');
+const TOURS_URL = 'https://shuang-dl.github.io/product-tour-layer/tours.json';
+
+const ctx = await chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), 'tour-layer-test-')), {
+  channel: 'chromium', // full Chromium: the headless shell can't load extensions
+  executablePath: process.env.CHROME_PATH,
+  headless: true,
+  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+});
+await ctx.route('https://acme.app.doorloop.com/**', (r) => r.fulfill({ contentType: 'text/html', body: MOCK }));
+// Published tours are unreachable unless a test says otherwise, so results don't depend on the live site.
+await ctx.route(TOURS_URL, (r) => r.abort());
+
+const results = [];
+const check = (name, ok, detail = '') => results.push({ name, ok, detail });
+const title = (p) => p.locator('.driver-popover-title').textContent({ timeout: 10000 }).catch(() => null);
+
+try {
+  // Multi-page tour with click-to-advance steps, using the tours bundled into the extension
+  const page = await ctx.newPage();
+  await page.goto('https://acme.app.doorloop.com/home?tour=find-a-tenant');
+  check('tour starts from ?tour=', (await title(page)) === 'Find a tenant');
+  check('?tour= stripped from URL', !page.url().includes('tour='), page.url());
+  check('driver.css injected', (await page.locator('.driver-popover').evaluate((e) => getComputedStyle(e).position)) === 'fixed');
+  await page.click('.driver-popover-next-btn');
+  check('optional step shows when its target is visible', (await title(page)) === 'Open People');
+  await page.click('#people');
+  await page.waitForTimeout(800);
+  check('advances after clicking the target', (await title(page)) === 'Open Tenants');
+  await page.click('[data-cy="SideMenu-People-Tenants"]');
+  await page.waitForTimeout(1200);
+  check('continues on the next page', (await title(page)) === 'Search the list', page.url());
+  await page.click('.driver-popover-next-btn');
+  await page.waitForTimeout(500);
+  check('reaches the last step', (await title(page)) === 'Open a profile');
+  await page.click('.driver-popover-next-btn');
+  await page.waitForTimeout(500);
+  check('tour ends and launcher shows', (await page.locator('.tour-layer-launcher > button').textContent()) === 'Tours (1)');
+  await page.close();
+
+  // Step target below the fold, inside a scroll container wrapped in overflow: clip
+  const page2 = await ctx.newPage();
+  await page2.goto('https://acme.app.doorloop.com/home?tour=home-overview');
+  await title(page2);
+  for (let i = 0; i < 4; i++) {
+    await page2.click('.driver-popover-next-btn');
+    await page2.waitForTimeout(400);
+  }
+  await page2
+    .waitForFunction(() => document.querySelector('.driver-popover-title')?.textContent === 'Occupancy rate', null, { timeout: 10000 })
+    .catch(() => {});
+  const anchored = await page2.evaluate(() => document.querySelector('.driver-active-element')?.getAttribute('data-cy'));
+  check('below-the-fold target is highlighted', anchored === 'Widget-dashboards.occupancyRate', `highlighted: ${anchored}`);
+  const inView = await page2
+    .locator('[data-cy="Widget-dashboards.occupancyRate"]')
+    .evaluate((e) => e.getBoundingClientRect().top < innerHeight);
+  check('below-the-fold target is scrolled into view', inView);
+  await page2.close();
+
+  // Published tours win when reachable; close button ends the tour
+  await ctx.unroute(TOURS_URL);
+  await ctx.route(TOURS_URL, (r) =>
+    r.fulfill({
+      contentType: 'application/json',
+      headers: { 'access-control-allow-origin': '*' },
+      body: JSON.stringify({ tours: [{ id: 'remote-test', title: 'Remote', page: '/home', steps: [{ title: 'From GitHub Pages', text: 'hi' }] }] }),
+    })
+  );
+  const page3 = await ctx.newPage();
+  await page3.goto('https://acme.app.doorloop.com/home?tour=remote-test');
+  check('uses published tours when reachable', (await title(page3)) === 'From GitHub Pages');
+  await page3.click('.driver-popover-close-btn');
+  await page3.waitForTimeout(300);
+  check('close button ends the tour', (await page3.locator('.driver-popover').count()) === 0);
+} finally {
+  await ctx.close();
+}
+
+for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'} ${r.name}${r.detail ? ` (${r.detail})` : ''}`);
+const failed = results.filter((r) => !r.ok).length;
+console.log(`\n${results.length - failed}/${results.length} passed`);
+if (failed) process.exit(1);

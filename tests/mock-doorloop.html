@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- Stand-in for DoorLoop pages: only the elements the tours point at, with the same
+     layout traps as the real app (collapsed side-menu section, scroll container
+     wrapped in overflow: clip, widget below the fold, client-side navigation). -->
+<html>
+<head><title>Mock DoorLoop</title></head>
+<body>
+<nav>
+  <button data-cy="global-search-trigger">Search</button>
+  <button data-cy="SideMenu-CreateNewMenu-Button">Create new</button>
+  <button data-intercom-target="nav-side-menu-main-people" aria-expanded="false" id="people">People</button>
+  <div id="grp" style="height:0;overflow:hidden"><a data-cy="SideMenu-People-Tenants" href="/tenants">Tenants</a></div>
+  <button data-cy="TrainingHubV2-DockButton">?</button>
+</nav>
+<div style="height:100vh;overflow:clip">
+  <main id="main" style="height:100vh;overflow-x:hidden;overflow-y:auto"></main>
+</div>
+<script>
+  function render() {
+    main.innerHTML = location.pathname === '/tenants'
+      ? '<div data-cy="DetailScreen-ScreenTitle">Tenants</div><input aria-label="Search"><button aria-label="Filter">Filter</button><button aria-label="Columns">C</button><button aria-label="Export">E</button><button>New lease</button><div data-cy="list-engine-row">row</div>'
+      : '<div data-cy="Widget-dashboards.thingsToDo" style="height:100px">todo</div><div style="height:1500px"></div><div data-cy="Widget-dashboards.occupancyRate" style="height:100px">occ</div>';
+  }
+  render();
+  people.onclick = () => { grp.style.height = 'auto'; people.setAttribute('aria-expanded', 'true'); };
+  document.querySelector('[data-cy="SideMenu-People-Tenants"]').onclick = (e) => {
+    e.preventDefault();
+    history.pushState({}, '', '/tenants');
+    render();
+  };
+</script>
+</body>
+</html>

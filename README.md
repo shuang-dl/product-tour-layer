@@ -69,6 +69,8 @@ Add `tours/<id>.json`:
 
 **Check your tour:** `node scripts/build.mjs` validates every tour and fails with a list of problems if any are wrong. CI runs the same check on every pull request.
 
+**Test the extension:** `npm install`, `npx playwright install chromium` (once), then `npm run build && npm test`. This loads the built extension into a headless Chromium and runs the tours against a mock DoorLoop page (`tests/mock-doorloop.html`): multi-page and click-to-advance steps, optional steps, targets below the fold, published vs. bundled tours, and closing. CI runs it on every push and pull request. Publishing stops if it fails. If a tour starts pointing at new DoorLoop elements, add them to the mock page.
+
 ## Layout
 
 | Path | |
@@ -79,11 +81,12 @@ Add `tours/<id>.json`:
 | `extension/` | Chrome extension manifest and loader (`content.js`) |
 | `vendor/driver.js/` | highlight/popover library (MIT), bundled into the extension |
 | `scripts/build.mjs` | validation + build site and extension into `dist/` |
+| `tests/` | extension test (Playwright) and the mock DoorLoop page it runs against |
 | `.github/workflows/pages.yml` | validate on PRs, publish to GitHub Pages on `main` |
 
 ## Publishing
 
-A GitHub Actions workflow (`.github/workflows/pages.yml`) runs the tour check on every pull request. On merge to `main` it publishes the links page, `tours.json`, and the extension zip to GitHub Pages, usually within a minute.
+A GitHub Actions workflow (`.github/workflows/pages.yml`) runs the tour check and the extension test on every pull request. On merge to `main` it publishes the links page, `tours.json`, and the extension zip to GitHub Pages, usually within a minute.
 
 ## Path to production
 
