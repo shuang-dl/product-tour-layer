@@ -274,6 +274,14 @@
       const o = inner.getBoundingClientRect();
       return { left: r.left - o.left, top: r.top - o.top, width: r.width, height: r.height };
     }
+    function unionRect(els) {
+      const rs = els.map(rectIn);
+      const left = Math.min(...rs.map((r) => r.left));
+      const top = Math.min(...rs.map((r) => r.top));
+      const right = Math.max(...rs.map((r) => r.left + r.width));
+      const bottom = Math.max(...rs.map((r) => r.top + r.height));
+      return { left, top, width: right - left, height: bottom - top };
+    }
     function place(div, r, pad = 4) {
       Object.assign(div.style, { left: r.left - pad + 'px', top: r.top - pad + 'px', width: r.width + pad * 2 + 'px', height: r.height + pad * 2 + 'px' });
     }
@@ -334,7 +342,7 @@
       e.preventDefault();
       if (state.tool !== 'pointer' || state.previewing) return;
       const el = e.target.closest(PICKABLE);
-      if (el && dl.contains(el)) select(el);
+      if (el && dl.contains(el)) select([el]);
     }, true);
 
     // box: draw a rectangle, snap to the element that overlaps it best
@@ -362,11 +370,27 @@
       const box = drawn;
       setTimeout(() => box.remove(), 600);
       if (d.width < 6 || d.height < 6) return;
-      const el = closestElement(d);
+      const group = elementsInBox(d);
+      if (group.length > 1) {
+        select(group);
+        return toast(`Grouped ${group.length} items`);
+      }
+      const el = group[0] || closestElement(d);
       if (!el) return toast('No element there. Try drawing a bit bigger.');
-      select(el);
+      select([el]);
       toast(`Snapped to “${labelFor(el)}”`);
     });
+    // Everything mostly (60%+) inside the box. Nested matches collapse to the innermost ones,
+    // so a box around menu items picks the items, not their wrapper.
+    function elementsInBox(d) {
+      const inside = [...dl.querySelectorAll(PICKABLE)].filter((el) => {
+        const r = rectIn(el);
+        const ix = Math.max(0, Math.min(d.left + d.width, r.left + r.width) - Math.max(d.left, r.left));
+        const iy = Math.max(0, Math.min(d.top + d.height, r.top + r.height) - Math.max(d.top, r.top));
+        return r.width * r.height > 0 && (ix * iy) / (r.width * r.height) >= 0.6;
+      });
+      return inside.filter((el) => !inside.some((o) => o !== el && el.contains(o)));
+    }
     function closestElement(d) {
       let best = null, bestScore = 0;
       dl.querySelectorAll(PICKABLE).forEach((el) => {
@@ -384,31 +408,32 @@
     let selBox = null;
     let pop = null;
 
-    function select(el, stepIndex = null) {
+    // els: one element, or a group picked with the box tool (highlighted as one area)
+    function select(els, stepIndex = null) {
       clearHover();
       closeEditor();
       const existing = stepIndex !== null ? state.steps[stepIndex] : null;
-      state.current = { el, index: stepIndex };
+      state.current = { els, index: stepIndex };
       selBox = document.createElement('div');
       selBox.className = 'sel-box';
       $('#layer').append(selBox);
-      place(selBox, rectIn(el));
-      openEditor(el, existing);
+      place(selBox, unionRect(els));
+      openEditor(els, existing);
       renderStory();
     }
 
-    function popoverAt(el) {
-      const r = rectIn(el);
+    function popoverAt(els) {
+      const r = unionRect(els);
       const w = inner.clientWidth;
       const left = r.left + r.width + 320 < w ? r.left + r.width + 14 : Math.max(8, Math.min(r.left, w - 308));
       const top = r.left + r.width + 320 < w ? r.top : r.top + r.height + 14;
       return { left, top };
     }
 
-    function openEditor(el, step) {
+    function openEditor(els, step) {
       pop = document.createElement('div');
       pop.className = 'pop';
-      const p = popoverAt(el);
+      const p = popoverAt(els);
       pop.style.left = p.left + 'px';
       pop.style.top = p.top + 'px';
       pop.innerHTML = `
@@ -442,9 +467,11 @@
       const advance = pop.querySelector('select');
       title.innerHTML = step ? step.titleHtml : '';
       text.innerHTML = step ? step.textHtml : '';
-      advance.value = step ? step.advanceOn : el.matches('input') ? 'type' : 'next';
-      const target = targetFor(el);
-      pop.querySelector('code').textContent = typeof target === 'string' ? target : `text “${target.text}”`;
+      const single = els.length === 1;
+      advance.value = step ? step.advanceOn : single && els[0].matches('input') ? 'type' : 'next';
+      const target = single ? targetFor(els[0]) : els.map(targetFor);
+      const show = (t) => (typeof t === 'string' ? t : `text “${t.text}”`);
+      pop.querySelector('code').textContent = single ? show(target) : `${els.length} items: ${target.map(show).join(', ')}`;
 
       pop.querySelectorAll('[data-cmd]').forEach((b) => (b.onmousedown = (e) => { e.preventDefault(); document.execCommand(b.dataset.cmd); }));
       pop.querySelector('input[type=color]').oninput = (e) => document.execCommand('foreColor', false, e.target.value);
@@ -464,7 +491,7 @@
       pop.querySelector('[data-cancel]').onclick = () => { closeEditor(); renderStory(); };
       pop.querySelector('[data-save]').onclick = () => {
         if (!title.innerText.trim()) return toast('Give the step a title.');
-        const data = { el, target, label: labelFor(el), titleHtml: title.innerHTML, textHtml: text.innerHTML, advanceOn: advance.value };
+        const data = { els, target, label: single ? labelFor(els[0]) : `${els.length} items`, titleHtml: title.innerHTML, textHtml: text.innerHTML, advanceOn: advance.value };
         if (state.current.index !== null) state.steps[state.current.index] = data;
         else state.steps.push(data);
         closeEditor();
@@ -509,7 +536,7 @@
             closeEditor();
             return renderStory();
           }
-          select(s.el, +c.dataset.i);
+          select(s.els, +c.dataset.i);
         };
       });
     }
@@ -528,10 +555,10 @@
       selBox = document.createElement('div');
       selBox.className = 'sel-box';
       $('#layer').append(selBox);
-      place(selBox, rectIn(s.el));
+      place(selBox, unionRect(s.els));
       pop = document.createElement('div');
       pop.className = 'pop';
-      const p = popoverAt(s.el);
+      const p = popoverAt(s.els);
       Object.assign(pop.style, { left: p.left + 'px', top: p.top + 'px' });
       pop.innerHTML = `<div class="body"><div class="title"></div><div class="text"></div></div>
         <div class="actions"><span style="font-size:12px;opacity:.7">${i + 1} of ${state.steps.length}</span><span></span></div>`;
@@ -579,7 +606,7 @@
       };
       $('#fileOut').textContent =
         JSON.stringify(tour, null, 2) +
-        '\n\n// Not in the tour format yet: "theme", "formattedText", "images", and advanceOn "type".';
+        '\n\n// Not in the tour format yet: "theme", "formattedText", "images", advanceOn "type", and a list as "target" (groups).';
       $('#filebox').hidden = false;
     };
     $('#closeFile').onclick = () => ($('#filebox').hidden = true);
