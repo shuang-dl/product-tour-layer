@@ -13,7 +13,7 @@ A way to create tours without writing JSON by hand.
   - Point at an element and click it.
   - Draw a box around the area you want highlighted. The system picks the closest matching element.
 - **Step content:** after you select something, a text box appears for the step's tour text. You can also add images.
-- **Styling:** change the colours of the background, border, text block, and so on.
+- **Styling:** change the colours of the background, border, text block, and so on. Settled as one style per tour; see "Step box style" below.
 - **Text editing:** full text editing and formatting.
 
 **Flow (draft)**
@@ -30,6 +30,20 @@ Clickable concept: [builder-concept.html](https://shuang-dl.github.io/product-to
 5. Picking something for the active step opens the step box right next to it, looking like the final tour popup. You type the title and text there, format it, and add images.
 6. Each step sets how the tour **continues**: a Next button, clicking the highlighted element, or typing text into it.
 7. **Preview** plays the tour from the storyboard. **View tour file** shows the file it would publish.
+
+**Step box style (draft, agreed)**
+
+One style per tour: every step in a tour looks the same. Set in the builder's colours/style panel, not per step.
+
+- **Layout:** a white body framed by a coloured header band on top, a coloured footer band below, and thin borders of the same colour down both sides.
+- **Header band** (default 26px, adjustable 16–48): step count ("Step 2 of 5") and the close ×.
+- **Footer band** (default 48px, adjustable 32–64): Back on the left, Next as a button on the right. The button's padding grows with the footer.
+- **Side borders:** default 3px, adjustable 0–8. **Corners:** default 10px, adjustable 0–16.
+- **Colours** (each set separately): frame (header, footer, sides), header/footer text, button, button text, body text, body background (white by default).
+- **Images** stretch edge to edge across the body, between the side borders, directly under the header. Title and text sit below with normal padding.
+- **Title:** a real heading tag, H1 (22px), H2 (18px) or H3 (16px); aligned left, centre or right.
+- **Body text:** fixed size (14px); aligned left, centre, right or justified, separately from the title. Formatting (bold, italic, underline, lists, colour) stays available inside the text.
+- Open: whether the image can also go below the text, and whether Back should be a second button.
 
 **Notes on how it could fit the current setup**
 
