@@ -171,6 +171,7 @@
         prevBtnText: 'Back',
         onNextClick: () => goTo(tour, index + 1),
         onPrevClick: () => goTo(tour, index - 1, -1),
+        onCloseClick: endTour,
       },
     });
 
