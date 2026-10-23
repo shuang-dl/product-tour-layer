@@ -7,6 +7,7 @@
   const DRIVER_BASE = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/';
   const STATE_KEY = 'tourLayer.state';
   const TARGET_TIMEOUT_MS = 8000;
+  const OPTIONAL_TIMEOUT_MS = 1500;
   const POLL_MS = 250;
 
   let tours = [];
@@ -20,9 +21,20 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const escapeHtml = (s) =>
     String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  // Has a size and isn't clipped away by a collapsed parent (e.g. a closed side-menu section).
   const isVisible = (el) => {
     const r = el.getBoundingClientRect();
-    return r.width > 0 && r.height > 0;
+    if (!r.width || !r.height) return false;
+    for (let p = el.parentElement; p; p = p.parentElement) {
+      const cs = getComputedStyle(p);
+      const clipY = cs.overflowY === 'hidden' || cs.overflowY === 'clip';
+      const clipX = cs.overflowX === 'hidden' || cs.overflowX === 'clip';
+      if (!clipX && !clipY) continue;
+      const pr = p.getBoundingClientRect();
+      if (clipY && (r.bottom <= pr.top || r.top >= pr.bottom)) return false;
+      if (clipX && (r.right <= pr.left || r.left >= pr.right)) return false;
+    }
+    return true;
   };
 
   // "/tenants" matches exactly; "*" matches one path segment, e.g. "/tenants/*".
@@ -45,8 +57,8 @@
     );
   }
 
-  async function waitForTarget(target, token) {
-    const deadline = Date.now() + TARGET_TIMEOUT_MS;
+  async function waitForTarget(target, token, timeout) {
+    const deadline = Date.now() + timeout;
     while (Date.now() < deadline && token === runToken) {
       const el = findTarget(target);
       if (el) return el;
@@ -98,7 +110,8 @@
     renderLauncher();
   }
 
-  async function goTo(tour, index) {
+  // direction: +1 or -1, so a skipped optional step keeps moving the same way.
+  async function goTo(tour, index, direction = 1) {
     if (index < 0) return;
     if (index >= tour.steps.length) return endTour();
     const token = ++runToken;
@@ -111,8 +124,10 @@
       destroyDriver();
       return;
     }
-    const el = step.target ? await waitForTarget(step.target, token) : null;
+    const timeout = step.optional ? OPTIONAL_TIMEOUT_MS : TARGET_TIMEOUT_MS;
+    const el = step.target ? await waitForTarget(step.target, token, timeout) : null;
     if (token !== runToken) return;
+    if (step.target && !el && step.optional) return goTo(tour, index + direction, direction);
     if (step.target && !el) {
       console.warn(`[TourLayer] ${tour.id} step ${index + 1}: target not found, showing it unanchored`, step.target);
     }
@@ -155,7 +170,7 @@
         nextBtnText: index === total - 1 ? 'Done' : 'Next',
         prevBtnText: 'Back',
         onNextClick: () => goTo(tour, index + 1),
-        onPrevClick: () => goTo(tour, index - 1),
+        onPrevClick: () => goTo(tour, index - 1, -1),
       },
     });
 

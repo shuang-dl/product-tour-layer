@@ -8,7 +8,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 
 const TOUR_KEYS = ['id', 'title', 'description', 'page', 'steps'];
-const STEP_KEYS = ['target', 'title', 'text', 'page', 'advanceOn'];
+const STEP_KEYS = ['target', 'title', 'text', 'page', 'advanceOn', 'optional'];
 const isText = (v) => typeof v === 'string' && v.trim().length > 0;
 
 function validateTour(tour, file) {
@@ -36,6 +36,8 @@ function validateTour(tour, file) {
       err(`${at}: "advanceOn" must be "next" or "click"`);
     }
     if (step.advanceOn === 'click' && step.target === undefined) err(`${at}: "advanceOn": "click" needs a "target"`);
+    if (step.optional !== undefined && typeof step.optional !== 'boolean') err(`${at}: "optional" must be true or false`);
+    if (step.optional && step.target === undefined) err(`${at}: "optional" needs a "target"`);
     const t = step.target;
     if (t !== undefined && !isText(t) && !(t && typeof t === 'object' && isText(t.text))) {
       err(`${at}: "target" must be a CSS selector or { "text": "...", "selector": "..." }`);

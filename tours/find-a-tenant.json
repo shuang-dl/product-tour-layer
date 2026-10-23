@@ -10,9 +10,17 @@
     },
     {
       "page": "/home",
+      "target": "[data-intercom-target='nav-side-menu-main-people'][aria-expanded='false']",
+      "title": "Open People",
+      "text": "Tenants are under People in the side menu. Click People to expand it.",
+      "advanceOn": "click",
+      "optional": true
+    },
+    {
+      "page": "/home",
       "target": "[data-cy='SideMenu-People-Tenants']",
       "title": "Open Tenants",
-      "text": "Tenants are under People in the side menu.",
+      "text": "Click Tenants to open your tenant list.",
       "advanceOn": "click"
     },
     {
