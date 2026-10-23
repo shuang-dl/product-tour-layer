@@ -7,7 +7,8 @@
   <style>
     :root {
       --bg: #f6f8fb; --card: #fff; --text: #1a1a1a; --muted: #5b6472; --accent: #1665d8; --border: #e2e7ef;
-      --tour-bg: #ffffff; --tour-border: #1665d8; --tour-text: #1a1a1a; --tour-button: #1665d8;
+      --tour-frame: #0b1f44; --tour-band-text: #ffffff; --tour-button: #d8f34a; --tour-button-text: #0b1f44; --tour-body-text: #1b1d21; --tour-body-bg: #ffffff;
+      --tour-header-h: 26px; --tour-footer-h: 48px; --tour-side: 3px; --tour-radius: 10px; --tour-title-align: left; --tour-text-align: left;
     }
     @media (prefers-color-scheme: dark) {
       :root { --bg: #11151c; --card: #1a2029; --text: #e8ecf2; --muted: #9aa4b2; --accent: #5b9bff; --border: #2a323e; }
@@ -51,29 +52,44 @@
     .mode-box .draw-surface { display: block; }
     .hover-box, .sel-box, .drawn-box { position: absolute; border-radius: 6px; pointer-events: none; }
     .hover-box { outline: 2px dashed var(--accent); background: rgba(22, 101, 216, .06); }
-    .sel-box { outline: 3px solid var(--tour-border); box-shadow: 0 0 0 9999px rgba(10, 15, 25, .35); }
+    .sel-box { outline: 3px solid var(--tour-frame); box-shadow: 0 0 0 9999px rgba(10, 15, 25, .35); }
     .drawn-box { border: 2px dashed #e5484d; background: rgba(229, 72, 77, .08); }
 
     /* tour step popover (edit + preview) */
-    .pop { position: absolute; width: 300px; background: var(--tour-bg); color: var(--tour-text); border: 2px solid var(--tour-border); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.25); pointer-events: auto; z-index: 3; font-size: 14px; }
-    .pop .fmt { display: flex; gap: 2px; padding: 6px; border-bottom: 1px solid rgba(0,0,0,.08); flex-wrap: wrap; }
+    .pop { position: absolute; width: 320px; pointer-events: auto; z-index: 3; font-size: 14px; }
+    .pop .fmt, .pop .meta { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
+    .pop .fmt { display: flex; gap: 2px; padding: 4px; margin-bottom: 6px; flex-wrap: wrap; align-items: center; }
     .pop .fmt button { border: 0; background: transparent; color: inherit; border-radius: 4px; min-width: 26px; height: 26px; }
-    .pop .fmt button:hover { background: rgba(0,0,0,.07); }
+    .pop .fmt button:hover { background: var(--bg); }
     .pop .fmt input[type=color] { width: 26px; height: 26px; border: 0; padding: 0; background: none; }
-    .pop .body { padding: 10px 12px; }
-    .pop .title { font-weight: 700; font-size: 16px; outline: none; margin-bottom: 4px; }
-    .pop .text { outline: none; min-height: 40px; }
-    .pop .text img { max-width: 100%; border-radius: 6px; margin-top: 6px; }
-    .pop [contenteditable]:empty::before { content: attr(data-placeholder); opacity: .45; }
-    .pop .meta { font-size: 12px; opacity: .75; margin-top: 8px; display: grid; gap: 6px; }
+    .pop .fmt .sep { width: 1px; align-self: stretch; background: var(--border); margin: 2px 4px; }
+    .pop .meta { margin-top: 6px; padding: 8px 10px; font-size: 12px; display: grid; gap: 6px; }
     .pop .meta code { font-size: 11px; word-break: break-all; }
-    .pop select { font: inherit; font-size: 12px; padding: 3px; border-radius: 6px; }
-    .pop .actions { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px 10px; }
-    .pop .actions .tb { background: var(--tour-button); color: #fff; border: 0; border-radius: 6px; padding: 5px 12px; }
-    .pop .actions .link { background: none; border: 0; color: inherit; opacity: .7; padding: 4px; }
-    .pop .actions { gap: 8px; }
-    .pop .hint { font-size: 12px; font-style: italic; opacity: .75; margin-top: 8px; }
-    .pop .typed { width: 100%; margin-top: 8px; padding: 6px 8px; border: 1px solid rgba(0,0,0,.2); border-radius: 6px; font: inherit; }
+    .pop .meta select { font: inherit; font-size: 12px; padding: 3px; border-radius: 6px; }
+    .pop .meta .row { display: flex; justify-content: space-between; align-items: center; }
+    .pop .meta .save { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 5px 12px; font-weight: 600; }
+    .pop .meta .link { background: none; border: 0; color: var(--muted); padding: 4px; }
+    .pop [contenteditable]:empty::before { content: attr(data-placeholder); opacity: .45; }
+
+    /* the tour's step box, styled by the tour-wide --tour-* settings */
+    .tbox { background: var(--tour-frame); padding: 0 var(--tour-side); border-radius: var(--tour-radius); overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    .tb-head, .tb-foot { display: flex; align-items: center; justify-content: space-between; color: var(--tour-band-text); }
+    .tb-head { height: var(--tour-header-h); padding: 0 8px 0 10px; font-size: 12px; }
+    .tb-foot { height: var(--tour-footer-h); padding: 0 10px 0 12px; font-size: 13px; gap: 8px; }
+    .tb-head .close, .tb-foot .back { background: none; border: 0; color: inherit; font: inherit; padding: 2px 4px; }
+    .tb-head .close { font-size: 16px; line-height: 1; }
+    .tb-next { background: var(--tour-button); color: var(--tour-button-text); border: 0; border-radius: 6px; font-weight: 600; font-size: 13px;
+      padding: max(4px, calc((var(--tour-footer-h) - 22px) / 2.6)) calc(max(4px, calc((var(--tour-footer-h) - 22px) / 2.6)) + 10px); }
+    .tb-hint { font-size: 12px; font-style: italic; }
+    .tb-body { background: var(--tour-body-bg); color: var(--tour-body-text); }
+    .tb-img { position: relative; }
+    .tb-img img { display: block; width: 100%; max-height: 180px; object-fit: cover; }
+    .tb-img .rm { position: absolute; top: 6px; right: 6px; border: 0; border-radius: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 11px; padding: 3px 8px; }
+    .tb-pad { padding: 14px 16px 16px; }
+    .tb-title { margin: 0 0 6px; line-height: 1.25; font-weight: 600; text-align: var(--tour-title-align); outline: none; }
+    h1.tb-title { font-size: 22px; } h2.tb-title { font-size: 18px; } h3.tb-title { font-size: 16px; }
+    .tb-text { font-size: 14px; line-height: 1.5; text-align: var(--tour-text-align); outline: none; min-height: 21px; }
+    .tb-typed { width: 100%; margin-top: 10px; padding: 6px 8px; border: 1px solid rgba(0,0,0,.2); border-radius: 6px; font: inherit; }
 
     /* storyboard */
     .story { grid-column: 1 / -1; border-top: 1px solid var(--border); padding: 10px 14px; display: flex; gap: 8px; align-items: stretch; overflow-x: auto; min-height: 112px; }
@@ -96,7 +112,16 @@
     .stage:not(.picking) .draw-surface { cursor: not-allowed; }
 
     /* panels */
-    .panel { position: absolute; left: 64px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.2); z-index: 6; width: 220px; font-size: 13px; }
+    .panel { position: absolute; left: 64px; top: 56px; max-height: calc(100% - 190px); overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.2); z-index: 6; width: 270px; font-size: 13px; }
+    .panel h3 small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+    .panel .pgrp { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 12px 0 2px; }
+    .panel label { gap: 8px; }
+    .panel input[type=range] { flex: 1; min-width: 0; }
+    .panel label span.px { min-width: 34px; text-align: right; color: var(--text); }
+    .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .seg button { border: 0; background: transparent; color: var(--text); min-width: 30px; height: 26px; font-size: 12px; display: grid; place-items: center; }
+    .seg button + button { border-left: 1px solid var(--border); }
+    .seg button.on { background: var(--accent); color: #fff; }
     .panel[hidden] { display: none; }
     .panel h3 { margin: 0 0 8px; font-size: 13px; }
     .panel label { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; }
@@ -151,7 +176,7 @@
         <button class="tool on" data-tool="pointer" data-tip="Pointer: click an element">↖</button>
         <button class="tool" data-tool="box" data-tip="Box: draw around an area">▭</button>
         <button class="tool" id="textTool" data-tip="Text: edit the step's text">T</button>
-        <button class="tool" id="colorTool" data-tip="Colors">◐</button>
+        <button class="tool" id="styleTool" data-tip="Tour style">◐</button>
         <hr>
         <button class="tool" id="undoTool" data-tip="Remove last storyboard item">↶</button>
       </div>
@@ -166,12 +191,24 @@
 
       <div class="story" id="story"></div>
 
-      <div class="panel" id="colorPanel" hidden style="top: 200px">
-        <h3>Tour colors</h3>
-        <label>Background <input type="color" data-var="--tour-bg" value="#ffffff"></label>
-        <label>Border <input type="color" data-var="--tour-border" value="#1665d8"></label>
-        <label>Text <input type="color" data-var="--tour-text" value="#1a1a1a"></label>
-        <label>Buttons <input type="color" data-var="--tour-button" value="#1665d8"></label>
+      <div class="panel" id="stylePanel" hidden>
+        <h3>Tour style <small>Applies to every step in this tour.</small></h3>
+        <div class="pgrp">Colors</div>
+        <label>Frame <input type="color" data-var="--tour-frame" value="#0b1f44"></label>
+        <label>Header and footer text <input type="color" data-var="--tour-band-text" value="#ffffff"></label>
+        <label>Button <input type="color" data-var="--tour-button" value="#d8f34a"></label>
+        <label>Button text <input type="color" data-var="--tour-button-text" value="#0b1f44"></label>
+        <label>Body text <input type="color" data-var="--tour-body-text" value="#1b1d21"></label>
+        <label>Body background <input type="color" data-var="--tour-body-bg" value="#ffffff"></label>
+        <div class="pgrp">Sizes</div>
+        <label>Header <input type="range" data-var="--tour-header-h" min="16" max="48" value="26"><span class="px"></span></label>
+        <label>Footer <input type="range" data-var="--tour-footer-h" min="32" max="64" value="48"><span class="px"></span></label>
+        <label>Side border <input type="range" data-var="--tour-side" min="0" max="8" value="3"><span class="px"></span></label>
+        <label>Corners <input type="range" data-var="--tour-radius" min="0" max="16" value="10"><span class="px"></span></label>
+        <div class="pgrp">Text</div>
+        <label>Title size <span class="seg" data-key="titleTag"><button data-v="h1">H1</button><button data-v="h2" class="on">H2</button><button data-v="h3">H3</button></span></label>
+        <label>Title align <span class="seg" data-key="titleAlign"><button data-v="left" class="on" title="Left"><svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><rect x="0" y="1" width="14" height="1.6" fill="currentColor"/><rect x="0" y="5" width="9" height="1.6" fill="currentColor"/><rect x="0" y="9" width="12" height="1.6" fill="currentColor"/></svg></button><button data-v="center" title="Center"><svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><rect x="0" y="1" width="14" height="1.6" fill="currentColor"/><rect x="2.5" y="5" width="9" height="1.6" fill="currentColor"/><rect x="1" y="9" width="12" height="1.6" fill="currentColor"/></svg></button><button data-v="right" title="Right"><svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><rect x="0" y="1" width="14" height="1.6" fill="currentColor"/><rect x="5" y="5" width="9" height="1.6" fill="currentColor"/><rect x="2" y="9" width="12" height="1.6" fill="currentColor"/></svg></button></span></label>
+        <label>Text align <span class="seg" data-key="textAlign"><button data-v="left" class="on" title="Left"><svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><rect x="0" y="1" width="14" height="1.6" fill="currentColor"/><rect x="0" y="5" width="9" height="1.6" fill="currentColor"/><rect x="0" y="9" width="12" height="1.6" fill="currentColor"/></svg></button><button data-v="center" title="Center"><svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><rect x="0" y="1" width="14" height="1.6" fill="currentColor"/><rect x="2.5" y="5" width="9" height="1.6" fill="currentColor"/><rect x="1" y="9" width="12" height="1.6" fill="currentColor"/></svg></button><button data-v="right" title="Right"><svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><rect x="0" y="1" width="14" height="1.6" fill="currentColor"/><rect x="5" y="5" width="9" height="1.6" fill="currentColor"/><rect x="2" y="9" width="12" height="1.6" fill="currentColor"/></svg></button><button data-v="justify" title="Justify"><svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><rect x="0" y="1" width="14" height="1.6" fill="currentColor"/><rect x="0" y="5" width="14" height="1.6" fill="currentColor"/><rect x="0" y="9" width="14" height="1.6" fill="currentColor"/></svg></button></span></label>
       </div>
     </div>
   </div>
@@ -410,8 +447,37 @@
       if (t) t.focus();
       else toast('Add a step and pick what it highlights, then edit its text.');
     };
-    $('#colorTool').onclick = () => ($('#colorPanel').hidden = !$('#colorPanel').hidden);
-    document.querySelectorAll('#colorPanel input').forEach((i) => (i.oninput = () => document.documentElement.style.setProperty(i.dataset.var, i.value)));
+
+    // Tour style: one look for every step, applied through the --tour-* CSS variables.
+    const style = { titleTag: 'h2', titleAlign: 'left', textAlign: 'left' };
+    $('#styleTool').onclick = () => ($('#stylePanel').hidden = !$('#stylePanel').hidden);
+    function applyStyle() {
+      const root = document.documentElement.style;
+      document.querySelectorAll('#stylePanel input').forEach((i) => {
+        const px = i.type === 'range';
+        root.setProperty(i.dataset.var, i.value + (px ? 'px' : ''));
+        if (px) i.nextElementSibling.textContent = i.value + 'px';
+      });
+      root.setProperty('--tour-title-align', style.titleAlign);
+      root.setProperty('--tour-text-align', style.textAlign);
+      // Titles are real heading tags, so swap the tag when the size changes.
+      document.querySelectorAll('.tb-title').forEach((t) => {
+        if (t.tagName.toLowerCase() === style.titleTag) return;
+        const h = document.createElement(style.titleTag);
+        for (const a of t.attributes) h.setAttribute(a.name, a.value);
+        h.innerHTML = t.innerHTML;
+        t.replaceWith(h);
+      });
+      refreshOverlay();
+    }
+    document.querySelectorAll('#stylePanel input').forEach((i) => (i.oninput = applyStyle));
+    document.querySelectorAll('#stylePanel .seg').forEach((seg) => (seg.onclick = (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      style[seg.dataset.key] = b.dataset.v;
+      seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+      applyStyle();
+    }));
     $('#undoTool').onclick = () => removeItem(state.flow.length - 1);
 
     const canPick = () => state.active !== null && !state.previewing;
@@ -503,10 +569,7 @@
       clearHover();
       if (!shown || !shown.every((e) => e.isConnected)) return;
       place(selBox, unionRect(shown));
-      if (pop) {
-        const p = popoverAt(shown);
-        Object.assign(pop.style, { left: p.left + 'px', top: p.top + 'px' });
-      }
+      if (pop) placePop();
     }
 
     // Highlight els (one element, or a box-tool group) for the active step and open its editor.
@@ -518,20 +581,61 @@
       renderStory();
     }
 
-    function popoverAt(els) {
-      const r = unionRect(els);
+    // Put the step box beside the highlight (or below it), kept inside the stage.
+    function placePop() {
+      const r = unionRect(shown);
       const w = inner.clientWidth;
-      const left = r.left + r.width + 320 < w ? r.left + r.width + 14 : Math.max(8, Math.min(r.left, w - 308));
-      const top = r.left + r.width + 320 < w ? r.top : r.top + r.height + 14;
-      return { left, top: Math.max(8, Math.min(top, inner.clientHeight - 260)) };
+      const beside = r.left + r.width + 340 < w;
+      const left = beside ? r.left + r.width + 14 : Math.max(8, Math.min(r.left, w - 328));
+      const top = beside ? r.top : r.top + r.height + 14;
+      Object.assign(pop.style, { left: left + 'px', top: Math.max(8, Math.min(top, inner.clientHeight - pop.offsetHeight - 8)) + 'px' });
+    }
+
+    // The tour's step box: header band, body (full-width image, title, text), footer band.
+    function stepBox({ n, total, editable }) {
+      const box = document.createElement('div');
+      box.className = 'tbox';
+      const edit = (ph) => (editable ? `contenteditable data-placeholder="${ph}"` : '');
+      box.innerHTML = `
+        <div class="tb-head"><span>Step ${n} of ${total}</span><button class="close" aria-label="Close">×</button></div>
+        <div class="tb-body">
+          <div class="tb-img"></div>
+          <div class="tb-pad">
+            <${style.titleTag} class="tb-title" ${edit('Step title')}></${style.titleTag}>
+            <div class="tb-text" ${edit('What should people know here?')}></div>
+          </div>
+        </div>
+        <div class="tb-foot"><button class="back" style="visibility:${n > 1 ? 'visible' : 'hidden'}">Back</button><span class="tb-advance"></span></div>`;
+      return box;
+    }
+    function setImage(box, src, onRemove) {
+      const slot = box.querySelector('.tb-img');
+      slot.replaceChildren();
+      if (!src) return;
+      slot.append(Object.assign(document.createElement('img'), { src, alt: '' }));
+      if (onRemove) {
+        const rm = Object.assign(document.createElement('button'), { className: 'rm', textContent: 'Remove image' });
+        rm.onclick = onRemove;
+        slot.append(rm);
+      }
+    }
+    function setAdvance(box, advanceOn, last, onNext) {
+      const slot = box.querySelector('.tb-advance');
+      slot.replaceChildren();
+      if (advanceOn === 'next') {
+        const b = Object.assign(document.createElement('button'), { className: 'tb-next', textContent: last ? 'Done' : 'Next' });
+        if (onNext) b.onclick = onNext;
+        slot.append(b);
+      } else {
+        slot.append(Object.assign(document.createElement('span'), { className: 'tb-hint', textContent: advanceOn === 'click' ? 'Click the highlighted item' : 'Type to continue' }));
+      }
     }
 
     function openEditor(els, step) {
+      const all = state.flow.filter((i) => i.type === 'step');
+      const n = all.indexOf(state.flow[state.active]) + 1;
       pop = document.createElement('div');
       pop.className = 'pop';
-      const p = popoverAt(els);
-      pop.style.left = p.left + 'px';
-      pop.style.top = p.top + 'px';
       pop.innerHTML = `
         <div class="fmt">
           <button data-cmd="bold" title="Bold"><b>B</b></button>
@@ -539,67 +643,66 @@
           <button data-cmd="underline" title="Underline"><u>U</u></button>
           <button data-cmd="insertUnorderedList" title="Bullet list">•≡</button>
           <input type="color" title="Text color" value="#1665d8">
-          <button data-img title="Add image">🖼</button>
+          <span class="sep"></span>
+          <button data-img title="Add image">🖼 Image</button>
           <input type="file" accept="image/*" hidden>
-        </div>
-        <div class="body">
-          <div class="title" contenteditable data-placeholder="Step title"></div>
-          <div class="text" contenteditable data-placeholder="What should people know here?"></div>
-          <div class="meta">
-            <label>Continue when: <select>
-              ${Object.entries(ADVANCE).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}
-            </select></label>
-            <span>Anchored to <code></code></span>
-          </div>
-        </div>
-        <div class="actions">
-          <button class="link" data-cancel>Cancel</button>
-          <button class="tb" data-save>Save step</button>
         </div>`;
+      const box = stepBox({ n, total: all.length, editable: true });
+      pop.append(box);
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = `
+        <label>Continue when: <select>${Object.entries(ADVANCE).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label>
+        <span>Anchored to <code></code></span>
+        <div class="row"><button class="link" data-cancel>Cancel</button><button class="save" data-save>Save step</button></div>`;
+      pop.append(meta);
       $('#layer').append(pop);
 
-      const title = pop.querySelector('.title');
-      const text = pop.querySelector('.text');
-      const advance = pop.querySelector('select');
-      title.innerHTML = step ? step.titleHtml : '';
+      const title = () => box.querySelector('.tb-title'); // re-read: changing the title size swaps the element
+      const text = box.querySelector('.tb-text');
+      const advance = meta.querySelector('select');
+      title().innerHTML = step ? step.titleHtml : '';
       text.innerHTML = step ? step.textHtml : '';
+      let image = step ? step.image : null;
+      const showImage = () => { setImage(box, image, () => { image = null; showImage(); }); placePop(); };
+      showImage();
       const single = els.length === 1;
       advance.value = step ? step.advanceOn : single && els[0].matches('input') ? 'type' : 'next';
+      const showAdvance = () => setAdvance(box, advance.value, n === all.length);
+      advance.onchange = showAdvance;
+      showAdvance();
       const target = single ? targetFor(els[0]) : els.map(targetFor);
       const show = (t) => (typeof t === 'string' ? t : `text “${t.text}”`);
-      pop.querySelector('code').textContent = single ? show(target) : `${els.length} items: ${target.map(show).join(', ')}`;
+      meta.querySelector('code').textContent = single ? show(target) : `${els.length} items: ${target.map(show).join(', ')}`;
 
       pop.querySelectorAll('[data-cmd]').forEach((b) => (b.onmousedown = (e) => { e.preventDefault(); document.execCommand(b.dataset.cmd); }));
-      pop.querySelector('input[type=color]').oninput = (e) => document.execCommand('foreColor', false, e.target.value);
+      pop.querySelector('.fmt input[type=color]').oninput = (e) => document.execCommand('foreColor', false, e.target.value);
       const file = pop.querySelector('input[type=file]');
       pop.querySelector('[data-img]').onclick = () => file.click();
       file.onchange = () => {
         const f = file.files[0];
         if (!f) return;
         const reader = new FileReader();
-        reader.onload = () => {
-          const img = document.createElement('img');
-          img.src = reader.result;
-          text.append(img);
-        };
+        reader.onload = () => { image = reader.result; showImage(); };
         reader.readAsDataURL(f);
       };
       // Cancel keeps an unfinished step active so you can pick something else; it leaves a saved step as it was.
-      pop.querySelector('[data-cancel]').onclick = () => {
+      meta.querySelector('[data-cancel]').onclick = () => {
         clearSelection();
         if (!state.flow[state.active].draft) state.active = null;
         renderStory();
       };
-      pop.querySelector('[data-save]').onclick = () => {
-        if (!title.innerText.trim()) return toast('Give the step a title.');
+      meta.querySelector('[data-save]').onclick = () => {
+        if (!title().innerText.trim()) return toast('Give the step a title.');
         const page = state.flow[state.active].page;
-        state.flow[state.active] = { type: 'step', page, els, target, label: single ? labelFor(els[0]) : `${els.length} items`, titleHtml: title.innerHTML, textHtml: text.innerHTML, advanceOn: advance.value };
+        state.flow[state.active] = { type: 'step', page, els, target, label: single ? labelFor(els[0]) : `${els.length} items`, titleHtml: title().innerHTML, textHtml: text.innerHTML, image, advanceOn: advance.value };
         state.active = null;
         clearSelection();
         renderStory();
         toast('Step saved. Click + Step to add another, or + Page to move to another page.');
       };
-      title.focus();
+      placePop();
+      title().focus();
     }
 
     function clearSelection() {
@@ -712,32 +815,26 @@
       highlight(els);
       pop = document.createElement('div');
       pop.className = 'pop';
-      const p = popoverAt(els);
-      Object.assign(pop.style, { left: p.left + 'px', top: p.top + 'px' });
-      pop.innerHTML = `<div class="body"><div class="title"></div><div class="text"></div></div>
-        <div class="actions"><span style="font-size:12px;opacity:.7">${i + 1} of ${all.length}</span><span></span></div>`;
-      pop.querySelector('.title').innerHTML = s.titleHtml;
-      pop.querySelector('.text').innerHTML = s.textHtml;
-      const actions = pop.querySelector('.actions span:last-child');
+      const box = stepBox({ n: i + 1, total: all.length, editable: false });
+      pop.append(box);
+      box.querySelector('.tb-title').innerHTML = s.titleHtml;
+      box.querySelector('.tb-text').innerHTML = s.textHtml;
+      setImage(box, s.image);
+      box.querySelector('.back').onclick = () => showPreview(i - 1);
+      box.querySelector('.close').onclick = () => endPreview();
       const go = () => showPreview(i + 1);
-      if (s.advanceOn === 'next') {
-        const b = Object.assign(document.createElement('button'), { className: 'tb', textContent: i === all.length - 1 ? 'Done' : 'Next' });
-        b.onclick = go;
-        actions.append(b);
-      } else if (s.advanceOn === 'click') {
-        pop.querySelector('.body').append(Object.assign(document.createElement('div'), { className: 'hint', textContent: 'Click the highlighted item to continue.' }));
+      setAdvance(box, s.advanceOn, i === all.length - 1, go);
+      if (s.advanceOn === 'click') {
         selBox.style.pointerEvents = 'auto';
         selBox.style.cursor = 'pointer';
         selBox.onclick = go;
-      } else {
-        const input = Object.assign(document.createElement('input'), { className: 'typed', placeholder: 'Type here, then press Enter' });
+      } else if (s.advanceOn === 'type') {
+        const input = Object.assign(document.createElement('input'), { className: 'tb-typed', placeholder: 'Type here, then press Enter' });
         input.onkeydown = (e) => e.key === 'Enter' && input.value.trim() && go();
-        pop.querySelector('.body').append(input);
+        box.querySelector('.tb-pad').append(input);
       }
-      const stop = Object.assign(document.createElement('button'), { className: 'link', textContent: 'Exit preview' });
-      stop.onclick = () => endPreview();
-      pop.querySelector('.actions').prepend(stop);
       $('#layer').append(pop);
+      placePop();
     }
 
     // ---------- tour file ----------
@@ -749,7 +846,10 @@
         id,
         title: state.name,
         page: start,
-        theme: Object.fromEntries([...document.querySelectorAll('#colorPanel input')].map((i) => [i.dataset.var.replace('--tour-', ''), i.value])),
+        style: {
+          ...Object.fromEntries([...document.querySelectorAll('#stylePanel input')].map((i) => [i.dataset.var.replace('--tour-', ''), i.type === 'range' ? +i.value : i.value])),
+          ...style,
+        },
         steps: steps().map((s) => ({
           ...(s.page !== start ? { page: s.page } : {}),
           target: s.target,
@@ -757,17 +857,18 @@
           text: plain(s.textHtml),
           ...(s.advanceOn !== 'next' ? { advanceOn: s.advanceOn } : {}),
           ...(/<(b|i|u|ul|font|span)\b/.test(s.textHtml) ? { formattedText: '(formatting kept)' } : {}),
-          ...(/<img\b/.test(s.textHtml) ? { images: ['(uploaded image)'] } : {}),
+          ...(s.image ? { image: '(uploaded image)' } : {}),
         })),
       };
       const drafts = state.flow.filter((i) => i.draft).length;
       $('#fileOut').textContent =
         JSON.stringify(tour, null, 2) +
-        '\n\n// Not in the tour format yet: "theme", "formattedText", "images", advanceOn "type", and a list as "target" (groups).' +
+        '\n\n// Not in the tour format yet: "style", "image", "formattedText", advanceOn "type", and a list as "target" (groups).' +
         (drafts ? '\n// Steps with nothing highlighted yet are left out.' : '');
       $('#filebox').hidden = false;
     };
     $('#closeFile').onclick = () => ($('#filebox').hidden = true);
+    applyStyle();
   </script>
 </body>
 </html>
