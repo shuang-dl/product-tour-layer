@@ -1,0 +1,42 @@
+{
+  "id": "demo-overview",
+  "title": "Your Overview dashboard",
+  "description": "A quick look around the home screen.",
+  "page": "/home",
+  "steps": [
+    {
+      "title": "Welcome",
+      "text": "This is your Overview dashboard. It pulls together what needs your attention across your portfolio."
+    },
+    {
+      "target": "[data-cy='global-search-trigger']",
+      "title": "Search anything",
+      "text": "Find any tenant, property, or unit from here. Press Cmd+K (Ctrl+K on Windows) from anywhere."
+    },
+    {
+      "target": "[data-cy='SideMenu-CreateNewMenu-Button']",
+      "title": "Create new",
+      "text": "Add a lease, tenant, payment, or task without leaving the page you're on."
+    },
+    {
+      "target": "[data-cy='Widget-dashboards.thingsToDo']",
+      "title": "Things to do",
+      "text": "Past-due leases, expiring leases, open tasks, and vacant units, each one click away."
+    },
+    {
+      "target": "[data-cy='Widget-dashboards.leasesWithOutstandingBalances']",
+      "title": "Who owes what",
+      "text": "Tenants with an outstanding balance. Click a name to open their profile."
+    },
+    {
+      "target": "[data-cy='Widget-dashboards.occupancyRate']",
+      "title": "Occupancy rate",
+      "text": "How many of your units are occupied, at a glance."
+    },
+    {
+      "target": "[data-cy='TrainingHubV2-DockButton']",
+      "title": "Help & training",
+      "text": "Guides and training videos, whenever you get stuck."
+    }
+  ]
+}

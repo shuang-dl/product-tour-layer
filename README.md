@@ -21,7 +21,17 @@ links page ──click──▶ app.doorloop.com/tenants?tour=tenants-list
 - **Waits for the page:** each step waits (up to 8s) for its element to render before showing.
 - **Missing elements:** if a step's element never appears, the step still shows, centred, so the tour doesn't get stuck. An `optional` step is skipped instead.
 
-## Try it
+## Demo app (no setup)
+
+[`/demo/`](https://shuang-dl.github.io/product-tour-layer/demo/home) is a simple, read-only DoorLoop-style app with made-up data: Overview, Properties, Units, Leases, Tenants (with profiles), Vendors, Tasks, Transactions, Reports and Settings. Navigation, search, filters and tabs work; create and edit buttons only say they're turned off.
+
+- It uses the same element labels as DoorLoop (`data-cy`, `data-intercom-target`, `aria-label`), so tours carry over between the two.
+- The tour engine is built into the page (`site/demo/index.html` loads `tour-layer.js` and calls `TourLayer.init`), with no extension. That's the integration DoorLoop would add to its own app.
+- Demo tours live in `demo-tours/` and are listed on the links page under "Try it now, no setup".
+- Source: `site/demo/` (`data.js` sample data, `app.js` pages and routing). GitHub Pages serves unknown paths with `404.html`, which is a copy of the demo page, so deep links like `/demo/tenants/t1` work.
+- Preview locally: `npm run build && npm run serve`, then open http://localhost:4173/product-tour-layer/.
+
+## Try it on DoorLoop
 
 1. Download [doorloop-tours-extension.zip](https://shuang-dl.github.io/product-tour-layer/doorloop-tours-extension.zip) and unzip it (or run `node scripts/build.mjs` and use `dist/extension/`).
 2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select the folder.
@@ -76,11 +86,14 @@ Add `tours/<id>.json`:
 | Path | |
 |---|---|
 | `src/tour-layer.js` | the engine (`TourLayer.init`, `start`, `stop`) |
-| `tours/*.json` | one file per tour |
+| `tours/*.json` | one file per tour on real DoorLoop |
+| `demo-tours/*.json` | tours for the demo app (same format) |
+| `site/demo/` | the demo app |
 | `site/index.html` | links page (lists tours from `tours.json`) |
 | `extension/` | Chrome extension manifest and loader (`content.js`) |
 | `vendor/driver.js/` | highlight/popover library (MIT), bundled into the extension |
-| `scripts/build.mjs` | validation + build site and extension into `dist/` |
+| `scripts/build.mjs` | validation + build site, extension and demo app into `dist/` |
+| `scripts/serve.mjs` | serves `dist/` locally the way GitHub Pages does |
 | `tests/` | extension test (Playwright) and the mock DoorLoop page it runs against |
 | `.github/workflows/pages.yml` | validate on PRs, publish to GitHub Pages on `main` |
 

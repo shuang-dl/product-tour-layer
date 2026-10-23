@@ -50,22 +50,30 @@ function validateTour(tour, file) {
   return errors;
 }
 
-const files = (await readdir(join(root, 'tours'))).filter((f) => f.endsWith('.json')).sort();
-const tours = [];
-const errors = [];
-for (const file of files) {
-  let tour;
-  try {
-    tour = JSON.parse(await readFile(join(root, 'tours', file), 'utf8'));
-  } catch (e) {
-    errors.push(`${file}: invalid JSON (${e.message})`);
-    continue;
+// Reads and validates every tour in a folder: tours/ (DoorLoop) or demo-tours/ (the demo app).
+async function loadTours(dir) {
+  const files = (await readdir(join(root, dir))).filter((f) => f.endsWith('.json')).sort();
+  const tours = [];
+  const errors = [];
+  for (const file of files) {
+    let tour;
+    try {
+      tour = JSON.parse(await readFile(join(root, dir, file), 'utf8'));
+    } catch (e) {
+      errors.push(`${dir}/${file}: invalid JSON (${e.message})`);
+      continue;
+    }
+    errors.push(...validateTour(tour, file).map((e) => `${dir}/${e}`));
+    tours.push(tour);
   }
-  errors.push(...validateTour(tour, file));
-  tours.push(tour);
+  const ids = tours.map((t) => t.id);
+  ids.filter((id, i) => ids.indexOf(id) !== i).forEach((id) => errors.push(`${dir}: duplicate tour id "${id}"`));
+  return { tours, errors };
 }
-const ids = tours.map((t) => t.id);
-ids.filter((id, i) => ids.indexOf(id) !== i).forEach((id) => errors.push(`duplicate tour id "${id}"`));
+
+const { tours, errors: tourErrors } = await loadTours('tours');
+const { tours: demoTours, errors: demoErrors } = await loadTours('demo-tours');
+const errors = [...tourErrors, ...demoErrors];
 
 if (errors.length) {
   console.error(`Tour validation failed:\n  ${errors.join('\n  ')}`);
@@ -93,4 +101,13 @@ for (const [to, from] of Object.entries(extFiles)) await copyFile(join(root, fro
 await writeFile(join(ext, 'bundled-tours.js'), `window.TOUR_LAYER_BUNDLED = ${JSON.stringify({ tours })};\n`);
 execFileSync('zip', ['-qr', '../doorloop-tours-extension.zip', '.'], { cwd: ext });
 
-console.log(`Built ${tours.length} tour(s) and the extension into dist/`);
+// Demo app: a DoorLoop-style app with sample data. The engine is built in, like DoorLoop would add it.
+// 404.html is the same page, so GitHub Pages serves the app for deep links like /demo/tenants/t1.
+const demo = join(dist, 'demo');
+await mkdir(demo);
+for (const f of await readdir(join(root, 'site/demo'))) await copyFile(join(root, 'site/demo', f), join(demo, f));
+for (const f of ['tour-layer.js', 'driver.js.iife.js', 'driver.css']) await copyFile(join(ext, f), join(demo, f));
+await writeFile(join(demo, 'tours.json'), JSON.stringify({ tours: demoTours }, null, 2));
+await copyFile(join(root, 'site/demo/index.html'), join(dist, '404.html'));
+
+console.log(`Built ${tours.length} DoorLoop tour(s), ${demoTours.length} demo tour(s), the extension and the demo app into dist/`);

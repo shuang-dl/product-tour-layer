@@ -1,5 +1,5 @@
 // Product Tour Layer: runs guided tours on top of DoorLoop without changing DoorLoop's code.
-// Load vendor/driver.js (JS + CSS) first, then: TourLayer.init({ tours }).
+// Load vendor/driver.js (JS + CSS) first, then: TourLayer.init({ tours, basePath? }).
 (function () {
   'use strict';
   if (window.TourLayer) return;
@@ -14,6 +14,11 @@
   let internalDestroy = false;
   let runToken = 0; // bumped on every step change so stale async work can bail out
   let lastPath = location.pathname;
+  let basePath = ''; // set when the app lives under a sub-path, e.g. "/product-tour-layer/demo"
+
+  // Current path with basePath removed, so tours can say "/tenants" wherever the app is hosted.
+  const currentPath = () =>
+    (location.pathname.startsWith(basePath) ? location.pathname.slice(basePath.length) : location.pathname) || '/';
 
   // ---------- helpers ----------
 
@@ -110,7 +115,7 @@
     // (overflow: hidden), which can hide the next step's target from findTarget.
     destroyDriver();
     const step = tour.steps[index];
-    if (step.page && !pageMatches(step.page, location.pathname)) {
+    if (step.page && !pageMatches(step.page, currentPath())) {
       // Wrong page for this step: pause until the route watcher sees the right one.
       renderLauncher();
       return;
@@ -130,7 +135,7 @@
     const total = tour.steps.length;
     const clickToAdvance = step.advanceOn === 'click' && el;
     const prev = tour.steps[index - 1];
-    const canGoBack = prev && (!prev.page || pageMatches(prev.page, location.pathname));
+    const canGoBack = prev && (!prev.page || pageMatches(prev.page, currentPath()));
 
     const buttons = [];
     if (canGoBack) buttons.push('previous');
@@ -187,7 +192,7 @@
     const tour = state && findTour(state.tourId);
     const step = tour && tour.steps[state.step];
     if (step) {
-      if (!step.page || pageMatches(step.page, location.pathname)) {
+      if (!step.page || pageMatches(step.page, currentPath())) {
         if (!driverObj) goTo(tour, state.step);
         return;
       }
@@ -224,7 +229,7 @@
     if (driverObj) return;
     const state = loadState();
     const paused = state && findTour(state.tourId);
-    const here = tours.filter((t) => pageMatches(t.page, location.pathname));
+    const here = tours.filter((t) => pageMatches(t.page, currentPath()));
     if (!paused && !here.length) return;
 
     const item = (title, sub, onClick) =>
@@ -236,13 +241,13 @@
         el('div', { className: 'tour-layer-heading', textContent: 'In progress' }),
         item(`Resume: ${paused.title}`, `Step ${state.step + 1} of ${paused.steps.length}`, () => {
           const page = paused.steps[state.step].page;
-          if (!page || pageMatches(page, location.pathname)) return goTo(paused, state.step);
+          if (!page || pageMatches(page, currentPath())) return goTo(paused, state.step);
           // Reloads the app on the step's page; the saved state picks the tour back up.
           if (page.includes('*')) {
             saveState({ tourId: paused.id, step: 0 });
-            location.assign(paused.page);
+            location.assign(basePath + paused.page);
           } else {
-            location.assign(page);
+            location.assign(basePath + page);
           }
         }),
         item('Stop tour', null, endTour)
@@ -265,6 +270,7 @@
   function init(options) {
     if (!(window.driver && window.driver.js)) throw new Error('[TourLayer] load vendor/driver.js before tour-layer.js');
     tours = options.tours;
+    basePath = options.basePath || '';
     document.head.append(el('style', { textContent: STYLE }));
 
     const params = new URLSearchParams(location.search);

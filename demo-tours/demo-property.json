@@ -1,0 +1,37 @@
+{
+  "id": "demo-property",
+  "title": "Look inside a property",
+  "description": "From your property list to a property's units (two pages).",
+  "page": "/properties",
+  "steps": [
+    {
+      "target": "[data-cy='DetailScreen-ScreenTitle']",
+      "title": "Properties",
+      "text": "Every property you manage, with its unit count and occupancy."
+    },
+    {
+      "target": "button[aria-label='Filter']",
+      "title": "Filter by type",
+      "text": "Narrow the list to multi-family, condos, or duplexes."
+    },
+    {
+      "page": "/properties",
+      "target": "[data-cy='list-engine-row']",
+      "title": "Open a property",
+      "text": "Click this property to see inside it.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/properties/*",
+      "target": "[data-cy='Property-Stats']",
+      "title": "At a glance",
+      "text": "Units, how many are occupied, and the rent they bring in each month."
+    },
+    {
+      "page": "/properties/*",
+      "target": "[data-cy='Property-Units']",
+      "title": "Units",
+      "text": "Each unit with its tenant and rent. Click an occupied unit to open that tenant."
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "id": "demo-find-a-tenant",
+  "title": "Find a tenant and check their balance",
+  "description": "From the dashboard to a tenant's payments (three pages).",
+  "page": "/home",
+  "steps": [
+    {
+      "title": "Find a tenant",
+      "text": "Let's open a tenant's profile and check what they owe, starting from the side menu."
+    },
+    {
+      "page": "/home",
+      "target": "[data-intercom-target='nav-side-menu-main-people'][aria-expanded='false']",
+      "title": "Open People",
+      "text": "Tenants are under People. Click People to expand it.",
+      "advanceOn": "click",
+      "optional": true
+    },
+    {
+      "page": "/home",
+      "target": "[data-cy='SideMenu-People-Tenants']",
+      "title": "Open Tenants",
+      "text": "Click Tenants to open your tenant list.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/tenants",
+      "target": "input[aria-label='Search']",
+      "title": "Search the list",
+      "text": "Type part of a name, email, or phone number to narrow the list."
+    },
+    {
+      "page": "/tenants",
+      "target": "button[aria-label='Filter']",
+      "title": "Filter",
+      "text": "Show only tenants who owe money, or only those who are paid up."
+    },
+    {
+      "page": "/tenants",
+      "target": "[data-cy='list-engine-row']",
+      "title": "Open a profile",
+      "text": "Click this tenant to open their profile.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/tenants/*",
+      "target": "[data-cy='Tenant-Balance']",
+      "title": "Balance",
+      "text": "What this tenant owes right now. Red means it's past due."
+    },
+    {
+      "page": "/tenants/*",
+      "target": { "text": "Payments", "selector": "[role='tab']" },
+      "title": "Payment history",
+      "text": "Click Payments to see every payment and whether it was on time.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/tenants/*",
+      "title": "That's it",
+      "text": "You found a tenant, checked their balance, and looked at their payment history."
+    }
+  ]
+}

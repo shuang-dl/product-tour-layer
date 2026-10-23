@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DoorLoop Demo</title>
+  <script>
+    // This file is also served as the site's 404.html, so deep links like /demo/tenants/t1 load the app.
+    // Work out where the demo lives and point relative URLs there.
+    (function () {
+      var i = location.pathname.indexOf('/demo');
+      if (i === -1) { window.DEMO_NOT_FOUND = true; return; }
+      window.DEMO_ROOT = location.pathname.slice(0, i + 5);
+      document.write('<base href="' + window.DEMO_ROOT + '/">');
+    })();
+  </script>
+  <link rel="stylesheet" href="driver.css">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    if (window.DEMO_NOT_FOUND) document.getElementById('app').innerHTML =
+      '<p style="font:16px system-ui;padding:40px">Page not found. <a href="' + location.pathname.split('/').slice(0, 2).join('/') + '/">Go to the links page</a></p>';
+  </script>
+  <script src="driver.js.iife.js"></script>
+  <script src="tour-layer.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
