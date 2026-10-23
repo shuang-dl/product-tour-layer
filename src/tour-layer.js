@@ -21,17 +21,21 @@
   const escapeHtml = (s) =>
     String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   // Has a size and isn't clipped away by a collapsed parent (e.g. a closed side-menu section).
+  // Clipping outside the nearest scroll container doesn't count: the element can be scrolled into view.
   const isVisible = (el) => {
     const r = el.getBoundingClientRect();
     if (!r.width || !r.height) return false;
-    for (let p = el.parentElement; p; p = p.parentElement) {
+    let checkX = true;
+    let checkY = true;
+    for (let p = el.parentElement; p && (checkX || checkY); p = p.parentElement) {
       const cs = getComputedStyle(p);
+      const pr = p.getBoundingClientRect();
       const clipY = cs.overflowY === 'hidden' || cs.overflowY === 'clip';
       const clipX = cs.overflowX === 'hidden' || cs.overflowX === 'clip';
-      if (!clipX && !clipY) continue;
-      const pr = p.getBoundingClientRect();
-      if (clipY && (r.bottom <= pr.top || r.top >= pr.bottom)) return false;
-      if (clipX && (r.right <= pr.left || r.left >= pr.right)) return false;
+      if (checkY && clipY && (r.bottom <= pr.top || r.top >= pr.bottom)) return false;
+      if (checkX && clipX && (r.right <= pr.left || r.left >= pr.right)) return false;
+      if (cs.overflowY === 'auto' || cs.overflowY === 'scroll') checkY = false;
+      if (cs.overflowX === 'auto' || cs.overflowX === 'scroll') checkX = false;
     }
     return true;
   };
@@ -102,10 +106,12 @@
     saveState({ tourId: tour.id, step: index });
     removeLauncher();
 
+    // Clear the previous highlight first: driver.js styles the highlighted element's parent
+    // (overflow: hidden), which can hide the next step's target from findTarget.
+    destroyDriver();
     const step = tour.steps[index];
     if (step.page && !pageMatches(step.page, location.pathname)) {
       // Wrong page for this step: pause until the route watcher sees the right one.
-      destroyDriver();
       renderLauncher();
       return;
     }
