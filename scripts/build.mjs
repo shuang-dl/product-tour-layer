@@ -3,6 +3,7 @@
 import { readdir, readFile, writeFile, mkdir, copyFile, rm } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -74,7 +75,21 @@ if (errors.length) {
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist);
 await writeFile(join(dist, 'tours.json'), JSON.stringify({ tours }, null, 2));
-await copyFile(join(root, 'src/tour-layer.js'), join(dist, 'tour-layer.js'));
-await copyFile(join(root, 'userscript/tour-layer.user.js'), join(dist, 'tour-layer.user.js'));
 await copyFile(join(root, 'site/index.html'), join(dist, 'index.html'));
-console.log(`Built ${tours.length} tour(s) into dist/`);
+
+// Chrome extension: everything it runs is bundled, nothing loads from a CDN.
+const ext = join(dist, 'extension');
+await mkdir(ext);
+const extFiles = {
+  'manifest.json': 'extension/manifest.json',
+  'content.js': 'extension/content.js',
+  'tour-layer.js': 'src/tour-layer.js',
+  'driver.js.iife.js': 'vendor/driver.js/driver.js.iife.js',
+  'driver.css': 'vendor/driver.js/driver.css',
+  'DRIVER_LICENSE': 'vendor/driver.js/LICENSE',
+};
+for (const [to, from] of Object.entries(extFiles)) await copyFile(join(root, from), join(ext, to));
+await writeFile(join(ext, 'bundled-tours.js'), `window.TOUR_LAYER_BUNDLED = ${JSON.stringify({ tours })};\n`);
+execFileSync('zip', ['-qr', '../doorloop-tours-extension.zip', '.'], { cwd: ext });
+
+console.log(`Built ${tours.length} tour(s) and the extension into dist/`);

@@ -1,10 +1,9 @@
 // Product Tour Layer: runs guided tours on top of DoorLoop without changing DoorLoop's code.
-// Usage: TourLayer.init({ toursUrl }) or TourLayer.init({ tours }).
+// Load vendor/driver.js (JS + CSS) first, then: TourLayer.init({ tours }).
 (function () {
   'use strict';
   if (window.TourLayer) return;
 
-  const DRIVER_BASE = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/';
   const STATE_KEY = 'tourLayer.state';
   const TARGET_TIMEOUT_MS = 8000;
   const OPTIONAL_TIMEOUT_MS = 1500;
@@ -77,21 +76,6 @@
   const saveState = (state) => sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
   const clearState = () => sessionStorage.removeItem(STATE_KEY);
   const findTour = (id) => tours.find((t) => t.id === id);
-
-  function loadDriver() {
-    if (window.driver && window.driver.js) return Promise.resolve();
-    const css = document.createElement('link');
-    css.rel = 'stylesheet';
-    css.href = DRIVER_BASE + 'driver.css';
-    document.head.appendChild(css);
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = DRIVER_BASE + 'driver.js.iife.js';
-      s.onload = resolve;
-      s.onerror = () => reject(new Error('[TourLayer] driver.js failed to load'));
-      document.head.appendChild(s);
-    });
-  }
 
   // ---------- tour flow ----------
 
@@ -272,9 +256,9 @@
 
   // ---------- public API ----------
 
-  async function init(options = {}) {
-    tours = options.tours || (await (await fetch(options.toursUrl, { cache: 'no-store' })).json()).tours;
-    await loadDriver();
+  function init(options) {
+    if (!(window.driver && window.driver.js)) throw new Error('[TourLayer] load vendor/driver.js before tour-layer.js');
+    tours = options.tours;
     document.head.append(el('style', { textContent: STYLE }));
 
     const params = new URLSearchParams(location.search);

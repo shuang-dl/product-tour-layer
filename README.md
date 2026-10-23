@@ -2,7 +2,7 @@
 
 Proof of concept: guided product tours that run **on top of DoorLoop** without changing DoorLoop's code.
 
-Tours are JSON files in this repo. A small script loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers (built on [driver.js](https://driverjs.com)).
+Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN.
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -11,8 +11,8 @@ Tours are JSON files in this repo. A small script loads into the DoorLoop tab, r
 ```
 links page ──click──▶ app.doorloop.com/tenants?tour=tenants-list
                                 │
-                     tour-layer.js (loaded by the userscript)
-                       ├─ fetches tours.json from GitHub Pages
+                     DoorLoop Tours extension
+                       ├─ fetches tours.json from GitHub Pages (falls back to its bundled copy)
                        ├─ sees ?tour=tenants-list → starts that tour
                        └─ no ?tour= → shows a "Tours" button with tours for the current page
 ```
@@ -23,9 +23,13 @@ links page ──click──▶ app.doorloop.com/tenants?tour=tenants-list
 
 ## Try it
 
-1. Install [Tampermonkey](https://www.tampermonkey.net/).
-2. Open https://shuang-dl.github.io/product-tour-layer/tour-layer.user.js and click **Install**.
+1. Download [doorloop-tours-extension.zip](https://shuang-dl.github.io/product-tour-layer/doorloop-tours-extension.zip) and unzip it (or run `node scripts/build.mjs` and use `dist/extension/`).
+2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select the folder.
 3. Log in to DoorLoop, then click a tour on the [links page](https://shuang-dl.github.io/product-tour-layer/).
+
+New and edited tours reach the extension automatically. Reinstall only when the extension code changes.
+
+For wider internal rollout without Developer mode: publish it to the Chrome Web Store as unlisted or private to the DoorLoop domain, or have a Google Workspace admin force-install it on staff browsers.
 
 ## Writing a tour
 
@@ -70,17 +74,13 @@ Add `tours/<id>.json`:
 | `src/tour-layer.js` | the engine (`TourLayer.init`, `start`, `stop`) |
 | `tours/*.json` | one file per tour |
 | `site/index.html` | links page (lists tours from `tours.json`) |
-| `userscript/tour-layer.user.js` | Tampermonkey loader |
-| `scripts/build.mjs` | validation + build into `dist/` |
+| `extension/` | Chrome extension manifest and loader (`content.js`) |
+| `vendor/driver.js/` | highlight/popover library (MIT), bundled into the extension |
+| `scripts/build.mjs` | validation + build site and extension into `dist/` |
 | `.github/workflows/pages.yml` | validate on PRs, publish to GitHub Pages on `main` |
 
 ## Path to production
 
-The userscript is about 10 lines and is the whole integration. If DoorLoop shipped the equivalent in its app, customers would get tours with nothing to install:
-
-```html
-<script src="https://<doorloop-cdn>/tour-layer.js" async></script>
-<script>window.addEventListener('load', () => TourLayer.init({ toursUrl: 'https://<doorloop-cdn>/tours.json' }));</script>
-```
+The extension only does three things: load driver.js, load `tour-layer.js`, and call `TourLayer.init({ tours })` (see `extension/content.js`). If DoorLoop's app did the same, customers would get tours with nothing to install. The engine and tour files carry over unchanged.
 
 Before that, engineering would want: hosting on a DoorLoop-controlled domain, a security review, targeting by role/plan (passed to `init`), per-user "seen" state, analytics events, and a kill switch.
