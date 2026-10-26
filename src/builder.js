@@ -50,6 +50,7 @@
     .tool { width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font-size: 16px; display: grid; place-items: center; position: relative; }
     .tool:hover { background: var(--bg); }
     .tool.on { background: var(--accent); color: #fff; }
+    .live .tool[data-tip]:hover::after { left: auto; right: 48px; }
     .tool[data-tip]:hover::after { content: attr(data-tip); position: absolute; left: 48px; white-space: nowrap; background: #222; color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; z-index: 5; }
     .tools hr { width: 100%; border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
     .stage { position: relative; overflow: auto; background: #e9edf3; padding: 16px; }
@@ -59,7 +60,7 @@
 
     .live .ws-top { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); width: min(980px, calc(100vw - 140px)); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.18); pointer-events: auto; z-index: 3; }
     .live .ws-top .badge { font-size: 11px; font-weight: 600; background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 8px; white-space: nowrap; }
-    .live .tools { position: fixed; left: 10px; top: 50%; transform: translateY(-50%); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.18); pointer-events: auto; z-index: 3; }
+    .live .tools { position: fixed; right: 10px; top: 50%; transform: translateY(-50%); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.18); pointer-events: auto; z-index: 3; }
     .live .story { position: fixed; left: 0; right: 0; bottom: 0; box-shadow: 0 -6px 24px rgba(0,0,0,.12); pointer-events: auto; z-index: 3; }
 
     /* highlight layer: the draw surface sits under the layer so the step editor stays clickable */
@@ -129,7 +130,7 @@
 
     /* panels and overlays */
     .panel { position: absolute; left: 64px; top: 56px; max-height: calc(100% - 190px); overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.2); z-index: 6; width: 270px; font-size: 13px; pointer-events: auto; }
-    .live .panel { position: fixed; left: 70px; top: 70px; max-height: calc(100vh - 220px); }
+    .live .panel { position: fixed; left: auto; right: 70px; top: 70px; max-height: calc(100vh - 220px); }
     .panel[hidden] { display: none; }
     .panel h3 { margin: 0 0 8px; font-size: 13px; }
     .panel h3 small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
@@ -251,6 +252,18 @@
     const pathOf = (url) => { try { return new URL(url).pathname; } catch { return url.startsWith('/') ? url : '/' + url; } };
     const currentPage = () => [...state.flow].reverse().find((i) => i.type === 'page').path;
     const steps = () => state.flow.filter((i) => i.type === 'step' && !i.draft);
+    // Move the storyboard to a page. An empty page card at the end is reused rather than piling up cards
+    // (keepStart: + Page never changes where the tour starts), and two cards for the same page in a row merge.
+    function pageCard(path, keepStart) {
+      const last = state.flow[state.flow.length - 1];
+      if (last.type !== 'page' || (keepStart && state.flow.length === 1)) {
+        if (path !== currentPage()) state.flow.push({ type: 'page', path });
+        return;
+      }
+      last.path = path;
+      const before = state.flow.slice(0, -1).reverse().find((i) => i.type === 'page');
+      if (before && before.path === path) state.flow.pop();
+    }
     const showPage = (path) => ($('.url').textContent = live
       ? `${location.host}${path}`
       : `app.doorloop.com${path}  (demo app)` + (state.testOn === 'live' ? '  ·  Preview runs on live DoorLoop' : ''));
@@ -427,7 +440,7 @@
       clearSelection();
       // Browsed to another page since the last page card? Add a card for it.
       const here = app.path();
-      if (here && here !== currentPage()) state.flow.push({ type: 'page', path: here });
+      if (here) pageCard(here);
       state.flow.push({ type: 'step', draft: true, page: currentPage() });
       state.active = state.flow.length - 1;
       renderStory();
@@ -437,7 +450,7 @@
       clearSelection();
       state.flow = state.flow.filter((i) => !i.draft);
       state.active = null;
-      state.flow.push({ type: 'page', path: pathOf(path) });
+      pageCard(pathOf(path), true);
       renderStory();
       await app.navigate(currentPage());
       toast(`Now on ${currentPage()}. Click + Step to add steps for this page.`);
@@ -627,8 +640,9 @@
       const w = layer.clientWidth;
       const top0 = live ? $('.ws-top').getBoundingClientRect().bottom + 8 : 8;
       const bottom = layer.clientHeight - (live ? $('.story').offsetHeight : 0) - 8;
-      const beside = r.left + r.width + 340 < w;
-      const left = beside ? r.left + r.width + 14 : Math.max(live ? 70 : 8, Math.min(r.left, w - 328));
+      const right = live ? w - 70 : w; // keep clear of the toolbox on the right in live mode
+      const beside = r.left + r.width + 340 < right;
+      const left = beside ? r.left + r.width + 14 : Math.max(8, Math.min(r.left, right - 328));
       const top = beside ? r.top : r.top + r.height + 14;
       Object.assign(pop.style, { left: left + 'px', top: Math.max(top0, Math.min(top, bottom - pop.offsetHeight)) + 'px' });
     }
