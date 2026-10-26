@@ -91,7 +91,8 @@
       "page": "/properties/new",
       "target": "[data-cy='NewProperty-NewUnitLink']",
       "title": "More than one unit?",
-      "text": "Click Add another unit for each one. The duplicate icon copies a unit with similar details."
+      "text": "Click Add another unit for each one. The duplicate icon copies a unit with similar details.",
+      "optional": true
     },
     {
       "page": "/properties/new",

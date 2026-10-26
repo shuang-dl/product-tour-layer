@@ -137,6 +137,16 @@ try {
   await tab.evaluate(() => (document.getElementById('createDialog').hidden = true));
   await tab.click("[data-cy='mockField']"); // lands on the decorative outline, which must let the click through
   check("a highlighted field's own click-through layers still work", await tab.evaluate(() => document.activeElement === document.querySelector("[aria-label='Mock field']")));
+  const option = await tab.locator('#mockOption').boundingBox(); // the field's dropdown opens on <body>, outside the highlight
+  await tab.mouse.click(option.x + option.width / 2, option.y + option.height / 2);
+  check("a highlighted field's dropdown can be used", (await tab.inputValue("[aria-label='Mock field']")) === 'Option A');
+  await tab.evaluate(() => scrollTo(0, 0));
+  await tab.waitForTimeout(300);
+  await tab.evaluate(() => document.querySelector('nav').prepend(Object.assign(document.createElement('div'), { id: 'shift', style: 'height:40px' })));
+  await tab.waitForTimeout(500);
+  check('a group highlight follows its items when the layout shifts', await tab.evaluate(() =>
+    Math.abs(document.querySelector('.tour-layer-group').getBoundingClientRect().top - document.querySelector("[data-cy='global-search-trigger']").getBoundingClientRect().top) < 1));
+  await tab.evaluate(() => document.getElementById('shift').remove());
   await tab.click("body", { position: { x: 900, y: 600 } }); // outside the highlight: blocked by the overlay
   check('clicks outside the highlight are blocked', (await title(tab)) === 'Drafted in the builder');
   await tab.click('.driver-popover-next-btn');

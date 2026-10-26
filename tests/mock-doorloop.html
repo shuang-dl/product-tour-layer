@@ -14,6 +14,8 @@
   <!-- like DoorLoop's form fields: a decorative outline sits on top of the input and lets clicks through -->
   <div data-cy="mockField" style="position:relative;width:160px"><input aria-label="Mock field" style="width:100%"><fieldset style="position:absolute;inset:-4px;margin:0;pointer-events:none;border:1px solid #aaa"></fieldset></div>
 </nav>
+<!-- Like MUI's autocomplete: the field's options open in a popper mounted on <body>, at the overlay's z-index -->
+<div role="presentation" id="mockPopper" hidden style="position:absolute;z-index:10000;background:#fff;border:1px solid #ccc"><ul role="listbox" style="margin:0;padding:4px"><li role="option" id="mockOption">Option A</li></ul></div>
 <!-- Like DoorLoop's Create new: opens as the mouse button goes down, keeps focus inside, closes on a press outside or Escape -->
 <div role="dialog" id="createDialog" hidden style="position:fixed;top:120px;left:320px;width:360px;background:#fff;border:1px solid #ccc;padding:12px;z-index:50">
   <input id="dialogSearch" placeholder="Search items to create">
@@ -33,6 +35,13 @@
   render();
   window.addEventListener('popstate', render);
   const createBtn = document.querySelector('[data-cy="SideMenu-CreateNewMenu-Button"]');
+  const mockInput = document.querySelector('[aria-label="Mock field"]');
+  mockInput.addEventListener('focus', () => {
+    const r = mockInput.getBoundingClientRect();
+    Object.assign(mockPopper.style, { left: r.left + scrollX + 'px', top: r.bottom + scrollY + 40 + 'px' });
+    mockPopper.hidden = false;
+  });
+  mockOption.addEventListener('click', () => { mockInput.value = 'Option A'; mockPopper.hidden = true; });
   const dialog = document.getElementById('createDialog');
   createBtn.addEventListener('mousedown', () => { dialog.hidden = false; dialogSearch.focus(); });
   document.addEventListener('focusin', (e) => { if (!dialog.hidden && !dialog.contains(e.target)) dialogSearch.focus(); });

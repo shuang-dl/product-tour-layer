@@ -115,7 +115,7 @@
   // ---------- tour flow ----------
 
   // driver.js highlights one element, so a group gets an invisible box over the area around all its items,
-  // kept in place while the page scrolls or resizes.
+  // kept in place while the page scrolls, resizes or shifts its layout (e.g. a form adds an error line).
   let group = null;
   function groupBox(els) {
     const box = el('div', { className: 'tour-layer-group' });
@@ -123,23 +123,27 @@
       const rs = els.map((e) => e.getBoundingClientRect());
       const left = Math.min(...rs.map((r) => r.left));
       const top = Math.min(...rs.map((r) => r.top));
-      Object.assign(box.style, {
+      const style = {
         left: left + 'px', top: top + 'px',
         width: Math.max(...rs.map((r) => r.right)) - left + 'px', height: Math.max(...rs.map((r) => r.bottom)) - top + 'px',
-      });
+      };
+      const moved = Object.keys(style).some((k) => box.style[k] !== style[k]);
+      Object.assign(box.style, style);
+      return moved;
     };
     const onMove = () => {
-      fit();
-      if (driverObj) driverObj.refresh();
+      if (fit() && driverObj) driverObj.refresh();
     };
     fit();
     document.body.append(box);
     window.addEventListener('scroll', onMove, true);
     window.addEventListener('resize', onMove);
+    const timer = setInterval(onMove, 250);
     group = {
       box,
       remove: () => {
         box.remove();
+        clearInterval(timer);
         window.removeEventListener('scroll', onMove, true);
         window.removeEventListener('resize', onMove);
       },
@@ -321,6 +325,8 @@
       padding: max(4px, calc((var(--tl-footer-h) - 22px) / 2.6)) calc(max(4px, calc((var(--tl-footer-h) - 22px) / 2.6)) + 10px); }
     .tour-layer-popover .driver-popover-next-btn:hover { filter: brightness(.95); }
     .tour-layer-group { position: fixed; pointer-events: none; }
+    /* Dropdowns that a highlighted field opens are mounted on <body>, outside the highlight; lift them above the overlay. */
+    body.driver-active > :is([role=presentation], [data-radix-popper-content-wrapper]):has([role=listbox], [role=menu]) { z-index: 10001 !important; }
     .tour-layer-popover .tl-hint { margin-left: auto; font-size: 12px; font-style: italic; }
     .tour-layer-popover .driver-popover-arrow { border-color: transparent; }
     .tour-layer-popover .driver-popover-arrow-side-left { border-left-color: var(--tl-frame); }
