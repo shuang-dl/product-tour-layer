@@ -99,7 +99,7 @@ Add `tours/<id>.json`:
 
 The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html)'s Tour style panel (◐) sets these visually, and "View tour file" writes them in this format.
 
-**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.4.0 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
+**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.4.1 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
 
 - The builder is `src/builder.js`, shared by the builder page (demo mode, with the demo app in a frame) and the extension (live mode). It draws inside a shadow root so DoorLoop's CSS and the builder's can't affect each other.
 - Pages change through DoorLoop's own links (an in-app page change). Where there's no link, the page loads normally and the builder comes back with the draft, which is kept in `sessionStorage` for that tab.
