@@ -117,9 +117,11 @@
   // driver.js highlights one element, so a group gets an invisible box over the area around all its items,
   // kept in place while the page scrolls, resizes or shifts its layout (e.g. a form adds an error line).
   let group = null;
-  function groupBox(els) {
+  function groupBox(els, target) {
     const box = el('div', { className: 'tour-layer-group' });
     const fit = () => {
+      // The app may re-render an item as a new element; measure the new one, not the detached original.
+      if (!els.every((e) => e.isConnected)) els = findTarget(target) || els;
       const rs = els.map((e) => e.getBoundingClientRect());
       const left = Math.min(...rs.map((r) => r.left));
       const top = Math.min(...rs.map((r) => r.top));
@@ -213,7 +215,7 @@
 
     destroyDriver();
     if (Array.isArray(el)) el[0].scrollIntoView({ block: 'center' });
-    const anchor = Array.isArray(el) ? groupBox(el) : el;
+    const anchor = Array.isArray(el) ? groupBox(el, step.target) : el;
     driverObj = window.driver.js.driver({
       // Only the × ends a tour (onCloseClick below). Escape and clicks on the dimmed page are too easy to do by
       // accident in the middle of a form, e.g. Escape to close an address dropdown.

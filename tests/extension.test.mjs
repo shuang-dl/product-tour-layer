@@ -147,6 +147,13 @@ try {
   check('a group highlight follows its items when the layout shifts', await tab.evaluate(() =>
     Math.abs(document.querySelector('.tour-layer-group').getBoundingClientRect().top - document.querySelector("[data-cy='global-search-trigger']").getBoundingClientRect().top) < 1));
   await tab.evaluate(() => document.getElementById('shift').remove());
+  await tab.evaluate(() => { const f = document.querySelector("[data-cy='mockField']"); f.replaceWith(f.cloneNode(true)); }); // re-rendered as a new element
+  await tab.waitForTimeout(500);
+  check('a group highlight follows items the app re-renders', await tab.evaluate(() => {
+    const box = document.querySelector('.tour-layer-group').getBoundingClientRect();
+    const field = document.querySelector("[data-cy='mockField']").getBoundingClientRect();
+    return box.top > 0 && box.left > 0 && box.bottom >= field.bottom - 1;
+  }));
   await tab.click("body", { position: { x: 900, y: 600 } }); // outside the highlight: blocked by the overlay
   check('clicks outside the highlight are blocked', (await title(tab)) === 'Drafted in the builder');
   await tab.click('.driver-popover-next-btn');
