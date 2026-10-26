@@ -116,7 +116,11 @@ async function loadTours(dir) {
     try {
       tour = JSON.parse(await readFile(join(root, dir, file), 'utf8'));
     } catch (e) {
-      errors.push(`${dir}/${file}: invalid JSON (${e.message})`);
+      // Usually something was pasted in with the file, e.g. the builder's screen text from selecting the whole page.
+      const raw = await readFile(join(root, dir, file), 'utf8');
+      const extra = !raw.trimStart().startsWith('{') || !raw.trimEnd().endsWith('}');
+      errors.push(`${dir}/${file}: invalid JSON (${e.message})` +
+        (extra ? '. The file must hold only the tour, from its first { to its last }: other text was pasted in with it. Use the builder\'s Copy or Save to GitHub button.' : ''));
       continue;
     }
     errors.push(...validateTour(tour, file).map((e) => `${dir}/${e}`));

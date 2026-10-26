@@ -1,20 +1,3 @@
-Building on live DoorLoop
-Receive a Payment
-kbm2025.app.doorloop.com/home/global-new/payment/new
-Storyboard ▴
-▶ Preview
-View tour file
-Close
-↖
-▭
-T
-◐
-⎋
-↶
-Tour file
-Copy
-Save to GitHub
-Close
 {
   "id": "receive-a-payment",
   "title": "Receive a Payment",
@@ -109,6 +92,3 @@ Close
     }
   ]
 }
-
-// Uploaded images would be saved next to the tour as the "image" path shown.
-// Not in the tour format yet: "formattedText" and advanceOn "type".

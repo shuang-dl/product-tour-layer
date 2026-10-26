@@ -319,7 +319,9 @@ try {
   await E.locator('.card:has-text("Second")').dragTo(E.locator('.card:has-text("First")'));
   check('edit: dragging reorders steps', JSON.stringify(await cards()) === JSON.stringify(['Second', 'First', 'Inserted']));
   await E.locator('.file-btn').click();
-  const edited = JSON.parse((await E.locator('.file-out').textContent()).split('\n\n//')[0]);
+  await ed.keyboard.press('ControlOrMeta+a');
+  check('file view: select all picks only the tour file', JSON.parse(await ed.evaluate(() => getSelection().toString())).id === 'edit-me');
+  const edited = JSON.parse(await E.locator('.file-out').textContent());
   check('edit: the tour file keeps the id and reflects the edits',
     edited.id === 'edit-me' && edited.steps.map((x) => x.title).join() === 'Second,First,Inserted' &&
     edited.steps[2].optional === true && edited.steps[2].target === "[data-cy='Choice-B']" && edited.steps[0].advanceOn === 'click' && edited.style.frame === '#0f6e56');

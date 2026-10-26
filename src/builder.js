@@ -165,7 +165,8 @@
     .filebox[hidden] { display: none; }
     .filebox header { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
     .filebox header strong { flex: 1; }
-    .filebox pre { margin: 0; padding: 16px; overflow: auto; flex: 1; font-size: 12px; }
+    .filebox pre { margin: 0; padding: 16px; overflow: auto; flex: 1; font-size: 12px; outline: none; }
+    .filebox .file-notes { margin: 0; padding: 10px 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); white-space: pre-line; }
     .toast { position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 30; max-width: min(640px, calc(100vw - 32px)); }
     .toast[hidden] { display: none; }
   `;
@@ -250,7 +251,8 @@
         </div>
         <div class="filebox" hidden>
           <header><strong>Tour file</strong><button class="ghost copy-btn">Copy</button><button class="ghost gh-btn">Save to GitHub</button><button class="ghost file-close">Close</button></header>
-          <pre class="file-out"></pre>
+          <pre class="file-out" tabindex="0"></pre>
+          <p class="file-notes"></p>
         </div>
         <div class="toast" role="status" hidden></div>
       </div>`;
@@ -1319,12 +1321,20 @@
     $('.file-btn').onclick = () => {
       const { tour } = buildTour('view');
       const drafts = state.flow.filter((i) => i.draft).length;
-      $('.file-out').textContent =
-        JSON.stringify(tour, null, 2) +
-        '\n\n// Uploaded images would be saved next to the tour as the "image" path shown.' +
-        '\n// Not in the tour format yet: "formattedText" and advanceOn "type".' +
-        (drafts ? '\n// Steps with nothing highlighted yet are left out.' : '');
+      // Only the file goes in the box, so selecting all of it copies a file that's ready to save; notes sit below.
+      $('.file-out').textContent = JSON.stringify(tour, null, 2);
+      $('.file-notes').textContent =
+        'Uploaded images would be saved next to the tour as the "image" path shown.' +
+        '\nNot in the tour format yet: "formattedText" and advanceOn "type".' +
+        (drafts ? '\nSteps with nothing highlighted yet are left out.' : '');
       $('.filebox').hidden = false;
+      $('.file-out').focus();
+    };
+    // Select all (Cmd/Ctrl+A) in the box selects just the tour file, not the whole page around it.
+    $('.file-out').onkeydown = (e) => {
+      if (!((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a')) return;
+      e.preventDefault();
+      getSelection().selectAllChildren($('.file-out'));
     };
     $('.file-close').onclick = () => ($('.filebox').hidden = true);
     $('.copy-btn').onclick = async () => {
