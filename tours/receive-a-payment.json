@@ -66,7 +66,7 @@
     },
     {
       "page": "/home/global-new/payment/new",
-      "target": "[data-cy='lease-payment-dialog-received-from-option-6a7e3c7d4adb321ec4bec469']",
+      "target": "[data-cy='lease-payment-dialog-received-from-picker']",
       "title": "Select a tenant",
       "text": "Pick the tenant who made the payment.",
       "advanceOn": "click"
