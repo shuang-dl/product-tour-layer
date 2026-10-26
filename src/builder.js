@@ -947,7 +947,7 @@
       meta.querySelector('[data-save]').onclick = () => {
         if (!title().innerText.trim()) return toast('Give the step a title.');
         if (!text.innerText.trim()) return toast('Add some text for the step: what should people know or do here?');
-        if (fill.length && !state.exitClicks.length) setTimeout(() => toast('This step has sample data. Use ⎋ in the toolbox to pick what to click when the tour ends (e.g. Cancel), so it isn\'t saved.'), 3300);
+        if (fill.length && !state.exitClicks.length) setTimeout(() => suggestExit(els), 3300);
         const page = state.flow[state.active].page;
         state.flow[state.active] = {
           type: 'step', page, els, target, label: !els.length ? 'centred' : single ? labelFor(els[0]) : `${els.length} items`,
@@ -1039,6 +1039,19 @@
         list.append(li);
       });
       if (pop) placePop();
+    }
+
+    // Sample data in a dialog and no exit clicks yet: suggest the dialog's close button (×), shown in the ⎋ panel to
+    // keep or remove. If the app then asks "Discard your changes?", the tour engine answers it.
+    function suggestExit(els) {
+      const dialog = els.map((e) => e.closest('[role=dialog]')).find(Boolean);
+      const close = dialog && [...dialog.querySelectorAll("[data-slot$='dialog-close'], button[aria-label='Close' i]")].find(isShown);
+      if (!close) return toast('This step has sample data. Use ⎋ in the toolbox to pick what to click when the tour ends (e.g. Cancel), so it isn\'t saved.', 6000);
+      state.exitClicks.push(targetFor(close));
+      $('.exit-panel').hidden = false;
+      renderExit();
+      save();
+      toast('Sample data is in a dialog, so its × is set as the exit click: when the tour ends it closes the dialog without saving. Change it in ⎋.', 8000);
     }
 
     $('.exit-tool').onclick = () => { $('.exit-panel').hidden = !$('.exit-panel').hidden; renderExit(); };

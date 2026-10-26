@@ -392,7 +392,25 @@ try {
     id: 'dup-test', title: 'Dup', page: '/home',
     steps: [{ title: 'Start', text: 'x' }, { target: "[data-item-id='dupItem']", title: 'Pick it', text: 'y', advanceOn: 'click' }],
   };
-  await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [dropTour, dupTour] }) }));
+  // Sample data in a dialog: with no exit clicks (or one that isn't there), ending the tour closes the dialog with its
+  // × and answers "Discard your changes?"
+  const amountStep = { target: "[data-cy='mockAmount']", title: 'Amount', text: 'x', fill: [{ target: "[data-cy='mockAmount']", value: '1500' }] };
+  const leaveTour = { id: 'leave-test', title: 'Leave', page: '/payment', steps: [amountStep] };
+  const leaveTour2 = { id: 'leave-test-2', title: 'Leave 2', page: '/payment', exitClicks: ["[data-cy='notThere']"], steps: [amountStep] };
+  await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [dropTour, dupTour, leaveTour, leaveTour2] }) }));
+  for (const [id, wait, name] of [['leave-test', 1500, 'with no exit clicks'], ['leave-test-2', 5000, "when an exit click isn't there"]]) {
+    const lp = await ctx.newPage();
+    await lp.goto(`https://acme.app.doorloop.com/payment?tour=${id}`);
+    await title(lp);
+    await lp.click('.tl-fill');
+    await lp.waitForTimeout(800);
+    const filled = (await lp.inputValue('[aria-label=Amount]')) === '1500';
+    await lp.click('.driver-popover-next-btn'); // Done
+    await lp.waitForTimeout(wait);
+    check(`leaving ${name}: the dialog's × closes it and its prompt is discarded`, filled &&
+      (await lp.evaluate(() => document.body.dataset.discarded === 'yes' && !document.getElementById('takeover') && !document.querySelector('[role=alertdialog]'))));
+    await lp.close();
+  }
   const dup = await ctx.newPage();
   await dup.goto('https://acme.app.doorloop.com/home?tour=dup-test');
   await title(dup);
@@ -463,6 +481,8 @@ try {
   await R.locator('.pop .tb-text').click();
   await rec.keyboard.type('Step text');
   await R.locator('.pop [data-save]').click();
+  await rec.waitForTimeout(3600); // the suggestion comes after the "Step saved" message
+  check('record: no exit click is suggested outside a dialog', (await R.locator('.exit-list li:not(.empty)').count()) === 0);
   await R.locator('.exit-tool').click();
   await R.locator('.exit-pick').click();
   await rec.click('[data-cy=mockCancel]');
@@ -480,6 +500,34 @@ try {
   check('save: a new tour opens a filled-in new file on GitHub',
     ghNew.pathname === '/shuang-dl/product-tour-layer/new/main/tours' && ghNew.searchParams.get('filename') === 'recorded.json' &&
     sent && sent.id === 'recorded' && sent.exitClicks.length === 1 && sent.steps[0].fill.length === 1, ghNew.href.slice(0, 200));
+
+  // Sample data recorded in a dialog with no exit clicks yet: the builder suggests the dialog's ×
+  const site4 = await ctx.newPage();
+  await site4.goto('https://shuang-dl.github.io/product-tour-layer/builder-concept.html');
+  await site4.click('#create');
+  await site4.fill('#tourName', 'In a dialog');
+  await site4.fill('#tourUrl', '/payment');
+  await site4.check('input[value=live]');
+  const dlgTabP = ctx.waitForEvent('page');
+  await site4.click('#openBtn');
+  const dlg = await dlgTabP;
+  await dlg.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
+  const D = dlg.locator('#tour-layer-builder');
+  await D.locator('.adders .add', { hasText: '+ Step' }).click();
+  await dlg.click('[aria-label=Amount]');
+  await D.locator('.pop .tb-title').click();
+  await dlg.keyboard.type('Amount');
+  await D.locator('.pop .tb-text').click();
+  await dlg.keyboard.type('Enter the amount');
+  await D.locator('.pop [data-record]').click();
+  await dlg.click('[aria-label=Amount]');
+  await dlg.keyboard.type('1500');
+  await D.locator('.pop [data-record]').click();
+  await D.locator('.pop [data-save]').click();
+  await dlg.waitForTimeout(3600);
+  const suggested = await D.locator('.exit-list li:not(.empty)').allInnerTexts();
+  check("record: sample data in a dialog suggests the dialog's × as the exit click",
+    suggested.length === 1 && suggested[0].includes('Close') && (await D.locator('.exit-panel').isVisible()), JSON.stringify(suggested));
 } finally {
   await ctx.close();
 }

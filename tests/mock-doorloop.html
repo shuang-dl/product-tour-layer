@@ -30,12 +30,29 @@
     // like DoorLoop's Receive payment: a full-screen dialog above the tour overlay, whose lease list opens on <body>
     // above the dialog and closes when the field loses focus
     if (location.pathname === '/payment') {
-      main.innerHTML = '<div role="dialog" id="takeover" style="position:fixed;inset:0;z-index:1000000;background:#fff;padding:20px;pointer-events:auto"><div data-cy="mockLease" style="width:260px"><input aria-label="Lease" role="combobox" style="width:100%"></div></div>';
+      main.innerHTML = '<div role="dialog" id="takeover" style="position:fixed;inset:0;z-index:1000000;background:#fff;padding:20px;pointer-events:auto">' +
+        '<button aria-label="Close" data-slot="takeover-dialog-close" style="position:absolute;right:20px;top:20px">×</button>' +
+        '<div data-cy="mockLease" style="width:260px"><input aria-label="Lease" role="combobox" style="width:100%"></div>' +
+        '<div data-cy="mockAmount" style="width:260px;margin-top:20px"><input aria-label="Amount" style="width:100%"></div></div>';
+      // closing with unsaved changes asks first, like DoorLoop: Keep editing or Discard changes
+      document.querySelector('[data-slot=takeover-dialog-close]').onclick = () => {
+        const ask = document.createElement('div');
+        ask.setAttribute('role', 'alertdialog');
+        ask.style.cssText = 'position:fixed;top:200px;left:200px;z-index:1000010;background:#fff;border:1px solid #ccc;padding:12px;pointer-events:auto';
+        ask.innerHTML = 'Discard your changes? <button>Keep editing</button> <button>Discard changes</button>';
+        ask.querySelectorAll('button')[1].onclick = () => {
+          ask.remove();
+          document.getElementById('takeover').remove();
+          document.body.style.pointerEvents = '';
+          document.body.dataset.discarded = 'yes';
+        };
+        document.body.append(ask);
+      };
       // like Radix's modal dialog: nothing outside it takes clicks, and a press outside it closes it
       document.body.style.pointerEvents = 'none';
       document.addEventListener('pointerdown', (e) => {
         const dlg = document.getElementById('takeover');
-        if (dlg && !dlg.contains(e.target) && !e.target.closest('#leasePopper')) { dlg.remove(); document.body.style.pointerEvents = ''; }
+        if (dlg && !dlg.contains(e.target) && !e.target.closest('#leasePopper, [role=alertdialog]')) { dlg.remove(); document.body.style.pointerEvents = ''; }
       });
       leaseField();
       return;

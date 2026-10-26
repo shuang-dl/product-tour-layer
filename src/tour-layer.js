@@ -271,8 +271,8 @@
     runToken++;
     const state = loadState();
     const tour = state && findTour(state.tourId);
-    // The tour typed sample data into the app: leave without saving it (e.g. click Cancel), once the highlight is gone.
-    if (state && state.sampleUsed && tour && tour.exitClicks) setTimeout(() => clickInOrder(tour.exitClicks), 0);
+    // The tour typed sample data into the app: leave without saving it, once the highlight is gone.
+    if (state && state.sampleUsed && tour) setTimeout(() => leaveSample(tour), 0);
     const draft = loadDraft();
     if (draft && state && state.tourId === draft.id) {
       sessionStorage.removeItem(DRAFT_KEY);
@@ -435,8 +435,11 @@
     return !!option;
   }
 
+  let sampleDialog = null; // the app dialog the sample data went into, if any (see leaveSample)
   async function fillSample(tour, step, button) {
     const token = runToken;
+    const first = findTarget(step.fill[0].target);
+    sampleDialog = (Array.isArray(first) ? first[0] : first)?.closest('[role=dialog]') || sampleDialog;
     const prev = loadState();
     saveState({ ...prev, sampleUsed: true });
     button.disabled = true;
@@ -454,13 +457,38 @@
     return ok;
   }
 
+  // Returns false if a target never showed up.
   async function clickInOrder(targets) {
     for (const target of targets) {
       const found = await waitFor(() => findTarget(target), 3000);
-      if (!found) return console.warn('[TourLayer] exit click target not found', target);
+      if (!found) {
+        console.warn('[TourLayer] exit click target not found', target);
+        return false;
+      }
       press(Array.isArray(found) ? found[0] : found);
       await sleep(400);
     }
+    return true;
+  }
+
+  // Leave the form without saving the sample data: the tour's exit clicks; if it has none, or one isn't there, the
+  // close button (×) of the dialog the sample data went into. Then, if the app asks "Discard your changes?", discard.
+  const CLOSE_BUTTON = "[data-slot$='dialog-close'], button[aria-label='Close' i]";
+  const DISCARD = /^(discard|leave|close without saving|don't save|yes, discard)\b/i;
+  async function leaveSample(tour) {
+    const done = tour.exitClicks ? await clickInOrder(tour.exitClicks) : false;
+    if (!done && sampleDialog && sampleDialog.isConnected) {
+      const close = [...sampleDialog.querySelectorAll(CLOSE_BUTTON)].find(isVisible);
+      if (close) press(close);
+    }
+    const before = sampleDialog;
+    sampleDialog = null;
+    // A confirmation the app opened just now (not the form's own dialog): press its discard button.
+    const discard = await waitFor(() => [...document.querySelectorAll('[role=alertdialog], [role=dialog]')]
+      .filter((d) => d !== before && !d.closest('.driver-popover'))
+      .flatMap((d) => [...d.querySelectorAll('button')])
+      .find((b) => isVisible(b) && DISCARD.test(b.innerText.trim())), 1500);
+    if (discard) press(discard);
   }
 
   // Rebuild driver.js's popover into the step box: a header band (step count, close), a body
