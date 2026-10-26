@@ -181,6 +181,27 @@ try {
   await live.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
   const B = live.locator('#tour-layer-builder');
   check('builder opens on DoorLoop', (await B.count()) === 1 && (await B.locator('.ws-name').textContent()) === 'Working with your tenant list');
+  const dialogOpen = () => live.evaluate(() => !document.getElementById('createDialog').hidden);
+  const dropDraft = async () => {
+    await B.locator('.pop [data-cancel]').click();
+    await B.locator('.card.draft .x').click();
+  };
+  // Picking a control the app opens on mouse-down must not trigger it
+  await B.locator('.add >> text=+ Step').click();
+  await live.click('[data-cy="SideMenu-CreateNewMenu-Button"]');
+  check('live: picking blocks the press, so menus stay shut', !(await dialogOpen()) && (await B.locator('.pop code').textContent()) === "[data-cy='SideMenu-CreateNewMenu-Button']");
+  await dropDraft();
+  // With an app dialog open (opened while browsing), using the builder must not close it or lose the typing
+  await live.click('[data-cy="SideMenu-CreateNewMenu-Button"]');
+  await B.locator('.add >> text=+ Step').click();
+  check('live: using the builder leaves an app dialog open', await dialogOpen());
+  await live.click('#createDialog [data-item-id="property"]');
+  await B.locator('.pop .tb-title').click();
+  await live.keyboard.type('Choose Property');
+  check('live: typing goes to the step box, not the app dialog',
+    (await B.locator('.pop .tb-title').innerText()) === 'Choose Property' && (await live.inputValue('#dialogSearch')) === '' && (await dialogOpen()));
+  await dropDraft();
+  await live.keyboard.press('Escape');
   await B.locator('.add >> text=+ Step').click();
   await live.click('input[aria-label="Search"]');
   check('live: a real click picks, without the app reacting', (await B.locator('.pop code').textContent()) === "input[aria-label='Search']");

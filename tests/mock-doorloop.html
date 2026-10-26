@@ -12,6 +12,11 @@
   <div id="grp" style="height:0;overflow:hidden"><a data-cy="SideMenu-People-Tenants" href="/tenants">Tenants</a></div>
   <button data-cy="TrainingHubV2-DockButton">?</button>
 </nav>
+<!-- Like DoorLoop's Create new: opens as the mouse button goes down, keeps focus inside, closes on a press outside or Escape -->
+<div role="dialog" id="createDialog" hidden style="position:fixed;top:120px;left:320px;width:360px;background:#fff;border:1px solid #ccc;padding:12px;z-index:50">
+  <input id="dialogSearch" placeholder="Search items to create">
+  <div role="button" data-item-id="property" tabindex="0">Property</div>
+</div>
 <div style="height:100vh;overflow:clip">
   <main id="main" style="height:100vh;overflow-x:hidden;overflow-y:auto"></main>
 </div>
@@ -22,7 +27,13 @@
       : '<div data-cy="Widget-dashboards.thingsToDo" style="height:100px">todo</div><div style="height:1500px"></div><div data-cy="Widget-dashboards.occupancyRate" style="height:100px">occ</div>';
   }
   render();
-  window.addEventListener('popstate', render); // like a real router: back/forward and pushState + popstate re-render
+  window.addEventListener('popstate', render);
+  const createBtn = document.querySelector('[data-cy="SideMenu-CreateNewMenu-Button"]');
+  const dialog = document.getElementById('createDialog');
+  createBtn.addEventListener('mousedown', () => { dialog.hidden = false; dialogSearch.focus(); });
+  document.addEventListener('focusin', (e) => { if (!dialog.hidden && !dialog.contains(e.target)) dialogSearch.focus(); });
+  document.addEventListener('pointerdown', (e) => { if (!dialog.hidden && !dialog.contains(e.target) && e.target !== createBtn) dialog.hidden = true; });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dialog.hidden = true; }); // like a real router: back/forward and pushState + popstate re-render
   people.onclick = () => { grp.style.height = 'auto'; people.setAttribute('aria-expanded', 'true'); };
   document.querySelector('[data-cy="SideMenu-People-Tenants"]').onclick = (e) => {
     e.preventDefault();

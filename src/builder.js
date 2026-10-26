@@ -230,6 +230,11 @@
         <div class="toast" role="status" hidden></div>
       </div>`;
     document.body.append(host);
+    // Keep the builder's own presses, typing and focus changes from reaching the app. Otherwise an open app
+    // dialog sees them as "outside" and pulls focus back to itself or closes.
+    for (const type of ['pointerdown', 'mousedown', 'touchstart', 'focusin', 'focusout', 'keydown', 'keyup', 'keypress']) {
+      host.addEventListener(type, (e) => e.stopPropagation());
+    }
     const rootEl = $('.root');
     const layer = $('.layer');
 
@@ -369,6 +374,16 @@
         if (el) select([el]);
       }, true);
       on('scroll', refreshOverlay, true);
+      // Apps open menus and dialogs as the mouse button goes down, before the click, so block the whole press.
+      for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'touchstart']) {
+        on(type, (e) => {
+          if (inBuilder(e) || navigating) return;
+          if (state.previewing || (canPick() && state.tool === 'pointer')) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }, true);
+      }
     }
     if (live) wire(document);
     else frame.addEventListener('load', () => wire(frame.contentDocument));
