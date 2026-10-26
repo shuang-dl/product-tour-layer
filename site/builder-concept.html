@@ -63,7 +63,7 @@
       </div>
       <div id="newFields">
         <label for="tourName">Tour name</label>
-        <input type="text" id="tourName" value="Working with your tenant list">
+        <input type="text" id="tourName" placeholder="e.g. Add a new property" required>
         <label for="tourUrl">Page where the tour starts (e.g. /home, /tenants, /properties)</label>
         <input type="text" id="tourUrl" value="/home">
       </div>
@@ -140,6 +140,7 @@
       $('#liveHint').hidden = !live;
       $('#openBtn').textContent = live ? 'Open DoorLoop' : 'Open page';
       $('#newFields').hidden = editing;
+      $('#tourName').required = !editing; // a hidden required field would block Open
       $('#editFields').hidden = !editing;
       $('#tourPaste').hidden = $('#tourPick').value !== 'paste';
       $('#editError').hidden = true;

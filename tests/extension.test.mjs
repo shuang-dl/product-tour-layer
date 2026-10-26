@@ -201,6 +201,8 @@ try {
   await site.goto('https://shuang-dl.github.io/product-tour-layer/builder-concept.html');
   await site.click('#create');
   check('builder: a new tour starts on /home by default', (await site.inputValue('#tourUrl')) === '/home');
+  check('builder: the tour name starts empty and is required', (await site.inputValue('#tourName')) === '' && (await site.locator('#tourName').evaluate((i) => i.required && i.placeholder === 'e.g. Add a new property')));
+  await site.fill('#tourName', 'Working with your tenant list');
   await site.fill('#tourUrl', '/tenants');
   await site.check('input[value=live]');
   const liveTabP = ctx.waitForEvent('page');
