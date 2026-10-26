@@ -261,12 +261,22 @@
       ? {
           doc: () => document,
           path: () => location.pathname,
-          // DoorLoop routes in the browser, so move it the way its own links do.
+          // Move DoorLoop the way its own menu does: click its link to that page (an in-app page change).
+          // With no such link, load the page; the extension brings the builder back with the draft.
           async navigate(path) {
             if (location.pathname === path) return;
-            history.pushState({}, '', path);
-            window.dispatchEvent(new PopStateEvent('popstate'));
-            await sleep(400);
+            const link = [...document.querySelectorAll('a[href]')].find((a) => a.origin === location.origin && a.pathname === path && !host.contains(a));
+            if (link) {
+              navigating = true;
+              link.click();
+              navigating = false;
+              for (let i = 0; i < 30 && location.pathname !== path; i++) await sleep(100);
+              await sleep(400);
+              return;
+            }
+            save();
+            location.assign(path);
+            await new Promise(() => {}); // the page is unloading
           },
           offset: () => ({ left: 0, top: 0 }),
         }
@@ -294,6 +304,7 @@
           offset: () => frame.getBoundingClientRect(),
         };
     const inBuilder = (e) => e.composedPath().includes(host);
+    let navigating = false; // the builder itself is clicking a link to change pages
     const pickable = (node) => {
       const el = node.closest && node.closest(PICKABLE);
       return el && el !== app.doc().body && !host.contains(el) ? el : null;
@@ -326,7 +337,7 @@
       });
       // With a step active, clicks pick; otherwise you can use the app normally.
       on('click', (e) => {
-        if (inBuilder(e)) return;
+        if (inBuilder(e) || navigating) return;
         if (state.previewing || (canPick() && state.tool === 'pointer')) {
           e.preventDefault();
           e.stopPropagation();
@@ -963,13 +974,14 @@
       if (!live || closed) return;
       const flow = state.flow.map(({ els, ...rest }) => rest); // elements can't be saved; targets find them again
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-        name: state.name, flow, style,
+        name: state.name, flow, style, active: state.active,
         inputs: Object.fromEntries([...$$('.style-panel input')].map((i) => [i.dataset.var, i.value])),
       }));
     }
     function restore(saved) {
       state.name = saved.name;
       state.flow = saved.flow;
+      state.active = saved.active ?? null;
       Object.assign(style, saved.style);
       $$('.style-panel input').forEach((i) => { if (saved.inputs[i.dataset.var] !== undefined) i.value = saved.inputs[i.dataset.var]; });
       $$('.style-panel .seg').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === style[seg.dataset.key])));

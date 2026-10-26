@@ -151,6 +151,68 @@ try {
   await builderTab2.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 10000 }).catch(() => {});
   check('build request from the builder opens it on DoorLoop',
     (await builderTab2.locator('#tour-layer-builder .ws-name').textContent().catch(() => null)) === 'Built live');
+
+  // Building on live DoorLoop, start to finish: the real builder page (served from dist/ at the builder's address)
+  // opens DoorLoop, the extension opens the builder there, and a two-page tour is built, reloaded and previewed.
+  await ctx.route('https://app.doorloop.com/**', (r) => {
+    const u = new URL(r.request().url());
+    r.fulfill({ contentType: 'text/html', body: `<script>location.replace('https://acme.app.doorloop.com${u.pathname}')</script>` });
+  });
+  await ctx.route('https://shuang-dl.github.io/product-tour-layer/builder*', (r) => {
+    const file = new URL(r.request().url()).pathname.split('/').pop();
+    r.fulfill({ contentType: file.endsWith('.js') ? 'text/javascript' : 'text/html', body: readFileSync(join(root, 'dist', file), 'utf8') });
+  });
+  const site = await ctx.newPage();
+  await site.goto('https://shuang-dl.github.io/product-tour-layer/builder-concept.html');
+  await site.click('#create');
+  await site.check('input[value=live]');
+  const liveTabP = ctx.waitForEvent('page');
+  await site.click('#openBtn');
+  const live = await liveTabP;
+  const errors = [];
+  live.on('pageerror', (e) => errors.push(e.message));
+  await live.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
+  const B = live.locator('#tour-layer-builder');
+  check('builder opens on DoorLoop', (await B.count()) === 1 && (await B.locator('.ws-name').textContent()) === 'Working with your tenant list');
+  await B.locator('.add >> text=+ Step').click();
+  await live.click('input[aria-label="Search"]');
+  check('live: a real click picks, without the app reacting', (await B.locator('.pop code').textContent()) === "input[aria-label='Search']");
+  await B.locator('.pop .tb-title').click();
+  await live.keyboard.type('Search your tenants');
+  await B.locator('.pop [data-save]').click();
+  // /home has no link on the stand-in page, so this is a full page load: the builder must come back
+  await B.locator('.add >> text=+ Page').click();
+  await B.locator('.add-page input').fill('/home');
+  await B.locator('.add-page input').press('Enter');
+  await live.waitForURL('**/home');
+  await live.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
+  await live.waitForTimeout(500);
+  check('live: builder and draft survive a page load', (await live.locator('#tour-layer-builder .story').innerText()).includes('Search your tenants'));
+  const B2 = live.locator('#tour-layer-builder');
+  await B2.locator('.add >> text=+ Step').click();
+  await B2.locator('[data-tool=box]').click();
+  const w = await live.locator('[data-cy="Widget-dashboards.thingsToDo"]').boundingBox();
+  await live.mouse.move(w.x - 6, w.y - 6);
+  await live.mouse.down();
+  await live.mouse.move(w.x + w.width + 6, w.y + w.height + 6, { steps: 5 });
+  await live.mouse.up();
+  check('live: box tool picks a widget', (await B2.locator('.pop code').textContent()) === "[data-cy='Widget-dashboards.thingsToDo']");
+  await B2.locator('.pop .tb-title').click();
+  await live.keyboard.type('Things to do');
+  await B2.locator('.pop [data-save]').click();
+  await B2.locator('[data-tool=pointer]').click();
+  // Preview step 1 goes to /tenants through the app's own link (no reload)
+  await B2.locator('.preview-btn').click();
+  await live.waitForTimeout(1500);
+  check('live: preview moves the app to the step\'s page', live.url().endsWith('/tenants') && (await B2.locator('.pop .tb-title').innerText()) === 'Search your tenants');
+  check('live: in-app page change, not a reload', (await B2.count()) === 1);
+  await B2.locator('.pop .close').click();
+  live.once('dialog', (d) => d.accept());
+  await B2.locator('.close-btn').click();
+  await live.waitForTimeout(300);
+  check('live: closing removes the builder and its draft',
+    (await live.locator('#tour-layer-builder').count()) === 0 && (await live.evaluate(() => sessionStorage.getItem('tourLayer.builder'))) === null);
+  check('live: no page errors', errors.length === 0, errors.join('; '));
 } finally {
   await ctx.close();
 }
