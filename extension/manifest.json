@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DoorLoop Product Tours",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Guided product tours on top of DoorLoop. Internal proof of concept.",
   "content_scripts": [
     {
@@ -15,6 +15,7 @@
         "driver.js.iife.js",
         "tour-layer.js",
         "bundled-tours.js",
+        "builder.js",
         "content.js"
       ],
       "css": [

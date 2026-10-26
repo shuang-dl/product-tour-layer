@@ -22,6 +22,7 @@
       : '<div data-cy="Widget-dashboards.thingsToDo" style="height:100px">todo</div><div style="height:1500px"></div><div data-cy="Widget-dashboards.occupancyRate" style="height:100px">occ</div>';
   }
   render();
+  window.addEventListener('popstate', render); // like a real router: back/forward and pushState + popstate re-render
   people.onclick = () => { grp.style.height = 'auto'; people.setAttribute('aria-expanded', 'true'); };
   document.querySelector('[data-cy="SideMenu-People-Tenants"]').onclick = (e) => {
     e.preventDefault();

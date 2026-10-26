@@ -128,6 +128,29 @@ try {
   await tab.click('.driver-popover-next-btn');
   await tab.waitForTimeout(500);
   check('finished draft is cleared', (await tab.evaluate(() => sessionStorage.getItem('tourLayer.draft'))) === null);
+
+  // "Build on: Live DoorLoop": the builder page asks the extension to open the builder. Same origin rule.
+  const buildSender = `<!doctype html><script>
+    const tab = window.open('https://acme.app.doorloop.com/tenants', 'dlb');
+    setInterval(() => tab.postMessage({ type: 'tour-layer:build', id: 'b1', name: 'Built live', page: '/tenants' }, '*'), 300);
+  </script>`;
+  await ctx.route('https://shuang-dl.github.io/product-tour-layer/test-build.html', (r) => r.fulfill({ contentType: 'text/html', body: buildSender }));
+  await ctx.route('https://evil.example/build', (r) => r.fulfill({ contentType: 'text/html', body: buildSender }));
+  const evilB = await ctx.newPage();
+  const evilBTab = ctx.waitForEvent('page');
+  await evilB.goto('https://evil.example/build');
+  const evilBPopup = await evilBTab;
+  await evilBPopup.waitForTimeout(3000);
+  check('build request from another site is ignored', (await evilBPopup.locator('#tour-layer-builder').count()) === 0);
+  await evilBPopup.close();
+  await evilB.close();
+  const okB = await ctx.newPage();
+  const okBTab = ctx.waitForEvent('page');
+  await okB.goto('https://shuang-dl.github.io/product-tour-layer/test-build.html');
+  const builderTab2 = await okBTab;
+  await builderTab2.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 10000 }).catch(() => {});
+  check('build request from the builder opens it on DoorLoop',
+    (await builderTab2.locator('#tour-layer-builder .ws-name').textContent().catch(() => null)) === 'Built live');
 } finally {
   await ctx.close();
 }

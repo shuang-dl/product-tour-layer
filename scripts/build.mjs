@@ -109,6 +109,7 @@ await mkdir(dist);
 await writeFile(join(dist, 'tours.json'), JSON.stringify({ tours }, null, 2));
 await copyFile(join(root, 'site/index.html'), join(dist, 'index.html'));
 await copyFile(join(root, 'site/builder-concept.html'), join(dist, 'builder-concept.html'));
+await copyFile(join(root, 'src/builder.js'), join(dist, 'builder.js'));
 
 // Chrome extension: everything it runs is bundled, nothing loads from a CDN.
 const ext = join(dist, 'extension');
@@ -117,6 +118,7 @@ const extFiles = {
   'manifest.json': 'extension/manifest.json',
   'content.js': 'extension/content.js',
   'tour-layer.js': 'src/tour-layer.js',
+  'builder.js': 'src/builder.js',
   'driver.js.iife.js': 'vendor/driver.js/driver.js.iife.js',
   'driver.css': 'vendor/driver.js/driver.css',
   'DRIVER_LICENSE': 'vendor/driver.js/LICENSE',
