@@ -97,7 +97,7 @@ try {
     window.result = 'waiting';
     const tab = window.open('https://acme.app.doorloop.com/home', 'dl');
     const tour = { id: 'draft-x', title: 'Draft', page: '/home', steps: [
-      { title: ${JSON.stringify(title)}, text: 'hi', target: "[data-cy='global-search-trigger']" },
+      { title: ${JSON.stringify(title)}, text: 'hi', target: ["[data-cy='global-search-trigger']", "[data-cy='SideMenu-CreateNewMenu-Button']"] },
       { title: 'Second', text: 'two' },
     ] };
     const timer = setInterval(() => tab.postMessage({ type: 'tour-layer:draft', id: 'one', tour }, '*'), 300);
@@ -121,6 +121,13 @@ try {
   const tab = await builderTab;
   check('draft from the builder runs on DoorLoop', (await title(tab)) === 'Drafted in the builder');
   check('builder hears back', (await builder.evaluate(() => window.result)) === 'ack');
+  check('a group target is highlighted as one area', await tab.evaluate(() => {
+    const box = document.querySelector('.tour-layer-group');
+    const a = document.querySelector("[data-cy='global-search-trigger']").getBoundingClientRect();
+    const b = document.querySelector("[data-cy='SideMenu-CreateNewMenu-Button']").getBoundingClientRect();
+    const r = box && box.getBoundingClientRect();
+    return !!r && r.top <= Math.min(a.top, b.top) + 1 && r.bottom >= Math.max(a.bottom, b.bottom) - 1 && box.classList.contains('driver-active-element');
+  }));
   await tab.click('.driver-popover-next-btn');
   await tab.waitForTimeout(500);
   await tab.reload();

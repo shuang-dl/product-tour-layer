@@ -59,7 +59,12 @@
   }
 
   // A target is a CSS selector string, or { text, selector? } to match a visible element by its label.
+  // A list of targets is a group: found only when every item is, highlighted as one area (see groupBox).
   function findTarget(target) {
+    if (Array.isArray(target)) {
+      const els = target.map(findTarget);
+      return els.every(Boolean) ? els : null;
+    }
     if (typeof target === 'string') {
       return [...document.querySelectorAll(target)].find(isVisible) || null;
     }
@@ -99,17 +104,46 @@
       return null;
     }
   };
+  const isTarget = (t) => typeof t === 'string' || (t && typeof t.text === 'string');
   // Draft tours come straight from the builder rather than from the checked tour files, so check the basics.
   const isTour = (t) =>
     t && typeof t.id === 'string' && typeof t.page === 'string' && Array.isArray(t.steps) && t.steps.length > 0 &&
     t.steps.every((s) =>
       s && typeof s.title === 'string' && typeof s.text === 'string' &&
-      (s.target === undefined || typeof s.target === 'string' || (s.target && typeof s.target.text === 'string')) &&
+      (s.target === undefined || isTarget(s.target) || (Array.isArray(s.target) && s.target.length > 0 && s.target.every(isTarget))) &&
       (s.image === undefined || /^(https:|data:image\/)/.test(s.image)));
 
   // ---------- tour flow ----------
 
+  // driver.js highlights one element, so a group gets an invisible box over the area around all its items,
+  // kept in place while the page scrolls or resizes.
+  let group = null;
+  function groupBox(els) {
+    const box = el('div', { className: 'tour-layer-group' });
+    const fit = () => {
+      const rs = els.map((e) => e.getBoundingClientRect());
+      const left = Math.min(...rs.map((r) => r.left));
+      const top = Math.min(...rs.map((r) => r.top));
+      Object.assign(box.style, {
+        left: left + 'px', top: top + 'px',
+        width: Math.max(...rs.map((r) => r.right)) - left + 'px', height: Math.max(...rs.map((r) => r.bottom)) - top + 'px',
+      });
+    };
+    const onMove = () => {
+      fit();
+      if (driverObj) driverObj.refresh();
+    };
+    fit();
+    document.body.append(box);
+    window.addEventListener('scroll', onMove, true);
+    window.addEventListener('resize', onMove);
+    group = { box, remove: () => { box.remove(); window.removeEventListener('scroll', onMove, true); window.removeEventListener('resize', onMove); } };
+    return box;
+  }
+
   function destroyDriver() {
+    group?.remove();
+    group = null;
     if (!driverObj) return;
     internalDestroy = true;
     driverObj.destroy();
@@ -170,6 +204,8 @@
     buttons.push('close');
 
     destroyDriver();
+    if (Array.isArray(el)) el[0].scrollIntoView({ block: 'center' });
+    const anchor = Array.isArray(el) ? groupBox(el) : el;
     driverObj = window.driver.js.driver({
       allowClose: true,
       overlayOpacity: 0.45,
@@ -181,7 +217,7 @@
       },
     });
     driverObj.highlight({
-      element: el || undefined,
+      element: anchor || undefined,
       popover: {
         title: escapeHtml(step.title),
         description: escapeHtml(step.text),
@@ -199,17 +235,15 @@
 
     if (clickToAdvance) {
       const token = runToken;
-      el.addEventListener(
-        'click',
-        () => {
-          if (token !== runToken) return;
-          destroyDriver();
-          saveState({ tourId: tour.id, step: index + 1 });
-          // Let the click do its thing (navigate, open a dialog) before looking for the next target.
-          setTimeout(() => goTo(tour, index + 1), 300);
-        },
-        { once: true, capture: true }
-      );
+      const onClick = () => {
+        if (token !== runToken) return;
+        runToken++; // a group has several listeners; only the first click counts
+        destroyDriver();
+        saveState({ tourId: tour.id, step: index + 1 });
+        // Let the click do its thing (navigate, open a dialog) before looking for the next target.
+        setTimeout(() => goTo(tour, index + 1), 300);
+      };
+      for (const target of Array.isArray(el) ? el : [el]) target.addEventListener('click', onClick, { once: true, capture: true });
     }
   }
 
@@ -282,6 +316,7 @@
       margin-left: auto; background: var(--tl-button); color: var(--tl-button-text); font-weight: 600; border-radius: 6px;
       padding: max(4px, calc((var(--tl-footer-h) - 22px) / 2.6)) calc(max(4px, calc((var(--tl-footer-h) - 22px) / 2.6)) + 10px); }
     .tour-layer-popover .driver-popover-next-btn:hover { filter: brightness(.95); }
+    .tour-layer-group { position: fixed; pointer-events: none; }
     .tour-layer-popover .tl-hint { margin-left: auto; font-size: 12px; font-style: italic; }
     .tour-layer-popover .driver-popover-arrow { border-color: transparent; }
     .tour-layer-popover .driver-popover-arrow-side-left { border-left-color: var(--tl-frame); }

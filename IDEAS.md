@@ -47,10 +47,10 @@ One style per tour: every step in a tour looks the same. Set in the builder's To
 
 **Notes on how it could fit the current setup**
 
-- DoorLoop can't be shown inside another site, so the builder can't show live DoorLoop in a popup. Instead, **Build on: Live DoorLoop** opens the same builder on top of the DoorLoop tab itself, through the extension (0.3.0). **Build on: Demo site** embeds the demo app, which works because both are on the same site.
+- DoorLoop can't be shown inside another site, so the builder can't show live DoorLoop in a popup. Instead, **Build on: Live DoorLoop** opens the same builder on top of the DoorLoop tab itself, through the extension (0.3.0 or later). **Build on: Demo site** embeds the demo app, which works because both are on the same site.
 - Pages picked while browsing are exact paths like `/tenants/t1`; the tour file turns demo record pages into patterns like `/tenants/*`. A real builder would let you choose.
 - "Type text to continue" would be a new `advanceOn` option in the engine.
-- Groups would need the engine to accept a list of targets and highlight the area around all of them. driver.js highlights one element, so the engine would place an invisible box over the group and highlight that.
+- Groups: the engine accepts a list of targets and highlights the area around all of them (an invisible box over the group, since driver.js highlights one element).
 - The builder could produce the same tour files that live in `tours/` today. The engine and publishing wouldn't change.
 - Picking an element would need to produce a target that survives DoorLoop releases. Prefer `data-cy`, `data-intercom-target` and `aria-label` over class names, as described under "Picking targets" in the README.
 - Images, styling and formatted text would each need new fields in the tour format, plus checks in `scripts/build.mjs`. Formatted text must stay safe: allow a limited set of formatting, never raw HTML.

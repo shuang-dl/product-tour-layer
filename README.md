@@ -71,7 +71,7 @@ Add `tours/<id>.json`:
 | Step field | |
 |---|---|
 | `title`, `text` | popover content (plain text) |
-| `target` | optional. A CSS selector, or `{ "text": "Button label", "selector": "button" }` to match by visible label. No target = centred popover |
+| `target` | optional. A CSS selector, or `{ "text": "Button label", "selector": "button" }` to match by visible label, or a list of those: a group, highlighted as one area. No target = centred popover |
 | `page` | optional. The path this step belongs to (`*` matches one segment, e.g. `/tenants/*`). The tour waits until the user is on it |
 | `advanceOn` | `"next"` (default) or `"click"`: the user clicks the highlighted element to continue |
 | `optional` | `true` = skip this step if its target isn't on screen (e.g. "open the People menu" when it's already open) |
@@ -99,7 +99,7 @@ Add `tours/<id>.json`:
 
 The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html)'s Tour style panel (◐) sets these visually, and "View tour file" writes them in this format.
 
-**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.3.0 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
+**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.4.0 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
 
 - The builder is `src/builder.js`, shared by the builder page (demo mode, with the demo app in a frame) and the extension (live mode). It draws inside a shadow root so DoorLoop's CSS and the builder's can't affect each other.
 - Pages change through DoorLoop's own links (an in-app page change). Where there's no link, the page loads normally and the builder comes back with the draft, which is kept in `sessionStorage` for that tab.
@@ -111,7 +111,7 @@ The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-con
 - The extension only accepts drafts sent from the builder's own site (`https://shuang-dl.github.io`, or `http://localhost:4173` for `npm run serve`). Messages from anywhere else are ignored.
 - The draft is kept for that tab until it finishes, so multi-page drafts keep going after a page loads.
 - Demo record pages like `/tenants/t1` become `/tenants/*`, so a step works on any record.
-- For the live test, features the engine doesn't support yet are simplified: groups highlight their first item, "type text" steps use a Next button, and text formatting is left out. The builder says which applied.
+- For the live test, features the engine doesn't support yet are simplified: "type text" steps use a Next button, and text formatting is left out. The builder says which applied.
 
 **Picking targets.** Prefer, in order: `data-cy` (DoorLoop's test ids, e.g. `[data-cy='SideMenu-People-Tenants']`), `data-intercom-target`, `aria-label`, then `{ "text": ... }`. Avoid class names; they change with every DoorLoop release. In DevTools, `document.querySelectorAll('[data-cy]')` lists what's available on a page.
 

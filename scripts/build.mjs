@@ -63,13 +63,20 @@ function validateTour(tour, file) {
     if (step.image !== undefined && !(typeof step.image === 'string' && IMAGE.test(step.image))) {
       err(`${at}: "image" must be an https URL or a path to a .png, .jpg, .gif, .webp or .svg file`);
     }
+    // A target is a CSS selector or { text, selector? }; a non-empty list of those is a group, highlighted as one area.
+    const checkTarget = (t, where) => {
+      if (!isText(t) && !(t && typeof t === 'object' && !Array.isArray(t) && isText(t.text))) {
+        return err(`${where}: "target" must be a CSS selector, { "text": "...", "selector": "..." }, or a list of those (a group)`);
+      }
+      if (typeof t === 'object') {
+        for (const key of Object.keys(t)) if (!['text', 'selector'].includes(key)) err(`${where}: unknown target field "${key}"`);
+      }
+    };
     const t = step.target;
-    if (t !== undefined && !isText(t) && !(t && typeof t === 'object' && isText(t.text))) {
-      err(`${at}: "target" must be a CSS selector or { "text": "...", "selector": "..." }`);
-    }
-    if (t && typeof t === 'object') {
-      for (const key of Object.keys(t)) if (!['text', 'selector'].includes(key)) err(`${at}: unknown target field "${key}"`);
-    }
+    if (Array.isArray(t)) {
+      if (!t.length) err(`${at}: a group "target" needs at least one item`);
+      t.forEach((item, k) => checkTarget(item, `${at}, group item ${k + 1}`));
+    } else if (t !== undefined) checkTarget(t, at);
   });
   return errors;
 }

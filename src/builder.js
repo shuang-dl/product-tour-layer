@@ -6,7 +6,8 @@
   'use strict';
   if (window.TourBuilder) return;
 
-  const PICKABLE = '[data-cy], [data-intercom-target], [aria-label], [role=tab], button, a, input, tr, h1';
+  const PICKABLE = '[data-cy], [data-intercom-target], [data-item-id], [aria-label], [role=tab], button, a, input, tr, h1';
+  const LABELLED = '[data-cy], [data-intercom-target], [data-item-id], [data-section-value]';
   const ADVANCE = { next: 'Next button', click: 'Click the element', type: 'Type text' };
   const SESSION_KEY = 'tourLayer.builder'; // live mode: the draft survives page reloads
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -318,9 +319,17 @@
         };
     const inBuilder = (e) => e.composedPath().includes(host);
     let navigating = false; // the builder itself is clicking a link to change pages
+    // The element under the pointer, or the labelled element wrapped around it when that's about the same size
+    // (a form field's wrapper rather than its bare input), so targets use stable labels.
     const pickable = (node) => {
-      const el = node.closest && node.closest(PICKABLE);
-      return el && el !== app.doc().body && !host.contains(el) ? el : null;
+      let el = node.closest && node.closest(PICKABLE);
+      if (!el || el === app.doc().body || host.contains(el)) return null;
+      const wrap = el.matches(LABELLED) ? null : el.parentElement && el.parentElement.closest(LABELLED);
+      if (wrap && !host.contains(wrap)) {
+        const a = el.getBoundingClientRect(), b = wrap.getBoundingClientRect();
+        if (b.width * b.height <= a.width * a.height * 3) el = wrap;
+      }
+      return el;
     };
     // Actually showing on screen: not clipped away (e.g. inside a closed menu section) or covered.
     const visibleAt = (el) => {
@@ -399,13 +408,18 @@
     function labelFor(el) {
       return el.getAttribute('aria-label') || el.innerText.trim().split('\n')[0].slice(0, 28) || el.tagName.toLowerCase();
     }
-    // Same preference order as the README: data-cy, data-intercom-target, aria-label, then visible text.
+    // Same preference order as the README: data-cy, data-intercom-target, other stable data labels, aria-label,
+    // a form field's name, then visible text.
     function targetFor(el) {
+      const tag = el.tagName.toLowerCase();
       if (el.dataset.cy) return `[data-cy='${el.dataset.cy}']`;
       if (el.dataset.intercomTarget) return `[data-intercom-target='${el.dataset.intercomTarget}']`;
+      if (el.dataset.itemId) return `[data-item-id='${el.dataset.itemId}']`;
+      if (el.dataset.sectionValue) return `${tag}[data-section-value='${el.dataset.sectionValue}']`;
       const aria = el.getAttribute('aria-label');
-      if (aria) return `${el.tagName.toLowerCase()}[aria-label='${aria}']`;
-      return { text: el.innerText.trim().split('\n')[0], selector: el.tagName.toLowerCase() };
+      if (aria && !/^DLUI_/.test(aria)) return `${tag}[aria-label='${aria}']`;
+      if (el.getAttribute('name')) return `${tag}[name='${el.getAttribute('name')}']`;
+      return { text: el.innerText.trim().split('\n')[0], selector: tag };
     }
     // Find a saved target again (after moving pages or reloading), the way the tour engine would.
     function resolve(target) {
@@ -930,12 +944,8 @@
           textAlign: style.textAlign,
         },
         steps: steps().map((s, i) => {
-          let target = s.target;
+          const target = s.target;
           let advanceOn = s.advanceOn;
-          if (forEngine && Array.isArray(target)) {
-            target = target[0];
-            changes.add('groups highlight their first item');
-          }
           if (forEngine && advanceOn === 'type') {
             advanceOn = 'next';
             changes.add('"type text" steps use a Next button');
@@ -961,7 +971,7 @@
       $('.file-out').textContent =
         JSON.stringify(tour, null, 2) +
         '\n\n// Uploaded images would be saved next to the tour as the "image" path shown.' +
-        '\n// Not in the tour format yet: "formattedText", advanceOn "type", and a list as "target" (groups).' +
+        '\n// Not in the tour format yet: "formattedText" and advanceOn "type".' +
         (drafts ? '\n// Steps with nothing highlighted yet are left out.' : '');
       $('.filebox').hidden = false;
     };
