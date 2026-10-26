@@ -235,6 +235,12 @@
     for (const type of ['pointerdown', 'mousedown', 'touchstart', 'focusin', 'focusout', 'keydown', 'keyup', 'keypress']) {
       host.addEventListener(type, (e) => e.stopPropagation());
     }
+    // A dialog's focus trap also watches its own fields losing focus and takes focus back when it goes outside.
+    // That event fires on the app's field, so catch it first when focus is moving into the builder.
+    const keepFocus = (e) => {
+      if (e.relatedTarget && (e.relatedTarget === host || host.contains(e.relatedTarget))) e.stopPropagation();
+    };
+    window.addEventListener('focusout', keepFocus, true);
     const rootEl = $('.root');
     const layer = $('.layer');
 
@@ -1032,6 +1038,7 @@
       clearInterval(pathTimer);
       listeners.forEach((off) => off());
       window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('focusout', keepFocus, true);
       if (live) sessionStorage.removeItem(SESSION_KEY);
       hideLauncher?.remove();
       host.remove();

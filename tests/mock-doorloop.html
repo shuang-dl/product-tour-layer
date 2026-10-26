@@ -32,6 +32,10 @@
   const dialog = document.getElementById('createDialog');
   createBtn.addEventListener('mousedown', () => { dialog.hidden = false; dialogSearch.focus(); });
   document.addEventListener('focusin', (e) => { if (!dialog.hidden && !dialog.contains(e.target)) dialogSearch.focus(); });
+  // Like Radix's focus trap: when focus leaves the dialog for something else, take it straight back
+  document.addEventListener('focusout', (e) => {
+    if (!dialog.hidden && dialog.contains(e.target) && e.relatedTarget && !dialog.contains(e.relatedTarget)) dialogSearch.focus();
+  });
   document.addEventListener('pointerdown', (e) => { if (!dialog.hidden && !dialog.contains(e.target) && e.target !== createBtn) dialog.hidden = true; });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dialog.hidden = true; }); // like a real router: back/forward and pushState + popstate re-render
   people.onclick = () => { grp.style.height = 'auto'; people.setAttribute('aria-expanded', 'true'); };
