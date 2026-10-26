@@ -121,6 +121,12 @@
     .chip { font-size: 11px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 0 6px; }
     .card .x { position: absolute; top: 4px; right: 6px; border: 0; background: none; color: var(--muted); }
     .arrow { align-self: center; color: var(--muted); }
+    .ins { align-self: center; flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; border: 1px dashed var(--border); background: var(--card); color: var(--muted); font-size: 14px; line-height: 1; padding: 0; }
+    .ins:hover { border-style: solid; border-color: var(--accent); color: var(--accent); }
+    .card.dragging { opacity: .4; }
+    .card.drop-here { box-shadow: -4px 0 0 var(--accent); }
+    .story-collapsed .story { display: none; }
+    .pop .meta .opt { display: flex; align-items: center; gap: 6px; }
     .card.page-card { flex-basis: 140px; border-style: dashed; border-color: var(--border); }
     .card.draft { border-style: dashed; border-color: var(--accent); }
     .card.draft .t { color: var(--muted); font-weight: 500; font-style: italic; }
@@ -207,6 +213,7 @@
             <strong class="ws-name"></strong>
             <span class="url"></span>
             ${live ? '' : '<span class="test-on">Test on <span class="seg test-seg"><button data-v="demo" class="on">Demo</button><button data-v="live">Live DoorLoop</button></span></span>'}
+            <button class="ghost story-btn" title="Show or hide the storyboard">Storyboard ▾</button>
             <button class="ghost preview-btn">▶ Preview</button>
             <button class="ghost file-btn">View tour file</button>
             <button class="ghost close-btn">Close</button>
@@ -250,7 +257,8 @@
 
     // flow: the storyboard, in order. { type: 'page', path } or { type: 'step', page, draft?, els, target, ... }.
     // active: index of the step being picked or edited; highlighting only works while a step is active.
-    const state = { name: options.name, flow: [{ type: 'page', path: options.startPath }], tool: 'pointer', active: null, previewing: false, addingPage: false, testOn: 'demo' };
+    // id: kept from the tour file when editing an existing tour, so the edited file replaces the original.
+    const state = { name: options.name, id: null, flow: [{ type: 'page', path: options.startPath }], tool: 'pointer', active: null, previewing: false, addingPage: false, testOn: 'demo' };
     const style = { titleTag: 'h2', titleAlign: 'left', textAlign: 'left' };
     let closed = false;
 
@@ -263,10 +271,23 @@
     }
     const pathOf = (url) => { try { return new URL(url).pathname; } catch { return url.startsWith('/') ? url : '/' + url; } };
     const currentPage = () => [...state.flow].reverse().find((i) => i.type === 'page').path;
+    // "/tenants" matches exactly; "*" matches one path segment, e.g. "/tenants/*" (same rule as the tour engine).
+    const matches = (pattern, path) => !!path &&
+      new RegExp('^' + pattern.split('*').map((p) => p.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('[^/]+') + '/?$').test(path);
+    const pageAt = (index) => [...state.flow.slice(0, index)].reverse().find((i) => i.type === 'page').path;
+    // After cards move or go away, each step belongs to the page card before it.
+    function repage() {
+      let page = state.flow[0].path;
+      for (const item of state.flow) {
+        if (item.type === 'page') page = item.path;
+        else item.page = page;
+      }
+    }
     const steps = () => state.flow.filter((i) => i.type === 'step' && !i.draft);
     // Move the storyboard to a page. An empty page card at the end is reused rather than piling up cards
     // (keepStart: + Page never changes where the tour starts), and two cards for the same page in a row merge.
     function pageCard(path, keepStart) {
+      if (matches(currentPage(), path) && !keepStart) return;
       const last = state.flow[state.flow.length - 1];
       if (last.type !== 'page' || (keepStart && state.flow.length === 1)) {
         if (path !== currentPage()) state.flow.push({ type: 'page', path });
@@ -329,6 +350,15 @@
           offset: () => frame.getBoundingClientRect(),
         };
     const inBuilder = (e) => e.composedPath().includes(host);
+    // A page pattern like /tenants/* can't be opened directly; you open a matching page yourself.
+    let missingPage = null;
+    async function goToPage(path) {
+      if (!path.includes('*')) return app.navigate(path), true;
+      if (matches(path, app.path())) return true;
+      missingPage = path;
+      toast(`Open a page that matches ${path} first (for example one record), then click it again.`);
+      return false;
+    }
     let navigating = false; // the builder itself is clicking a link to change pages
     // The element under the pointer, or the labelled element wrapped around it when that's about the same size
     // (a form field's wrapper rather than its bare input), so targets use stable labels.
@@ -431,17 +461,39 @@
     }
     // Same preference order as the README: data-cy, data-intercom-target, other stable data labels, aria-label,
     // a form field's name, then visible text.
-    function targetFor(el) {
+    function selectorsFor(el) {
       const tag = el.tagName.toLowerCase();
-      if (el.dataset.cy) return `[data-cy='${el.dataset.cy}']`;
-      if (el.dataset.intercomTarget) return `[data-intercom-target='${el.dataset.intercomTarget}']`;
-      if (el.dataset.itemId) return `[data-item-id='${el.dataset.itemId}']`;
-      if (el.dataset.sectionValue) return `${tag}[data-section-value='${el.dataset.sectionValue}']`;
+      const out = [];
+      if (el.dataset.cy) out.push(`[data-cy='${el.dataset.cy}']`);
+      if (el.dataset.intercomTarget) out.push(`[data-intercom-target='${el.dataset.intercomTarget}']`);
+      if (el.dataset.itemId) out.push(`[data-item-id='${el.dataset.itemId}']`);
+      if (el.dataset.sectionValue) out.push(`${tag}[data-section-value='${el.dataset.sectionValue}']`);
       const aria = el.getAttribute('aria-label');
-      if (aria && !/^DLUI_/.test(aria)) return `${tag}[aria-label='${aria}']`;
-      if (el.getAttribute('name')) return `${tag}[name='${el.getAttribute('name')}']`;
-      return { text: el.innerText.trim().split('\n')[0], selector: tag };
+      if (aria && !/^DLUI_/.test(aria)) out.push(`${tag}[aria-label='${aria}']`);
+      if (el.getAttribute('name')) out.push(`${tag}[name='${el.getAttribute('name')}']`);
+      return out;
     }
+    // The tour engine uses the first match on screen, so a label shared by several elements only works for the first.
+    const isShown = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    const findsIt = (sel, el) => {
+      try {
+        return [...el.ownerDocument.querySelectorAll(sel)].find(isShown) === el;
+      } catch {
+        return false;
+      }
+    };
+    function targetFor(el) {
+      const own = selectorsFor(el).find((sel) => findsIt(sel, el));
+      if (own) return own;
+      // Its label is shared (e.g. two choice cards with the same wrapper label): use a uniquely labelled element inside.
+      for (const inner of el.querySelectorAll(LABELLED + ', [aria-label], [name]')) {
+        const sel = selectorsFor(inner).find((x) => findsIt(x, inner));
+        if (sel) return sel;
+      }
+      return { text: el.innerText.trim().split('\n')[0], selector: el.tagName.toLowerCase() };
+    }
+    // A short label for a saved target (storyboard chips), e.g. "SideMenu-People-Tenants" or "3 items".
+    const describe = (t) => Array.isArray(t) ? `${t.length} items` : typeof t === 'string' ? (t.match(/=['"]([^'"]+)['"]/) || [, t])[1] : t.text;
     // Find a saved target again (after moving pages or reloading), the way the tour engine would.
     function resolve(target) {
       const doc = app.doc();
@@ -455,7 +507,10 @@
       return list.every(Boolean) ? list : null;
     }
     async function elsFor(step) {
-      await app.navigate(step.page);
+      missingPage = null;
+      if (step.page.includes('*')) {
+        if (!(await goToPage(step.page))) return null;
+      } else await app.navigate(step.page);
       if (step.els && step.els.every((e) => e.isConnected)) return step.els;
       for (let i = 0; i < 30; i++) {
         const els = resolve(step.target);
@@ -478,6 +533,7 @@
       if (here) pageCard(here);
       state.flow.push({ type: 'step', draft: true, page: currentPage() });
       state.active = state.flow.length - 1;
+      scrollStoryToEnd = true;
       renderStory();
       toast(`Step added. Now click something ${live ? 'on the page' : 'in the demo'}, or use the box tool to draw around it.`);
     }
@@ -486,20 +542,56 @@
       state.flow = state.flow.filter((i) => !i.draft);
       state.active = null;
       pageCard(pathOf(path), true);
+      scrollStoryToEnd = true;
       renderStory();
-      await app.navigate(currentPage());
-      toast(`Now on ${currentPage()}. Click + Step to add steps for this page.`);
+      if (await goToPage(currentPage())) toast(`Now on ${currentPage()}. Click + Step to add steps for this page.`);
     }
     async function activate(i) {
       clearSelection();
       state.active = i;
       const item = state.flow[i];
       renderStory();
-      if (item.draft) return app.navigate(item.page);
+      if (item.draft) return goToPage(item.page);
+      if (!item.target) {
+        // Not pinned to anything (shows centred): edit its text where it is.
+        await goToPage(item.page);
+        openEditor([], item);
+        return renderStory();
+      }
       const els = await elsFor(item);
       if (state.active !== i) return;
-      if (!els) return toast(`Couldn't find “${item.label}” on ${item.page}.`);
+      if (!els) return missingPage || toast(`Couldn't find “${item.label}” on ${item.page}.`);
       select(els);
+    }
+    // Insert an empty step before flow[at], on the page in effect there.
+    function insertStep(at) {
+      const draft = state.flow.findIndex((i) => i.draft);
+      if (draft !== -1) {
+        activate(draft);
+        return toast('Finish this step first: pick something to highlight.');
+      }
+      clearSelection();
+      const page = pageAt(at);
+      state.flow.splice(at, 0, { type: 'step', draft: true, page });
+      state.active = at;
+      renderStory();
+      goToPage(page);
+      toast('Step inserted. Now pick what it highlights.');
+    }
+    function moveItem(from, to) {
+      if (from === to || from === 0) return;
+      to = Math.max(1, to);
+      clearSelection();
+      const [item] = state.flow.splice(from, 1);
+      const at = from < to ? to - 1 : to;
+      state.flow.splice(at, 0, item);
+      if (state.active === from) state.active = at;
+      else if (state.active !== null) {
+        if (from < state.active && at >= state.active) state.active--;
+        else if (from > state.active && at <= state.active) state.active++;
+      }
+      repage();
+      renderStory();
     }
     function removeItem(i) {
       if (i === 0) return;
@@ -507,6 +599,7 @@
       state.flow.splice(i, 1);
       if (state.active === i) state.active = null;
       else if (state.active > i) state.active--;
+      repage();
       renderStory();
     }
 
@@ -671,10 +764,14 @@
     }
     // Put the step box beside the highlight (or below it), clear of the builder's own bars in live mode.
     function placePop() {
+      if (!shown || !shown.length) {
+        Object.assign(pop.style, { left: (layer.clientWidth - 320) / 2 + 'px', top: Math.max(8, (layer.clientHeight - pop.offsetHeight) / 2) + 'px' });
+        return;
+      }
       const r = unionRect(shown);
       const w = layer.clientWidth;
       const top0 = live ? $('.ws-top').getBoundingClientRect().bottom + 8 : 8;
-      const bottom = layer.clientHeight - (live ? $('.story').offsetHeight : 0) - 8;
+      const bottom = layer.clientHeight - (live && !rootEl.classList.contains('story-collapsed') ? $('.story').offsetHeight : 0) - 8;
       const right = live ? w - 70 : w; // keep clear of the toolbox on the right in live mode
       const beside = r.left + r.width + 340 < right;
       const left = beside ? r.left + r.width + 14 : Math.max(8, Math.min(r.left, right - 328));
@@ -703,7 +800,9 @@
       const slot = box.querySelector('.tb-img');
       slot.replaceChildren();
       if (!src) return;
-      slot.append(Object.assign(document.createElement('img'), { src, alt: '' }));
+      // Tour files may use a path relative to the app (e.g. the demo's "tour-welcome.svg").
+      const shown = /^(https?:|data:|\/)/.test(src) || live ? src : `${options.demoBase || 'demo'}/${src}`;
+      slot.append(Object.assign(document.createElement('img'), { src: shown, alt: '' }));
       if (onRemove) {
         const rm = Object.assign(document.createElement('button'), { className: 'rm', textContent: 'Remove image' });
         rm.onclick = onRemove;
@@ -744,6 +843,7 @@
       meta.className = 'meta';
       meta.innerHTML = `
         <label>Continue when: <select>${Object.entries(ADVANCE).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label>
+        <label class="opt"><input type="checkbox" data-optional> Skip this step if it isn't on screen</label>
         <span>Anchored to <code></code></span>
         <div class="row"><button class="link" data-cancel>Cancel</button><button class="save" data-save>Save step</button></div>`;
       pop.append(meta);
@@ -755,6 +855,7 @@
       title().innerHTML = step ? step.titleHtml : '';
       text.innerHTML = step ? step.textHtml : '';
       let image = step ? step.image : null;
+      meta.querySelector('[data-optional]').checked = !!(step && step.optional);
       const showImage = () => { setImage(box, image, () => { image = null; showImage(); }); placePop(); };
       showImage();
       const single = els.length === 1;
@@ -762,9 +863,9 @@
       const showAdvance = () => setAdvance(box, advance.value, n === all.length);
       advance.onchange = showAdvance;
       showAdvance();
-      const target = single ? targetFor(els[0]) : els.map(targetFor);
+      const target = !els.length ? undefined : single ? targetFor(els[0]) : els.map(targetFor);
       const show = (t) => (typeof t === 'string' ? t : `text “${t.text}”`);
-      meta.querySelector('code').textContent = single ? show(target) : `${els.length} items: ${target.map(show).join(', ')}`;
+      meta.querySelector('code').textContent = !els.length ? 'nothing (shows centred)' : single ? show(target) : `${els.length} items: ${target.map(show).join(', ')}`;
 
       pop.querySelectorAll('[data-cmd]').forEach((b) => (b.onmousedown = (e) => { e.preventDefault(); document.execCommand(b.dataset.cmd); }));
       pop.querySelector('.fmt input[type=color]').oninput = (e) => document.execCommand('foreColor', false, e.target.value);
@@ -786,7 +887,11 @@
       meta.querySelector('[data-save]').onclick = () => {
         if (!title().innerText.trim()) return toast('Give the step a title.');
         const page = state.flow[state.active].page;
-        state.flow[state.active] = { type: 'step', page, els, target, label: single ? labelFor(els[0]) : `${els.length} items`, titleHtml: title().innerHTML, textHtml: text.innerHTML, image, advanceOn: advance.value };
+        state.flow[state.active] = {
+          type: 'step', page, els, target, label: !els.length ? 'centred' : single ? labelFor(els[0]) : `${els.length} items`,
+          titleHtml: title().innerHTML, textHtml: text.innerHTML, image, advanceOn: advance.value,
+          optional: meta.querySelector('[data-optional]').checked,
+        };
         state.active = null;
         clearSelection();
         renderStory();
@@ -803,16 +908,41 @@
     }
 
     // ---------- storyboard ----------
+    let dragFrom = null;
+    let scrollStoryToEnd = false;
+    $('.story-btn').onclick = () => {
+      const hidden = rootEl.classList.toggle('story-collapsed');
+      $('.story-btn').textContent = hidden ? 'Storyboard ▴' : 'Storyboard ▾';
+      if (shown && pop) placePop();
+    };
     function renderStory() {
       const story = $('.story');
       story.replaceChildren();
       let stepNo = 0;
       state.flow.forEach((item, i) => {
-        if (i > 0) story.append(Object.assign(document.createElement('span'), { className: 'arrow', textContent: '→' }));
+        if (i > 0) {
+          const ins = Object.assign(document.createElement('button'), { className: 'ins', title: 'Insert a step here', textContent: '+' });
+          ins.onclick = () => insertStep(i);
+          story.append(ins);
+        }
         const card = document.createElement('div');
         card.className = 'card';
         card.setAttribute('role', 'button');
         card.tabIndex = 0;
+        // Drag cards to reorder (the start page stays first).
+        if (i > 0) {
+          card.draggable = true;
+          card.ondragstart = (e) => { dragFrom = i; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; };
+          card.ondragend = () => card.classList.remove('dragging');
+        }
+        card.ondragover = (e) => { if (dragFrom !== null) { e.preventDefault(); card.classList.add('drop-here'); } };
+        card.ondragleave = () => card.classList.remove('drop-here');
+        card.ondrop = (e) => {
+          e.preventDefault();
+          const from = dragFrom;
+          dragFrom = null;
+          if (from !== null) moveItem(from, i);
+        };
         if (item.type === 'page') {
           const next = state.flow.slice(i + 1).findIndex((x) => x.type === 'page');
           const n = (next === -1 ? state.flow.slice(i + 1) : state.flow.slice(i + 1, i + 1 + next)).filter((x) => x.type === 'step').length;
@@ -820,7 +950,7 @@
           card.title = 'Go to this page';
           card.innerHTML = `<div class="n">${i === 0 ? 'Start page' : 'Page'}</div><div class="t"></div><div class="chips"><span class="chip">${n} step${n === 1 ? '' : 's'}</span></div>`;
           card.querySelector('.t').textContent = item.path;
-          card.onclick = () => app.navigate(item.path);
+          card.onclick = () => goToPage(item.path);
         } else {
           stepNo++;
           card.classList.toggle('on', state.active === i);
@@ -870,6 +1000,11 @@
       story.append(Object.assign(document.createElement('span'), { className: 'arrow', textContent: '→' }));
       story.append(adders);
       rootEl.classList.toggle('picking', canPick());
+      // Keep the step you're working on in view.
+      const on = story.querySelector('.card.on');
+      if (on) story.scrollLeft = on.offsetLeft - story.clientWidth / 2 + on.offsetWidth / 2;
+      else if (scrollStoryToEnd) story.scrollLeft = story.scrollWidth;
+      scrollStoryToEnd = false;
       save();
     }
 
@@ -912,13 +1047,13 @@
       const s = all[i];
       if (i > 0 && s.page !== all[i - 1].page) toast(`The tour moves to ${s.page}`);
       showPage(s.page);
-      const els = await elsFor(s);
+      const els = s.target ? await elsFor(s) : (await goToPage(s.page), []);
       if (run !== previewRun || !state.previewing) return;
       if (!els) {
         toast(`Couldn't find “${s.label}” on ${s.page}; skipping it.`);
         return showPreview(i + 1);
       }
-      highlight(els);
+      if (els.length) highlight(els);
       pop = document.createElement('div');
       pop.className = 'pop';
       const box = stepBox({ n: i + 1, total: all.length, editable: false });
@@ -930,7 +1065,7 @@
       box.querySelector('.close').onclick = () => endPreview();
       const go = () => showPreview(i + 1);
       setAdvance(box, s.advanceOn, i === all.length - 1, go);
-      if (s.advanceOn === 'click') {
+      if (s.advanceOn === 'click' && selBox) {
         selBox.style.pointerEvents = 'auto';
         selBox.style.cursor = 'pointer';
         selBox.onclick = go;
@@ -948,7 +1083,7 @@
     // and anything the engine doesn't support yet is simplified (and listed in `changes`).
     function buildTour(forEngine) {
       const plain = (html) => { const d = document.createElement('div'); d.innerHTML = html; return d.textContent.trim(); };
-      const id = (forEngine ? 'draft-' : '') + state.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const id = (forEngine ? 'draft-' : '') + (state.id || state.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
       // Record pages (/tenants/t1, /tenants/64f1c...) become patterns (/tenants/*) so the step works for any record.
       const general = (path) => path.split('/').map((seg) => (/^([a-z]\d+|\d+|[0-9a-f]{8,}|[0-9a-f-]{20,})$/i.test(seg) ? '*' : seg)).join('/');
       const start = state.flow[0].path;
@@ -979,8 +1114,9 @@
             title: plain(s.titleHtml),
             text: plain(s.textHtml),
             ...(advanceOn !== 'next' ? { advanceOn } : {}),
+            ...(s.optional ? { optional: true } : {}),
             ...(!forEngine && formatted ? { formattedText: '(formatting kept)' } : {}),
-            ...(s.image ? { image: forEngine ? s.image : `images/${id}-step-${i + 1}.png` } : {}),
+            ...(s.image ? { image: forEngine || !s.image.startsWith('data:') ? s.image : `images/${id}-step-${i + 1}.png` } : {}),
           };
         }),
       };
@@ -1019,16 +1155,41 @@
       if (!live || closed) return;
       const flow = state.flow.map(({ els, ...rest }) => rest); // elements can't be saved; targets find them again
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-        name: state.name, flow, style, active: state.active,
+        name: state.name, id: state.id, flow, style, active: state.active,
         inputs: Object.fromEntries([...$$('.style-panel input')].map((i) => [i.dataset.var, i.value])),
       }));
     }
     function restore(saved) {
       state.name = saved.name;
+      state.id = saved.id || null;
       state.flow = saved.flow;
       state.active = saved.active ?? null;
       Object.assign(style, saved.style);
       $$('.style-panel input').forEach((i) => { if (saved.inputs[i.dataset.var] !== undefined) i.value = saved.inputs[i.dataset.var]; });
+      $$('.style-panel .seg').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === style[seg.dataset.key])));
+    }
+
+    // Open an existing tour file: page cards where the page changes, then its steps, then its style.
+    function loadTour(tour) {
+      const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+      state.name = tour.title || tour.id;
+      state.id = tour.id;
+      state.flow = [{ type: 'page', path: tour.page }];
+      for (const step of tour.steps) {
+        if (step.page && step.page !== currentPage()) state.flow.push({ type: 'page', path: step.page });
+        state.flow.push({
+          type: 'step', page: currentPage(), target: step.target, label: describe(step.target || 'centred'),
+          titleHtml: esc(step.title), textHtml: esc(step.text), image: step.image || null,
+          advanceOn: step.advanceOn || 'next', optional: !!step.optional,
+        });
+      }
+      const st = tour.style || {};
+      for (const [cssVar, field] of Object.entries(STYLE_FIELDS)) {
+        if (st[field] !== undefined) shadow.querySelector(`.style-panel input[data-var='${cssVar}']`).value = st[field];
+      }
+      if (st.titleSize) style.titleTag = st.titleSize;
+      if (st.titleAlign) style.titleAlign = st.titleAlign;
+      if (st.textAlign) style.textAlign = st.textAlign;
       $$('.style-panel .seg').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === style[seg.dataset.key])));
     }
 
@@ -1048,15 +1209,17 @@
     $('.close-btn').onclick = () => close(false);
 
     // ---------- start ----------
+    const LOADED = 'Tour loaded. Click a card to edit that step, + between cards to insert one, or drag cards to reorder.';
     if (options.restore) restore(options.restore);
+    else if (options.tour) loadTour(options.tour);
     $('.ws-name').textContent = state.name;
     applyStyle();
     renderStory();
     showPage(live ? app.path() : currentPage());
     if (live) {
-      toast(options.restore ? 'Builder restored. Your draft is still here.' : 'Building on live DoorLoop. Click + Step, then click what it should highlight.');
+      toast(options.restore ? 'Builder restored. Your draft is still here.' : options.tour ? LOADED : 'Building on live DoorLoop. Click + Step, then click what it should highlight.');
     } else {
-      app.navigate(currentPage()).then(() => toast('Browse the demo if you like. Click + Step in the storyboard to add the first step.'));
+      app.navigate(currentPage()).then(() => toast(options.tour ? LOADED : 'Browse the demo if you like. Click + Step in the storyboard to add the first step.'));
     }
 
     return { host, close };

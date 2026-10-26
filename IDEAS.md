@@ -29,7 +29,8 @@ Clickable concept: [builder-concept.html](https://shuang-dl.github.io/product-to
 4. **+ Page** asks for a page path (e.g. `/leases`) and moves the app there. Steps added after it happen on that page. Clicking a page card goes back to that page, and editing or previewing a step goes to its page. This becomes `page` on those steps in the tour file, the same field multi-page tours use today.
 5. Picking something for the active step opens the step box right next to it, looking like the final tour popup. You type the title and text there, format it, and add images.
 6. Each step sets how the tour **continues**: a Next button, clicking the highlighted element, or typing text into it.
-7. **Preview** plays the tour from the storyboard, either in the builder on the demo or, with **Test on: Live DoorLoop**, in a new DoorLoop tab through the extension. **View tour file** shows the file it would publish.
+7. **Edit existing tour** loads a published or pasted tour into the same storyboard: click a card to edit, **+** between cards to insert, drag to reorder.
+8. **Preview** plays the tour from the storyboard, either in the builder on the demo or, with **Test on: Live DoorLoop**, in a new DoorLoop tab through the extension. **View tour file** shows the file it would publish.
 
 **Step box style (draft, agreed)**
 

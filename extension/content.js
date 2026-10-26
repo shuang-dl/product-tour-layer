@@ -34,7 +34,10 @@
     seen.add(e.data.id);
     ready.then(() => {
       if (type === 'tour-layer:draft') window.TourLayer.run(e.data.tour);
-      else window.TourBuilder.open({ mode: 'live', name: String(e.data.name || 'New tour'), startPath: location.pathname });
+      else {
+        const tour = e.data.tour && Array.isArray(e.data.tour.steps) ? e.data.tour : null; // editing an existing tour
+        window.TourBuilder.open({ mode: 'live', name: String(e.data.name || 'New tour'), startPath: location.pathname, tour });
+      }
     });
   });
 })();

@@ -23,7 +23,9 @@
 <script>
   function render() {
     main.innerHTML = location.pathname === '/tenants'
-      ? '<div data-cy="DetailScreen-ScreenTitle">Tenants</div><input aria-label="Search"><button aria-label="Filter">Filter</button><button aria-label="Columns">C</button><button aria-label="Export">E</button><button>New lease</button><div data-cy="list-engine-row">row</div>'
+      ? '<div data-cy="DetailScreen-ScreenTitle">Tenants</div><input aria-label="Search"><button aria-label="Filter">Filter</button><button aria-label="Columns">C</button><button aria-label="Export">E</button><button>New lease</button><div data-cy="list-engine-row">row</div>' +
+        // like DoorLoop's bank and ownership choices: wrappers share a label, the buttons inside are unique
+        '<div style="display:flex;gap:8px"><div data-cy="choiceWrap" style="padding:12px;border:1px solid #ccc"><button data-cy="Choice-A">A</button></div><div data-cy="choiceWrap" style="padding:12px;border:1px solid #ccc"><button data-cy="Choice-B">B</button></div></div>'
       : '<div data-cy="Widget-dashboards.thingsToDo" style="height:100px">todo</div><div style="height:1500px"></div><div data-cy="Widget-dashboards.occupancyRate" style="height:100px">occ</div>';
   }
   render();

@@ -32,6 +32,11 @@
     .choice input { margin: 0 6px 0 0; }
     .choice small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
     .start .hint { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+    .start select, .start textarea { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
+    .start textarea { margin-top: 8px; min-height: 140px; font: 12px/1.4 ui-monospace, Menlo, monospace; }
+    .start .error { color: #c62828; font-size: 13px; margin: 6px 0 0; }
+    .start [hidden] { display: none; }
+    .choice + div { margin-top: 4px; }
     .start .hint[hidden] { display: none; }
     .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 30; max-width: min(640px, calc(100vw - 32px)); }
     .toast[hidden] { display: none; }
@@ -45,23 +50,35 @@
     <p><button class="primary" id="create">+ Create new tour</button></p>
     <div class="note">
       <strong>Two ways to build.</strong> On the <a href="demo/home">demo app</a>, right here: nothing to install.
-      Or on live DoorLoop: the builder opens on top of your own DoorLoop tab through the DoorLoop Tours extension (version 0.4.2 or later), since DoorLoop can't be shown inside another site.
+      Or on live DoorLoop: the builder opens on top of your own DoorLoop tab through the DoorLoop Tours extension (version 0.5.0 or later), since DoorLoop can't be shown inside another site.
     </div>
   </div>
 
   <div class="backdrop" id="startModal" hidden>
     <form class="start" id="startForm">
-      <h2>Create a new tour</h2>
-      <label for="tourName">Tour name</label>
-      <input type="text" id="tourName" value="Working with your tenant list" required>
-      <label for="tourUrl">Page where the tour starts (e.g. /home, /tenants, /properties)</label>
-      <input type="text" id="tourUrl" value="/tenants" required>
+      <h2>Create or edit a tour</h2>
+      <div class="choice">
+        <label><input type="radio" name="mode" value="new" checked>New tour<small>Start from an empty storyboard.</small></label>
+        <label><input type="radio" name="mode" value="edit">Edit existing tour<small>Change steps, insert missing ones.</small></label>
+      </div>
+      <div id="newFields">
+        <label for="tourName">Tour name</label>
+        <input type="text" id="tourName" value="Working with your tenant list">
+        <label for="tourUrl">Page where the tour starts (e.g. /home, /tenants, /properties)</label>
+        <input type="text" id="tourUrl" value="/tenants">
+      </div>
+      <div id="editFields" hidden>
+        <label for="tourPick">Tour</label>
+        <select id="tourPick"><option value="">Loading tours…</option></select>
+        <textarea id="tourPaste" hidden placeholder="Paste a tour file here (the JSON from View tour file)"></textarea>
+        <p class="error" id="editError" hidden></p>
+      </div>
       <label>Build on</label>
       <div class="choice">
         <label><input type="radio" name="buildOn" value="demo" checked>Demo site<small>Here in the builder, with made-up data.</small></label>
         <label><input type="radio" name="buildOn" value="live">Live DoorLoop<small>On your own DoorLoop, in a new tab.</small></label>
       </div>
-      <p class="hint" id="liveHint" hidden>Needs the DoorLoop Tours extension (0.4.2 or later) and a DoorLoop login. If Chrome blocks the new tab, allow pop-ups for this page.</p>
+      <p class="hint" id="liveHint" hidden>Needs the DoorLoop Tours extension (0.5.0 or later) and a DoorLoop login. If Chrome blocks the new tab, allow pop-ups for this page.</p>
       <div class="row">
         <button type="button" class="ghost" id="cancelStart">Cancel</button>
         <button class="primary" id="openBtn">Open page</button>
@@ -86,21 +103,67 @@
 
     $('#create').onclick = () => ($('#startModal').hidden = false);
     $('#cancelStart').onclick = () => ($('#startModal').hidden = true);
+    // Edit existing: published tours (DoorLoop and demo), or a pasted tour file.
+    const published = {};
+    Promise.all([
+      fetch('tours.json', { cache: 'no-store' }).then((r) => r.json()).then((d) => ['DoorLoop tours', d.tours]).catch(() => null),
+      fetch('demo/tours.json', { cache: 'no-store' }).then((r) => r.json()).then((d) => ['Demo app tours', d.tours]).catch(() => null),
+    ]).then((groups) => {
+      const pick = $('#tourPick');
+      pick.replaceChildren();
+      for (const [label, tours] of groups.filter(Boolean)) {
+        const og = Object.assign(document.createElement('optgroup'), { label });
+        for (const t of tours) {
+          published[label + '/' + t.id] = t;
+          og.append(Object.assign(document.createElement('option'), { value: label + '/' + t.id, textContent: t.title }));
+        }
+        pick.append(og);
+      }
+      pick.append(Object.assign(document.createElement('option'), { value: 'paste', textContent: 'Paste a tour file…' }));
+    });
+    function chosenTour() {
+      if ($('#tourPick').value !== 'paste') return published[$('#tourPick').value];
+      let tour;
+      try {
+        tour = JSON.parse($('#tourPaste').value);
+      } catch {
+        throw new Error("That isn't a valid tour file. Paste the JSON from View tour file.");
+      }
+      if (!tour || typeof tour.page !== 'string' || !Array.isArray(tour.steps)) throw new Error('A tour file needs a "page" and a list of "steps".');
+      return tour;
+    }
+
     $('#startForm').onchange = () => {
       const live = buildOn() === 'live';
+      const editing = $('input[name=mode]:checked').value === 'edit';
       $('#liveHint').hidden = !live;
       $('#openBtn').textContent = live ? 'Open DoorLoop' : 'Open page';
+      $('#newFields').hidden = editing;
+      $('#editFields').hidden = !editing;
+      $('#tourPaste').hidden = $('#tourPick').value !== 'paste';
+      $('#editError').hidden = true;
     };
     $('#startForm').onsubmit = (e) => {
       e.preventDefault();
-      const name = $('#tourName').value.trim();
-      const path = pathOf($('#tourUrl').value.trim());
+      let tour = null;
+      if ($('input[name=mode]:checked').value === 'edit') {
+        try {
+          tour = chosenTour();
+        } catch (err) {
+          $('#editError').textContent = err.message;
+          $('#editError').hidden = false;
+          return;
+        }
+      }
+      const name = tour ? tour.title || tour.id : $('#tourName').value.trim();
+      const path = tour ? tour.page : pathOf($('#tourUrl').value.trim());
+      if (!name || !path) return;
       if (buildOn() === 'demo') {
         $('#startModal').hidden = true;
-        return TourBuilder.open({ mode: 'demo', name, startPath: path, demoBase: 'demo' });
+        return TourBuilder.open({ mode: 'demo', name, startPath: path, demoBase: 'demo', tour });
       }
-      // Live: open DoorLoop and ask the extension there to start the builder.
-      const ok = TourBuilder.sendToDoorLoop(path, 'doorloop-tour-builder', { type: 'tour-layer:build', name, page: path },
+      // Live: open DoorLoop and ask the extension there to start the builder (with the tour, when editing).
+      const ok = TourBuilder.sendToDoorLoop(path, 'doorloop-tour-builder', { type: 'tour-layer:build', name, page: path, tour },
         () => toast('The builder is open on DoorLoop. Switch to that tab.'));
       if (!ok) return toast('Your browser blocked the new tab. Allow pop-ups for this page and try again.');
       $('#startModal').hidden = true;

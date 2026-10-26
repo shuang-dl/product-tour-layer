@@ -20,6 +20,7 @@ links page ──click──▶ app.doorloop.com/tenants?tour=tenants-list
 - **Multi-page tours:** progress is kept in `sessionStorage`, so a tour continues after a step navigates to another page.
 - **Waits for the page:** each step waits (up to 8s) for its element to render before showing.
 - **Missing elements:** if a step's element never appears, the step still shows, centred, so the tour doesn't get stuck. An `optional` step is skipped instead.
+- **Closing:** only the × ends a tour. Escape and clicks on the dimmed page don't, since they're easy to do by accident in the middle of a form.
 
 ## Demo app (no setup)
 
@@ -99,11 +100,20 @@ Add `tours/<id>.json`:
 
 The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html)'s Tour style panel (◐) sets these visually, and "View tour file" writes them in this format.
 
-**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.4.2 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
+**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.5.0 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
 
 - The builder is `src/builder.js`, shared by the builder page (demo mode, with the demo app in a frame) and the extension (live mode). It draws inside a shadow root so DoorLoop's CSS and the builder's can't affect each other.
 - Pages change through DoorLoop's own links (an in-app page change). Where there's no link, the page loads normally and the builder comes back with the draft, which is kept in `sessionStorage` for that tab.
 - The tour launcher is hidden while building. Closing the builder discards the draft, so copy the tour file first.
+
+**Editing a tour.** In the builder's start popup choose **Edit existing tour**, then pick a published tour (DoorLoop or demo) or paste a tour file, and build on the demo or live DoorLoop. The storyboard fills in with the tour's pages and steps, and its style loads into the Tour style panel.
+
+- Click a card to edit that step (the builder goes to its page and finds its element again). For a page pattern like `/tenants/*`, open a matching page first.
+- **+** between cards inserts a step there; drag cards to reorder (a step dragged past a page card moves to that page); × removes one.
+- The step editor's **Skip this step if it isn't on screen** sets `optional`.
+- **View tour file** keeps the tour's id, so the edited file replaces the original in `tours/` (or `demo-tours/`).
+- When an element's label is shared by several elements (e.g. two choice cards with the same wrapper label), the builder uses a uniquely labelled element inside it instead, since the tour engine would only ever find the first.
+- **Storyboard ▾** in the top bar collapses the storyboard, e.g. to reach an app's bottom bar.
 - Like draft previews, the extension only opens the builder when asked by the builder's own site.
 
 **Testing a draft on live DoorLoop.** In the builder, set **Test on** to **Live DoorLoop** and click **Preview**. DoorLoop opens in a new tab and the DoorLoop Tours extension (version 0.2.0 or later) runs the draft there, on your own account. DoorLoop can't be shown inside the builder, so you still build on the demo, whose element labels match DoorLoop's.

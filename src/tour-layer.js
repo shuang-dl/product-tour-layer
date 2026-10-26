@@ -18,7 +18,6 @@
 
   let tours = [];
   let driverObj = null;
-  let internalDestroy = false;
   let runToken = 0; // bumped on every step change so stale async work can bail out
   let lastPath = location.pathname;
   let basePath = ''; // set when the app lives under a sub-path, e.g. "/product-tour-layer/demo"
@@ -155,9 +154,7 @@
     group?.remove();
     group = null;
     if (!driverObj) return;
-    internalDestroy = true;
     driverObj.destroy();
-    internalDestroy = false;
     driverObj = null;
   }
 
@@ -217,14 +214,14 @@
     if (Array.isArray(el)) el[0].scrollIntoView({ block: 'center' });
     const anchor = Array.isArray(el) ? groupBox(el) : el;
     driverObj = window.driver.js.driver({
-      allowClose: true,
+      // Only the × ends a tour (onCloseClick below). Escape and clicks on the dimmed page are too easy to do by
+      // accident in the middle of a form, e.g. Escape to close an address dropdown.
+      allowClose: false,
+      allowKeyboardControl: false,
       overlayOpacity: 0.45,
       stagePadding: 6,
       stageRadius: 8,
       popoverClass: 'tour-layer-popover',
-      onDestroyed: () => {
-        if (!internalDestroy) endTour(); // user closed it (X, Esc, overlay click)
-      },
     });
     driverObj.highlight({
       element: anchor || undefined,

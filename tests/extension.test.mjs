@@ -88,6 +88,9 @@ try {
   check("tour's style block applied", (await page3.locator('.driver-popover').evaluate((e) => getComputedStyle(e).backgroundColor)) === 'rgb(18, 52, 86)');
   check('title uses the chosen heading tag', (await page3.locator('.tl-title').evaluate((e) => e.tagName)) === 'H1');
   check('step image shown', (await page3.locator('.tl-img').count()) === 1);
+  await page3.keyboard.press('Escape');
+  await page3.waitForTimeout(300);
+  check('Escape does not end a tour (only × does)', (await page3.locator('.driver-popover').count()) === 1);
   await page3.click('.driver-popover-close-btn');
   await page3.waitForTimeout(300);
   check('close button ends the tour', (await page3.locator('.driver-popover').count()) === 0);
@@ -245,6 +248,50 @@ try {
   check('live: closing removes the builder and its draft',
     (await live.locator('#tour-layer-builder').count()) === 0 && (await live.evaluate(() => sessionStorage.getItem('tourLayer.builder'))) === null);
   check('live: no page errors', errors.length === 0, errors.join('; '));
+
+  // Editing an existing tour on live DoorLoop: paste a tour file, insert a missing step, reorder, export.
+  const existing = {
+    id: 'edit-me', title: 'Edit me', page: '/tenants', style: { frame: '#0f6e56' },
+    steps: [
+      { target: "input[aria-label='Search']", title: 'First', text: 'one' },
+      { target: "button[aria-label='Filter']", title: 'Second', text: 'two', advanceOn: 'click' },
+    ],
+  };
+  const site2 = await ctx.newPage();
+  await site2.goto('https://shuang-dl.github.io/product-tour-layer/builder-concept.html');
+  await site2.click('#create');
+  await site2.check('input[value=edit]');
+  await site2.selectOption('#tourPick', 'paste');
+  await site2.fill('#tourPaste', JSON.stringify(existing));
+  await site2.check('input[value=live]');
+  const editTabP = ctx.waitForEvent('page');
+  await site2.click('#openBtn');
+  const ed = await editTabP;
+  await ed.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
+  const E = ed.locator('#tour-layer-builder');
+  const cards = () => E.locator('.card:not(.page-card) .t').allInnerTexts();
+  check('edit: the tour loads into the storyboard', JSON.stringify(await cards()) === JSON.stringify(['First', 'Second']) && (await E.locator('.ws-name').textContent()) === 'Edit me');
+  check("edit: the tour's style loads", (await E.locator('.style-panel input[data-var="--tour-frame"]').inputValue()) === '#0f6e56');
+  // Insert a missing step between First and Second (the "+" before the Second card)
+  await E.locator('.ins').nth(1).click();
+  await ed.locator('[data-cy=choiceWrap]').nth(1).click({ position: { x: 3, y: 3 } }); // the wrapper itself, not its button
+  check('edit: a shared label falls back to a unique one inside', (await E.locator('.pop code').textContent()) === "[data-cy='Choice-B']");
+  await E.locator('.pop .tb-title').click();
+  await ed.keyboard.type('Inserted');
+  await E.locator('.pop [data-optional]').check();
+  await E.locator('.pop [data-save]').click();
+  check('edit: inserted step lands in place', JSON.stringify(await cards()) === JSON.stringify(['First', 'Inserted', 'Second']));
+  // Drag "Second" onto "First": it moves before it
+  await E.locator('.card:has-text("Second")').dragTo(E.locator('.card:has-text("First")'));
+  check('edit: dragging reorders steps', JSON.stringify(await cards()) === JSON.stringify(['Second', 'First', 'Inserted']));
+  await E.locator('.file-btn').click();
+  const edited = JSON.parse((await E.locator('.file-out').textContent()).split('\n\n//')[0]);
+  check('edit: the tour file keeps the id and reflects the edits',
+    edited.id === 'edit-me' && edited.steps.map((x) => x.title).join() === 'Second,First,Inserted' &&
+    edited.steps[2].optional === true && edited.steps[2].target === "[data-cy='Choice-B']" && edited.steps[0].advanceOn === 'click' && edited.style.frame === '#0f6e56');
+  await E.locator('.file-close').click();
+  await E.locator('.story-btn').click();
+  check('edit: the storyboard can be collapsed', !(await E.locator('.story').isVisible()));
 } finally {
   await ctx.close();
 }
