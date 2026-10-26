@@ -128,6 +128,7 @@
     .card.drop-here { box-shadow: -4px 0 0 var(--accent); }
     .story-collapsed .story { display: none; }
     .pop .meta .opt { display: flex; align-items: center; gap: 6px; }
+    .auto-start { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; }
     .pop .meta .sample { border-top: 1px solid var(--border); padding-top: 6px; display: grid; gap: 4px; }
     .pop .meta .sample .rec { color: #c62828; font-weight: 600; }
     .sample-list, .exit-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
@@ -226,6 +227,7 @@
             <strong class="ws-name"></strong>
             <span class="url"></span>
             ${live ? '' : '<span class="test-on">Test on <span class="seg test-seg"><button data-v="demo" class="on">Demo</button><button data-v="live">Live DoorLoop</button></span></span>'}
+            <label class="auto-start" title="Open this tour by itself the first time someone visits its start page (once per browser)"><input type="checkbox"> Start by itself once</label>
             <button class="ghost story-btn" title="Show or hide the storyboard">Storyboard ▾</button>
             <button class="ghost preview-btn">▶ Preview</button>
             <button class="ghost file-btn">View tour file</button>
@@ -1056,6 +1058,8 @@
       toast('Sample data is in a dialog, so its × is set as the exit click: when the tour ends it closes the dialog without saving. Change it in ⎋.', 8000);
     }
 
+    $('.auto-start input').onchange = save;
+
     $('.exit-tool').onclick = () => { $('.exit-panel').hidden = !$('.exit-panel').hidden; renderExit(); };
     $('.exit-pick').onclick = () => {
       clearSelection();
@@ -1292,6 +1296,7 @@
           titleAlign: style.titleAlign,
           textAlign: style.textAlign,
         },
+        ...($('.auto-start input').checked ? { autoStart: true } : {}),
         ...(state.exitClicks.length ? { exitClicks: state.exitClicks } : {}),
         steps: steps().map((s, i) => {
           const target = s.target;
@@ -1387,6 +1392,7 @@
       const flow = state.flow.map(({ els, ...rest }) => rest); // elements can't be saved; targets find them again
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({
         name: state.name, id: state.id, folder: options.folder, flow, style, active: state.active, exitClicks: state.exitClicks,
+        autoStart: $('.auto-start input').checked,
         inputs: Object.fromEntries([...$$('.style-panel input')].map((i) => [i.dataset.var, i.value])),
       }));
     }
@@ -1397,6 +1403,7 @@
       state.active = saved.active ?? null;
       state.exitClicks = saved.exitClicks || [];
       options.folder = saved.folder;
+      $('.auto-start input').checked = !!saved.autoStart;
       Object.assign(style, saved.style);
       $$('.style-panel input').forEach((i) => { if (saved.inputs[i.dataset.var] !== undefined) i.value = saved.inputs[i.dataset.var]; });
       $$('.style-panel .seg').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === style[seg.dataset.key])));
@@ -1409,6 +1416,7 @@
       state.id = tour.id;
       state.flow = [{ type: 'page', path: tour.page }];
       state.exitClicks = tour.exitClicks ? [...tour.exitClicks] : [];
+      $('.auto-start input').checked = !!tour.autoStart;
       for (const step of tour.steps) {
         if (step.page && step.page !== currentPage()) state.flow.push({ type: 'page', path: step.page });
         state.flow.push({

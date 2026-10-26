@@ -34,6 +34,7 @@ try {
   check('driver.css injected', (await page.locator('.driver-popover').evaluate((e) => getComputedStyle(e).position)) === 'fixed');
   check('step box header shows step count', (await page.locator('.tl-head').textContent()).includes('Step 1 of 5'));
   check('no extra highlight layer outside dialogs', (await page.locator('.tour-layer-ring').count()) === 0);
+  check('step box shows a progress bar', (await page.evaluate(() => document.querySelector('.tl-bar > span')?.style.width)) === '20%');
   check('default style applied', (await page.locator('.driver-popover').evaluate((e) => getComputedStyle(e).backgroundColor)) === 'rgb(11, 31, 68)');
   await page.click('.driver-popover-next-btn');
   check('optional step shows when its target is visible', (await title(page)) === 'Open People');
@@ -397,9 +398,40 @@ try {
   // Sample data in a dialog: with no exit clicks (or one that isn't there), ending the tour closes the dialog with its
   // × and answers "Discard your changes?"
   const amountStep = { target: "[data-cy='mockAmount']", title: 'Amount', text: 'x', fill: [{ target: "[data-cy='mockAmount']", value: '1500' }] };
+  const autoTour = { id: 'auto-test', title: 'Auto', page: '/welcome', autoStart: true, steps: [{ title: 'Welcome', text: 'x' }] };
   const leaveTour = { id: 'leave-test', title: 'Leave', page: '/payment', steps: [amountStep] };
   const leaveTour2 = { id: 'leave-test-2', title: 'Leave 2', page: '/payment', exitClicks: ["[data-cy='notThere']"], steps: [amountStep] };
-  await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [dropTour, dupTour, leaveTour, leaveTour2] }) }));
+  await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [dropTour, dupTour, leaveTour, leaveTour2, autoTour] }) }));
+  // autoStart: opens by itself on its page once; after it ends, this browser doesn't start it again
+  const ap = await ctx.newPage();
+  await ap.goto('https://acme.app.doorloop.com/welcome');
+  check('autoStart: the tour opens by itself on its page', (await title(ap)) === 'Welcome');
+  if (await ap.locator('.driver-popover-close-btn').count()) await ap.click('.driver-popover-close-btn');
+  await ap.reload();
+  await ap.waitForTimeout(3000);
+  check('autoStart: once ended, it does not start again', (await ap.locator('.driver-popover').count()) === 0 &&
+    (await ap.evaluate(() => localStorage.getItem('tourLayer.seen.auto-test'))) === '1');
+  await ap.close();
+  // A narrow window: the step box stays inside it. Reduce motion: no animation.
+  const np = await ctx.newPage();
+  await np.setViewportSize({ width: 340, height: 640 });
+  await np.emulateMedia({ reducedMotion: 'reduce' });
+  await np.goto('https://acme.app.doorloop.com/home?tour=dup-test');
+  await title(np);
+  check('reduce motion: the highlight does not animate', !(await np.evaluate(() => document.body.classList.contains('driver-fade'))));
+  await np.click('.driver-popover-next-btn');
+  await np.waitForTimeout(1000);
+  await np.evaluate(() => (document.querySelector('.driver-popover').style.left = '-150px')); // placed past the edge
+  await np.waitForTimeout(600);
+  await np.evaluate(() => (document.querySelector('.driver-popover').style.top = '-200px')); // then past the top too
+  await np.waitForTimeout(600);
+  const boxAt = await np.evaluate(() => {
+    const b = document.querySelector('.driver-popover');
+    const r = b.getBoundingClientRect();
+    return { ok: r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight, rect: [r.left, r.top, r.right, r.bottom].map(Math.round), w: innerWidth, h: innerHeight, style: b.getAttribute('style') };
+  });
+  check('the step box is brought back inside the window', boxAt.ok, JSON.stringify(boxAt));
+  await np.close();
   for (const [id, wait, name] of [['leave-test', 1500, 'with no exit clicks'], ['leave-test-2', 5000, "when an exit click isn't there"]]) {
     const lp = await ctx.newPage();
     await lp.goto(`https://acme.app.doorloop.com/payment?tour=${id}`);
@@ -489,7 +521,9 @@ try {
   await R.locator('.exit-pick').click();
   await rec.click('[data-cy=mockCancel]');
   check('record: picking an exit click does not press it', (await rec.evaluate(() => document.body.dataset.cancelled)) === undefined);
+  await R.locator('.auto-start input').check();
   await R.locator('.file-btn').click();
+  check('builder: Start by itself once sets autoStart in the tour file', JSON.parse(await R.locator('.file-out').textContent()).autoStart === true);
   const recorded = JSON.parse((await R.locator('.file-out').textContent()).split('\n\n//')[0]);
   check('record: the tour file has the sample data and exit clicks',
     JSON.stringify(recorded.steps[0].fill) === JSON.stringify([{ target: "[data-cy='mockStreet']", value: '1100 Congress Ave', pick: '1100 Congress Ave Austin, TX, 78701' }]) &&

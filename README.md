@@ -21,6 +21,7 @@ links page ──click──▶ app.doorloop.com/tenants?tour=tenants-list
 - **Waits for the page:** each step waits (up to 8s) for its element to render before showing.
 - **Missing elements:** if a step's element never appears, the step still shows, centred, so the tour doesn't get stuck. An `optional` step is skipped instead.
 - **Clicks:** the highlighted area works as normal, including dropdowns its fields open. The dimmed page around it doesn't take clicks. A highlighted group follows its items when the page layout shifts.
+- **On screen:** the step box is kept inside the window, with a progress bar under the step count. With "reduce motion" turned on in the system settings, the highlight jumps between steps instead of gliding.
 - **Closing:** only the × ends a tour. Escape and clicks on the dimmed page don't, since they're easy to do by accident in the middle of a form.
 
 ## Demo app (no setup)
@@ -68,6 +69,7 @@ Add `tours/<id>.json`:
 | `title`, `description` | shown on the links page and in the launcher |
 | `page` | the DoorLoop path the tour starts on |
 | `style` | optional. How every step box in this tour looks (see below) |
+| `autoStart` | optional. `true` = the tour opens by itself the first time someone visits its `page`. Once it ends (Done or ×), that browser remembers and it only runs again from the launcher or a `?tour=` link. The builder's **Start by itself once** sets it |
 | `exitClicks` | optional. A list of targets clicked in order when the tour ends, if the user clicked **Fill example** on any step: e.g. Cancel, then the Discard button it opens, so the sample data isn't saved (see "Sample data" below) |
 | `steps` | list of steps |
 
@@ -115,7 +117,7 @@ Add `tours/<id>.json`:
 
 The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html)'s Tour style panel (◐) sets these visually, and "View tour file" writes them in this format.
 
-**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.6.1 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
+**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.7.0 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
 
 - The builder is `src/builder.js`, shared by the builder page (demo mode, with the demo app in a frame) and the extension (live mode). It draws inside a shadow root so DoorLoop's CSS and the builder's can't affect each other.
 - Pages change through DoorLoop's own links (an in-app page change). Where there's no link, the page loads normally and the builder comes back with the draft, which is kept in `sessionStorage` for that tab.

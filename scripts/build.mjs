@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 
-const TOUR_KEYS = ['id', 'title', 'description', 'page', 'style', 'exitClicks', 'steps'];
+const TOUR_KEYS = ['id', 'title', 'description', 'page', 'style', 'autoStart', 'exitClicks', 'steps'];
 const STEP_KEYS = ['target', 'title', 'text', 'page', 'advanceOn', 'optional', 'showOnly', 'image', 'fill'];
 // The step box style (one per tour). Colours are #rrggbb, sizes are whole pixels in a range, the rest are choices.
 const STYLE_RULES = {
@@ -43,6 +43,7 @@ function validateTour(tour, file) {
   if (tour.description !== undefined && !isText(tour.description)) err('"description" must be text');
   if (!/^\/[^*]*$/.test(tour.page || '')) err('"page" must be a path like "/tenants" (no "*": it is where the tour starts)');
   if (tour.style !== undefined) validateStyle(tour.style, err);
+  if (tour.autoStart !== undefined && typeof tour.autoStart !== 'boolean') err('"autoStart" must be true or false');
   // A target is a CSS selector or { text, selector? }; a non-empty list of those is a group, highlighted as one area.
   const checkTarget = (t, where) => {
     if (!isText(t) && !(t && typeof t === 'object' && !Array.isArray(t) && isText(t.text))) {

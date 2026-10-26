@@ -117,6 +117,21 @@
   };
   const clearState = () => sessionStorage.removeItem(STATE_KEY);
   const findTour = (id) => tours.find((t) => t.id === id);
+  // A tour with autoStart opens by itself the first time someone visits its page; once it ends (Done or ×) this
+  // browser remembers, and it only runs again from the launcher. Storage can be blocked; then it just shows again.
+  const SEEN_KEY = (id) => `tourLayer.seen.${id}`;
+  const seen = (id) => {
+    try {
+      return localStorage.getItem(SEEN_KEY(id)) === '1';
+    } catch {
+      return false;
+    }
+  };
+  const markSeen = (id) => {
+    try {
+      localStorage.setItem(SEEN_KEY(id), '1');
+    } catch {}
+  };
   const loadDraft = () => {
     try {
       return JSON.parse(sessionStorage.getItem(DRAFT_KEY));
@@ -250,7 +265,26 @@
     };
   }
 
+  // driver.js places the step box beside its target, which can run past the window's edge (e.g. on a zoomed-out
+  // page). Nudge it back inside, and hide its arrow then, since it no longer lines up with the target.
+  let screenTimer = null;
+  function keepOnScreen() {
+    const box = document.querySelector('.driver-popover.tour-layer-popover');
+    if (!box) return;
+    const r = box.getBoundingClientRect();
+    const m = 8;
+    const dx = r.left < m ? m - r.left : r.right > innerWidth - m ? innerWidth - m - r.right : 0;
+    const dy = r.top < m ? m - r.top : r.bottom > innerHeight - m ? innerHeight - m - r.bottom : 0;
+    if (!dx && !dy) return;
+    // The current nudge, e.g. "12px 4px"; the browser shortens "12px 0px" to "12px".
+    const [x = 0, y = 0] = (box.style.translate || '').split(' ').map((v) => parseFloat(v) || 0);
+    box.style.translate = `${x + dx}px ${y + dy}px`;
+    box.querySelector('.driver-popover-arrow')?.style.setProperty('display', 'none');
+  }
+
   function destroyDriver() {
+    clearInterval(screenTimer);
+    screenTimer = null;
     ring?.();
     ring = null;
     group?.remove();
@@ -271,6 +305,7 @@
     runToken++;
     const state = loadState();
     const tour = state && findTour(state.tourId);
+    if (tour) markSeen(tour.id);
     // The tour typed sample data into the app: leave without saving it, once the highlight is gone.
     if (state && state.sampleUsed && tour) setTimeout(() => leaveSample(tour), 0);
     const draft = loadDraft();
@@ -332,6 +367,7 @@
       // accident in the middle of a form, e.g. Escape to close an address dropdown.
       allowClose: false,
       allowKeyboardControl: false,
+      animate: !matchMedia('(prefers-reduced-motion: reduce)').matches, // the highlight jumps instead of gliding
       overlayOpacity: OVERLAY_OPACITY,
       stagePadding: STAGE_PADDING,
       stageRadius: STAGE_RADIUS,
@@ -351,7 +387,7 @@
         onPrevClick: () => goTo(tour, index - 1, -1),
         onCloseClick: endTour,
         onPopoverRender: (popover) => {
-          renderStepBox(popover, tour, step, clickToAdvance);
+          renderStepBox(popover, tour, step, clickToAdvance, (index + 1) / total);
           // driver.js focuses the step box right after this returns; skip that while someone is in a field.
           if (inField()) queueMicrotask(keepFocus());
         },
@@ -359,6 +395,7 @@
     });
 
     if (anchor) ringOver(anchor, el);
+    screenTimer = setInterval(keepOnScreen, 200);
     if (step.showOnly && el) stopBlocking = blockClicks(step.target);
 
     if (clickToAdvance) {
@@ -494,7 +531,7 @@
   // Rebuild driver.js's popover into the step box: a header band (step count, close), a body
   // (full-width image, heading title, text) and a footer band (Back, Next or a hint).
   // driver.js's own button classes are kept, so its click handling still works.
-  function renderStepBox(p, tour, step, clickToAdvance) {
+  function renderStepBox(p, tour, step, clickToAdvance, progress) {
     const s = Object.assign({}, DEFAULT_STYLE, tour.style);
     const vars = {
       '--tl-frame': s.frame, '--tl-band-text': s.bandText, '--tl-button': s.button, '--tl-button-text': s.buttonText,
@@ -521,7 +558,8 @@
     const right = clickToAdvance ? el('span', { className: 'tl-hint', textContent: 'Click the highlighted item' }) : p.nextButton;
     const fill = step.fill ? [el('button', { className: 'tl-fill', textContent: 'Fill example', onclick: (e) => fillSample(tour, step, e.currentTarget) })] : [];
     p.footer.replaceChildren(p.previousButton, ...fill, right);
-    p.wrapper.replaceChildren(p.arrow, el('div', { className: 'tl-head' }, [p.progress, p.closeButton]), body, p.footer);
+    const bar = el('span', { className: 'tl-bar' }, [el('span', { style: `width: ${Math.round(progress * 100)}%` })]);
+    p.wrapper.replaceChildren(p.arrow, el('div', { className: 'tl-head' }, [p.progress, bar, p.closeButton]), body, p.footer);
   }
 
   function onRoute() {
@@ -535,6 +573,10 @@
       }
       destroyDriver(); // navigated away mid-tour: pause, launcher offers Resume
     }
+    // Not while the tour builder is open on this page (it keeps its draft under this key).
+    const auto = !step && !driverObj && !sessionStorage.getItem('tourLayer.builder') &&
+      tours.find((t) => t.autoStart && pageMatches(t.page, currentPath()) && !seen(t.id));
+    if (auto) return goTo(auto, 0);
     renderLauncher();
   }
 
@@ -550,10 +592,12 @@
     .tour-layer-panel .tour-layer-heading { padding: 6px 10px; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
     /* A modal dialog turns off clicks outside itself (pointer-events: none on <body>); the step box must stay usable. */
     .driver-popover.tour-layer-popover { pointer-events: auto; }
-    .driver-popover.tour-layer-popover { padding: 0; min-width: 300px; max-width: 340px; border-radius: var(--tl-corners); background: var(--tl-frame); color: var(--tl-body-text); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    .driver-popover.tour-layer-popover { padding: 0; min-width: min(300px, calc(100vw - 16px)); max-width: min(340px, calc(100vw - 16px)); border-radius: var(--tl-corners); background: var(--tl-frame); color: var(--tl-body-text); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
     .tour-layer-popover .tl-head, .tour-layer-popover .driver-popover-footer { display: flex; align-items: center; justify-content: space-between; margin: 0; color: var(--tl-band-text); }
     .tour-layer-popover .tl-head { height: var(--tl-header-h); padding: 0 6px 0 10px; border-radius: var(--tl-corners) var(--tl-corners) 0 0; }
-    .tour-layer-popover .driver-popover-progress-text { color: inherit; font-size: 12px; }
+    .tour-layer-popover .driver-popover-progress-text { color: inherit; font-size: 12px; white-space: nowrap; }
+    .tour-layer-popover .tl-bar { flex: 1; height: 4px; margin: 0 10px; border-radius: 2px; overflow: hidden; background: color-mix(in srgb, var(--tl-band-text) 25%, transparent); }
+    .tour-layer-popover .tl-bar > span { display: block; height: 100%; background: var(--tl-button); }
     .tour-layer-popover .driver-popover-close-btn { position: static; width: auto; height: auto; padding: 0 4px; color: inherit; font-size: 18px; line-height: 1; opacity: .85; }
     .tour-layer-popover .driver-popover-close-btn:hover, .tour-layer-popover .driver-popover-close-btn:focus { color: inherit; opacity: 1; }
     .tour-layer-popover .tl-body { margin: 0 var(--tl-side); background: var(--tl-body-bg); color: var(--tl-body-text); }
