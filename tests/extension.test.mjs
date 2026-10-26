@@ -395,10 +395,19 @@ try {
   await dp.mouse.click(lease.x + lease.width / 2, lease.y + lease.height / 2);
   await dp.waitForTimeout(1200);
   check('dropdown: the list stays open when the next step shows', (await title(dp)) === 'Pick a lease' && (await dp.locator('#leasePopper').count()) === 1);
+  check('dropdown: a list above a full-screen dialog stays on top (not lowered under it)', await dp.evaluate(() => {
+    const o = [...document.querySelectorAll('#leasePopper li')][1]?.getBoundingClientRect();
+    return !!o && document.elementFromPoint(o.x + o.width / 2, o.y + o.height / 2)?.textContent === 'Lease 2';
+  }));
   const pick = await dp.locator('#leasePopper li', { hasText: 'Lease 2' }).boundingBox().catch(() => null);
   if (pick) await dp.mouse.click(pick.x + pick.width / 2, pick.y + pick.height / 2);
   await dp.waitForTimeout(1200);
   check('dropdown: picking from the list works and the tour moves on', (await dp.inputValue('[aria-label=Lease]')) === 'Lease 2' && (await title(dp)) === 'Done');
+  const done = await dp.locator('.driver-popover-next-btn').boundingBox();
+  await dp.mouse.click(done.x + done.width / 2, done.y + done.height / 2);
+  await dp.waitForTimeout(500);
+  check("dropdown: the step box works over a modal dialog, without closing it",
+    (await dp.locator('.driver-popover').count()) === 0 && (await dp.locator('#takeover').count()) === 1);
   await dp.close();
 
   // Recording sample data in the live builder, and picking the exit click

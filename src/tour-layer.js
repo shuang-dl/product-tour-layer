@@ -175,6 +175,28 @@
     return () => (HTMLElement.prototype.focus = focus);
   }
 
+  // Dropdowns a highlighted field opens are mounted on <body>, outside the highlight, and can end up under the
+  // overlay. Lift those above it, but never lower one that's already higher: a dropdown inside a full-screen dialog
+  // (e.g. Receive payment, above the overlay) sits above that dialog and has to stay there.
+  const POPUP = ':is([role=presentation], [data-radix-popper-content-wrapper]):has([role=listbox], [role=menu])';
+  const ABOVE_OVERLAY = 10001;
+  const lifted = new Set();
+  function liftPopups() {
+    if (!document.body.classList.contains('driver-active')) return;
+    for (const node of document.body.children) {
+      if (lifted.has(node) || !node.matches(POPUP)) continue;
+      if (parseInt(getComputedStyle(node).zIndex, 10) >= ABOVE_OVERLAY) continue;
+      node.style.setProperty('z-index', String(ABOVE_OVERLAY), 'important');
+      lifted.add(node);
+    }
+  }
+  let liftQueued = false;
+  new MutationObserver(() => {
+    if (liftQueued) return;
+    liftQueued = true;
+    requestAnimationFrame(() => { liftQueued = false; liftPopups(); });
+  }).observe(document.documentElement, { childList: true, subtree: true });
+
   function destroyDriver() {
     group?.remove();
     group = null;
@@ -203,6 +225,8 @@
     }
     clearState();
     destroyDriver();
+    lifted.forEach((node) => node.style.removeProperty('z-index'));
+    lifted.clear();
     renderLauncher();
   }
 
@@ -395,6 +419,12 @@
       '--tl-title-align': s.titleAlign, '--tl-text-align': s.textAlign,
     };
     for (const [k, v] of Object.entries(vars)) p.wrapper.style.setProperty(k, v);
+    // The step box lives outside the app's dialogs. Keep its presses and focus changes from reaching the app, or an
+    // open modal dialog (e.g. Receive payment) treats them as "outside" and closes or pulls focus back.
+    if (!p.wrapper.dataset.tlIsolated) {
+      p.wrapper.dataset.tlIsolated = '1';
+      for (const type of ['pointerdown', 'mousedown', 'touchstart', 'focusin', 'focusout']) p.wrapper.addEventListener(type, (e) => e.stopPropagation());
+    }
 
     const title = document.createElement(s.titleSize);
     title.id = 'driver-popover-title';
@@ -434,6 +464,8 @@
     .tour-layer-panel button:hover { background: #f0f4fb; }
     .tour-layer-panel small { display: block; color: #666; }
     .tour-layer-panel .tour-layer-heading { padding: 6px 10px; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    /* A modal dialog turns off clicks outside itself (pointer-events: none on <body>); the step box must stay usable. */
+    .driver-popover.tour-layer-popover { pointer-events: auto; }
     .driver-popover.tour-layer-popover { padding: 0; min-width: 300px; max-width: 340px; border-radius: var(--tl-corners); background: var(--tl-frame); color: var(--tl-body-text); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
     .tour-layer-popover .tl-head, .tour-layer-popover .driver-popover-footer { display: flex; align-items: center; justify-content: space-between; margin: 0; color: var(--tl-band-text); }
     .tour-layer-popover .tl-head { height: var(--tl-header-h); padding: 0 6px 0 10px; border-radius: var(--tl-corners) var(--tl-corners) 0 0; }
@@ -454,8 +486,6 @@
       padding: max(4px, calc((var(--tl-footer-h) - 22px) / 2.6)) calc(max(4px, calc((var(--tl-footer-h) - 22px) / 2.6)) + 10px); }
     .tour-layer-popover .driver-popover-next-btn:hover { filter: brightness(.95); }
     .tour-layer-group { position: fixed; pointer-events: none; }
-    /* Dropdowns that a highlighted field opens are mounted on <body>, outside the highlight; lift them above the overlay. */
-    body.driver-active > :is([role=presentation], [data-radix-popper-content-wrapper]):has([role=listbox], [role=menu]) { z-index: 10001 !important; }
     .tour-layer-popover .driver-popover-footer .tl-fill { margin-left: auto; background: none; color: inherit; border: 1px solid currentColor; border-radius: 6px; padding: 3px 8px; cursor: pointer; }
     .tour-layer-popover .driver-popover-footer .tl-fill:disabled { opacity: .7; cursor: default; }
     .tour-layer-popover .tl-fill + .driver-popover-next-btn, .tour-layer-popover .tl-fill + .tl-hint { margin-left: 0; }

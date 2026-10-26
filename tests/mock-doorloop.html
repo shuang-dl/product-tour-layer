@@ -27,9 +27,16 @@
 <script>
   function render() {
     // like DoorLoop's New property wizard: a street field with suggestions, a checkbox, a choice, Cancel and Finish
-    // like DoorLoop's Receive payment lease field: its list opens on <body> and closes when the field loses focus
+    // like DoorLoop's Receive payment: a full-screen dialog above the tour overlay, whose lease list opens on <body>
+    // above the dialog and closes when the field loses focus
     if (location.pathname === '/payment') {
-      main.innerHTML = '<div data-cy="mockLease" style="width:260px"><input aria-label="Lease" role="combobox" style="width:100%"></div>';
+      main.innerHTML = '<div role="dialog" id="takeover" style="position:fixed;inset:0;z-index:1000000;background:#fff;padding:20px;pointer-events:auto"><div data-cy="mockLease" style="width:260px"><input aria-label="Lease" role="combobox" style="width:100%"></div></div>';
+      // like Radix's modal dialog: nothing outside it takes clicks, and a press outside it closes it
+      document.body.style.pointerEvents = 'none';
+      document.addEventListener('pointerdown', (e) => {
+        const dlg = document.getElementById('takeover');
+        if (dlg && !dlg.contains(e.target) && !e.target.closest('#leasePopper')) { dlg.remove(); document.body.style.pointerEvents = ''; }
+      });
       leaseField();
       return;
     }
@@ -56,9 +63,9 @@
       const r = input.getBoundingClientRect();
       const popper = document.createElement('div');
       popper.id = 'leasePopper';
-      popper.setAttribute('role', 'presentation');
-      popper.style.cssText = `position:absolute;z-index:1300;background:#fff;border:1px solid #ccc;left:${r.left}px;top:${r.bottom + 4}px`;
-      popper.innerHTML = '<ul role="listbox" data-cy="mockLeasePicker" style="margin:0;padding:4px"><li role="option">Lease 1</li><li role="option">Lease 2</li></ul>';
+      popper.setAttribute('data-radix-popper-content-wrapper', '');
+      popper.style.cssText = `position:fixed;z-index:1000002;pointer-events:auto;background:#fff;border:1px solid #ccc;left:${r.left}px;top:${r.bottom + 4}px`;
+      popper.innerHTML = '<div role="dialog" data-cy="mockLeasePicker"><ul role="listbox" style="margin:0;padding:4px"><li role="option">Lease 1</li><li role="option">Lease 2</li></ul></div>';
       // MUI keeps focus in the field while an option is pressed, then picks it on click
       popper.addEventListener('mousedown', (e) => e.preventDefault());
       popper.addEventListener('click', (e) => { if (e.target.matches('[role=option]')) { input.value = e.target.textContent; close(); } });

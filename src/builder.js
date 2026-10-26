@@ -1325,7 +1325,7 @@
       }
       const folder = options.folder === 'demo-tours' ? 'demo-tours' : 'tours';
       const value = encodeURIComponent(text);
-      const fits = value.length < 8000;
+      const fits = value.length < 6000; // GitHub rejected a ~10,000-character pre-fill ("Bad request")
       const url = state.id
         ? `${REPO}/edit/main/${folder}/${tour.id}.json`
         : `${REPO}/new/main/${folder}?filename=${encodeURIComponent(tour.id + '.json')}${fits ? `&value=${value}` : ''}`;
