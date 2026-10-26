@@ -135,9 +135,19 @@
     };
     fit();
     document.body.append(box);
+    // driver.js makes everything except the highlighted element unclickable; the group's items stay usable.
+    els.forEach((e) => e.classList.add('tour-layer-group-item'));
     window.addEventListener('scroll', onMove, true);
     window.addEventListener('resize', onMove);
-    group = { box, remove: () => { box.remove(); window.removeEventListener('scroll', onMove, true); window.removeEventListener('resize', onMove); } };
+    group = {
+      box,
+      remove: () => {
+        box.remove();
+        els.forEach((e) => e.classList.remove('tour-layer-group-item'));
+        window.removeEventListener('scroll', onMove, true);
+        window.removeEventListener('resize', onMove);
+      },
+    };
     return box;
   }
 
@@ -316,7 +326,8 @@
       margin-left: auto; background: var(--tl-button); color: var(--tl-button-text); font-weight: 600; border-radius: 6px;
       padding: max(4px, calc((var(--tl-footer-h) - 22px) / 2.6)) calc(max(4px, calc((var(--tl-footer-h) - 22px) / 2.6)) + 10px); }
     .tour-layer-popover .driver-popover-next-btn:hover { filter: brightness(.95); }
-    .tour-layer-group { position: fixed; pointer-events: none; }
+    .tour-layer-group, .driver-active .tour-layer-group.driver-active-element { position: fixed; pointer-events: none; }
+    .driver-active .tour-layer-group-item, .driver-active .tour-layer-group-item * { pointer-events: auto; }
     .tour-layer-popover .tl-hint { margin-left: auto; font-size: 12px; font-style: italic; }
     .tour-layer-popover .driver-popover-arrow { border-color: transparent; }
     .tour-layer-popover .driver-popover-arrow-side-left { border-left-color: var(--tl-frame); }

@@ -128,6 +128,10 @@ try {
     const r = box && box.getBoundingClientRect();
     return !!r && r.top <= Math.min(a.top, b.top) + 1 && r.bottom >= Math.max(a.bottom, b.bottom) - 1 && box.classList.contains('driver-active-element');
   }));
+  // Items inside a highlighted group must stay usable (driver.js blocks clicks on everything else)
+  await tab.click("[data-cy='SideMenu-CreateNewMenu-Button']");
+  check('items in a highlighted group can be clicked', await tab.evaluate(() => !document.getElementById('createDialog').hidden));
+  await tab.evaluate(() => (document.getElementById('createDialog').hidden = true)); // not Escape: that ends the tour
   await tab.click('.driver-popover-next-btn');
   await tab.waitForTimeout(500);
   await tab.reload();
