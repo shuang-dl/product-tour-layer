@@ -115,11 +115,18 @@ Add `tours/<id>.json`:
 
 The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html)'s Tour style panel (◐) sets these visually, and "View tour file" writes them in this format.
 
-**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.6.0 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
+**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.6.1 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
 
 - The builder is `src/builder.js`, shared by the builder page (demo mode, with the demo app in a frame) and the extension (live mode). It draws inside a shadow root so DoorLoop's CSS and the builder's can't affect each other.
 - Pages change through DoorLoop's own links (an in-app page change). Where there's no link, the page loads normally and the builder comes back with the draft, which is kept in `sessionStorage` for that tab.
 - The tour launcher is hidden while building. Closing the builder discards the draft, so copy the tour file first.
+
+**Saving a tour.** In **View tour file**, **Save to GitHub** publishes it through GitHub's own pages, signed in as you (the builder never holds a GitHub login):
+
+- A new tour opens GitHub's "new file" page as `tours/<id>.json`, already filled in. Check it and click **Commit changes**. Very long files don't fit in the link, so the page opens empty: paste the file, which is copied for you.
+- An edited tour opens its existing file's edit page, since GitHub can't fill in an edit: select everything, paste the copied file, and commit. Demo app tours go to `demo-tours/`.
+- What the tour format can't hold yet is simplified first ("type text" steps use a Next button, text formatting is left out); the builder says which applied. Uploaded images aren't saved with it: put the image online and set the step's `image` to its `https://` address.
+- Once committed, CI checks the file and publishes it to GitHub Pages; the extension picks it up when DoorLoop next loads (Pages can take up to 10 minutes).
 
 **Editing a tour.** In the builder's start popup choose **Edit existing tour**, then pick a published tour (DoorLoop or demo) or paste a tour file, and build on the demo or live DoorLoop. The storyboard fills in with the tour's pages and steps, and its style loads into the Tour style panel.
 

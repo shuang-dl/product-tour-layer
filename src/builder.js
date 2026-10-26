@@ -8,6 +8,7 @@
 
   const PICKABLE = '[data-cy], [data-intercom-target], [data-item-id], [aria-label], [role=tab], button, a, input, tr, h1';
   const LABELLED = '[data-cy], [data-intercom-target], [data-item-id], [data-section-value]';
+  const REPO = 'https://github.com/shuang-dl/product-tour-layer'; // where tours are published from
   const ADVANCE = { next: 'Next button', click: 'Click the element', type: 'Type text' };
   const SESSION_KEY = 'tourLayer.builder'; // live mode: the draft survives page reloads
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -248,7 +249,7 @@
           </div>
         </div>
         <div class="filebox" hidden>
-          <header><strong>Tour file</strong><button class="ghost copy-btn">Copy</button><button class="ghost file-close">Close</button></header>
+          <header><strong>Tour file</strong><button class="ghost copy-btn">Copy</button><button class="ghost gh-btn">Save to GitHub</button><button class="ghost file-close">Close</button></header>
           <pre class="file-out"></pre>
         </div>
         <div class="toast" role="status" hidden></div>
@@ -281,12 +282,12 @@
     const style = { titleTag: 'h2', titleAlign: 'left', textAlign: 'left' };
     let closed = false;
 
-    function toast(msg) {
+    function toast(msg, ms = 3200) {
       const t = $('.toast');
       t.textContent = msg;
       t.hidden = false;
       clearTimeout(toast.timer);
-      toast.timer = setTimeout(() => (t.hidden = true), 3200);
+      toast.timer = setTimeout(() => (t.hidden = true), ms);
     }
     const pathOf = (url) => { try { return new URL(url).pathname; } catch { return url.startsWith('/') ? url : '/' + url; } };
     const currentPage = () => [...state.flow].reverse().find((i) => i.type === 'page').path;
@@ -1240,9 +1241,12 @@
     }
 
     // ---------- tour file ----------
-    // The storyboard as a tour file. For a live test the tour engine has to run it as-is, so images stay embedded
-    // and anything the engine doesn't support yet is simplified (and listed in `changes`).
-    function buildTour(forEngine) {
+    // The storyboard as a tour file. mode 'view' shows everything, including what the tour format can't hold yet.
+    // 'engine' (a live test) and 'publish' (Save to GitHub) simplify that (listed in `changes`); a live test also
+    // keeps images embedded, since the tour engine has to run the file as-is.
+    function buildTour(mode) {
+      const forEngine = mode === 'engine';
+      const simplify = mode !== 'view';
       const plain = (html) => { const d = document.createElement('div'); d.innerHTML = html; return d.textContent.trim(); };
       const id = (forEngine ? 'draft-' : '') + (state.id || state.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
       // Record pages (/tenants/t1, /tenants/64f1c...) become patterns (/tenants/*) so the step works for any record.
@@ -1264,12 +1268,12 @@
         steps: steps().map((s, i) => {
           const target = s.target;
           let advanceOn = s.advanceOn;
-          if (forEngine && advanceOn === 'type') {
+          if (simplify && advanceOn === 'type') {
             advanceOn = 'next';
             changes.add('"type text" steps use a Next button');
           }
           const formatted = /<(b|i|u|ul|font|span)\b/.test(s.textHtml);
-          if (forEngine && formatted) changes.add('text formatting is left out');
+          if (simplify && formatted) changes.add('text formatting is left out');
           return {
             ...(s.page !== start ? { page: general(s.page) } : {}),
             target,
@@ -1279,7 +1283,7 @@
             ...(s.optional ? { optional: true } : {}),
             ...(s.showOnly ? { showOnly: true } : {}),
             ...(s.fill && s.fill.length ? { fill: s.fill } : {}),
-            ...(!forEngine && formatted ? { formattedText: '(formatting kept)' } : {}),
+            ...(!simplify && formatted ? { formattedText: '(formatting kept)' } : {}),
             ...(s.image ? { image: forEngine || !s.image.startsWith('data:') ? s.image : `images/${id}-step-${i + 1}.png` } : {}),
           };
         }),
@@ -1287,7 +1291,7 @@
       return { tour, changes: [...changes] };
     }
     $('.file-btn').onclick = () => {
-      const { tour } = buildTour(false);
+      const { tour } = buildTour('view');
       const drafts = state.flow.filter((i) => i.draft).length;
       $('.file-out').textContent =
         JSON.stringify(tour, null, 2) +
@@ -1299,16 +1303,43 @@
     $('.file-close').onclick = () => ($('.filebox').hidden = true);
     $('.copy-btn').onclick = async () => {
       try {
-        await navigator.clipboard.writeText(JSON.stringify(buildTour(false).tour, null, 2));
+        await navigator.clipboard.writeText(JSON.stringify(buildTour('view').tour, null, 2));
         toast('Tour file copied.');
       } catch {
         toast("Couldn't copy. Select the text and copy it instead.");
       }
     };
 
+    // Save to GitHub: GitHub's own pages, signed in as you, so the builder never holds a GitHub login.
+    // A new tour opens the "new file" page filled in (when it fits in a link); an edited tour opens its file's edit
+    // page, which GitHub can't fill in. The file is copied either way, to paste if needed. CI checks and publishes it.
+    $('.gh-btn').onclick = async () => {
+      const { tour, changes } = buildTour('publish');
+      const text = JSON.stringify(tour, null, 2) + '\n';
+      let copied = true;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        copied = false;
+      }
+      const folder = options.folder === 'demo-tours' ? 'demo-tours' : 'tours';
+      const value = encodeURIComponent(text);
+      const fits = value.length < 8000;
+      const url = state.id
+        ? `${REPO}/edit/main/${folder}/${tour.id}.json`
+        : `${REPO}/new/main/${folder}?filename=${encodeURIComponent(tour.id + '.json')}${fits ? `&value=${value}` : ''}`;
+      if (!window.open(url, '_blank')) return toast('Your browser blocked the new tab. Allow pop-ups for this page and try again.');
+      const paste = copied ? 'paste the tour file (it\'s copied)' : 'paste the tour file (copy it with Copy first)';
+      const what = state.id ? `Opened ${folder}/${tour.id}.json on GitHub: select everything in the editor, ${paste}, then Commit changes.`
+        : fits ? `Opened GitHub with ${folder}/${tour.id}.json filled in. Check it, then Commit changes.`
+        : `Opened GitHub's new file page as ${folder}/${tour.id}.json: ${paste}, then Commit changes.`;
+      const images = tour.steps.some((s) => s.image && s.image.startsWith('images/')) ? ' Uploaded images aren\'t saved with it: put each image online and set the step\'s "image" to its https:// address.' : '';
+      toast(`${what} Once committed, CI checks it and publishes it.${changes.length ? ` For publishing, ${changes.join('; ')}.` : ''}${images}`, 12000);
+    };
+
     // Demo only: open DoorLoop in a tab and hand it the draft (see sendToDoorLoop).
     function previewOnDoorLoop() {
-      const { tour, changes } = buildTour(true);
+      const { tour, changes } = buildTour('engine');
       const ok = sendToDoorLoop(tour.page, 'doorloop-tour-test', { type: 'tour-layer:draft', tour }, () => toast('Tour started on DoorLoop. Switch to that tab.'));
       if (!ok) return toast('Your browser blocked the new tab. Allow pop-ups for this page and try again.');
       toast(changes.length ? `Opening DoorLoop. For this test, ${changes.join('; ')}.` : 'Opening DoorLoop…');
@@ -1319,7 +1350,7 @@
       if (!live || closed) return;
       const flow = state.flow.map(({ els, ...rest }) => rest); // elements can't be saved; targets find them again
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-        name: state.name, id: state.id, flow, style, active: state.active, exitClicks: state.exitClicks,
+        name: state.name, id: state.id, folder: options.folder, flow, style, active: state.active, exitClicks: state.exitClicks,
         inputs: Object.fromEntries([...$$('.style-panel input')].map((i) => [i.dataset.var, i.value])),
       }));
     }
@@ -1329,6 +1360,7 @@
       state.flow = saved.flow;
       state.active = saved.active ?? null;
       state.exitClicks = saved.exitClicks || [];
+      options.folder = saved.folder;
       Object.assign(style, saved.style);
       $$('.style-panel input').forEach((i) => { if (saved.inputs[i.dataset.var] !== undefined) i.value = saved.inputs[i.dataset.var]; });
       $$('.style-panel .seg').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === style[seg.dataset.key])));

@@ -36,7 +36,8 @@
       if (type === 'tour-layer:draft') window.TourLayer.run(e.data.tour);
       else {
         const tour = e.data.tour && Array.isArray(e.data.tour.steps) ? e.data.tour : null; // editing an existing tour
-        window.TourBuilder.open({ mode: 'live', name: String(e.data.name || 'New tour'), startPath: location.pathname, tour });
+        const folder = e.data.folder === 'demo-tours' ? 'demo-tours' : 'tours'; // where Save to GitHub puts it
+        window.TourBuilder.open({ mode: 'live', name: String(e.data.name || 'New tour'), startPath: location.pathname, tour, folder });
       }
     });
   });

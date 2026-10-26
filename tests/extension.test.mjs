@@ -310,6 +310,13 @@ try {
   check('edit: the tour file keeps the id and reflects the edits',
     edited.id === 'edit-me' && edited.steps.map((x) => x.title).join() === 'Second,First,Inserted' &&
     edited.steps[2].optional === true && edited.steps[2].target === "[data-cy='Choice-B']" && edited.steps[0].advanceOn === 'click' && edited.style.frame === '#0f6e56');
+  // Save to GitHub on an edited tour: opens that file's edit page (GitHub can't pre-fill an edit)
+  await ctx.route('https://github.com/**', (r) => r.fulfill({ contentType: 'text/html', body: '<!doctype html>GitHub' }));
+  const ghEditP = ctx.waitForEvent('page');
+  await E.locator('.gh-btn').click();
+  const ghEdit = await ghEditP;
+  check('save: an edited tour opens its file on GitHub', ghEdit.url() === 'https://github.com/shuang-dl/product-tour-layer/edit/main/tours/edit-me.json', ghEdit.url());
+  await ghEdit.close();
   await E.locator('.file-close').click();
   await E.locator('.story-btn').click();
   check('edit: the storyboard can be collapsed', !(await E.locator('.story').isVisible()));
@@ -395,6 +402,14 @@ try {
   check('record: the tour file has the sample data and exit clicks',
     JSON.stringify(recorded.steps[0].fill) === JSON.stringify([{ target: "[data-cy='mockStreet']", value: '1100 Congress Ave', pick: '1100 Congress Ave Austin, TX, 78701' }]) &&
     JSON.stringify(recorded.exitClicks) === JSON.stringify(["[data-cy='mockCancel']"]), JSON.stringify(recorded));
+  // Save to GitHub on a new tour: GitHub's new file page, named after the tour and filled in with the file
+  const ghNewP = ctx.waitForEvent('page');
+  await R.locator('.gh-btn').click();
+  const ghNew = new URL((await ghNewP).url());
+  const sent = JSON.parse(ghNew.searchParams.get('value') || 'null');
+  check('save: a new tour opens a filled-in new file on GitHub',
+    ghNew.pathname === '/shuang-dl/product-tour-layer/new/main/tours' && ghNew.searchParams.get('filename') === 'recorded.json' &&
+    sent && sent.id === 'recorded' && sent.exitClicks.length === 1 && sent.steps[0].fill.length === 1, ghNew.href.slice(0, 200));
 } finally {
   await ctx.close();
 }
