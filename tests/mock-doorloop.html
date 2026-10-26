@@ -11,6 +11,8 @@
   <button data-intercom-target="nav-side-menu-main-people" aria-expanded="false" id="people">People</button>
   <div id="grp" style="height:0;overflow:hidden"><a data-cy="SideMenu-People-Tenants" href="/tenants">Tenants</a></div>
   <button data-cy="TrainingHubV2-DockButton">?</button>
+  <!-- like DoorLoop's form fields: a decorative outline sits on top of the input and lets clicks through -->
+  <div data-cy="mockField" style="position:relative;width:160px"><input aria-label="Mock field" style="width:100%"><fieldset style="position:absolute;inset:-4px;margin:0;pointer-events:none;border:1px solid #aaa"></fieldset></div>
 </nav>
 <!-- Like DoorLoop's Create new: opens as the mouse button goes down, keeps focus inside, closes on a press outside or Escape -->
 <div role="dialog" id="createDialog" hidden style="position:fixed;top:120px;left:320px;width:360px;background:#fff;border:1px solid #ccc;padding:12px;z-index:50">

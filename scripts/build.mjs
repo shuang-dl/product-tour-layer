@@ -127,10 +127,24 @@ const extFiles = {
   'tour-layer.js': 'src/tour-layer.js',
   'builder.js': 'src/builder.js',
   'driver.js.iife.js': 'vendor/driver.js/driver.js.iife.js',
-  'driver.css': 'vendor/driver.js/driver.css',
   'DRIVER_LICENSE': 'vendor/driver.js/LICENSE',
 };
 for (const [to, from] of Object.entries(extFiles)) await copyFile(join(root, from), join(ext, to));
+// driver.js blocks clicks by making every element on the page unclickable and then forcing the highlighted
+// element and everything inside it clickable again. Forcing overrides apps' own "let clicks through" layers
+// (e.g. a form field's decorative outline), so the field can't be clicked. Instead, let the dimmed overlay
+// block clicks: its shape has a hole over the highlight, where the app behaves exactly as normal.
+const driverCss = await readFile(join(root, 'vendor/driver.js/driver.css'), 'utf8');
+const blanket = [
+  '.driver-active .driver-overlay,.driver-active *{pointer-events:none}',
+  '.driver-active .driver-active-element,.driver-active .driver-active-element *,.driver-popover,.driver-popover *{pointer-events:auto}',
+];
+for (const rule of blanket) if (!driverCss.includes(rule)) throw new Error(`driver.css changed; check this rule: ${rule}`);
+await writeFile(
+  join(ext, 'driver.css'),
+  blanket.reduce((css, rule) => css.replace(rule, ''), driverCss) +
+    '\n.driver-active .driver-overlay{pointer-events:none}.driver-active .driver-overlay path{pointer-events:auto}\n'
+);
 await writeFile(join(ext, 'bundled-tours.js'), `window.TOUR_LAYER_BUNDLED = ${JSON.stringify({ tours })};\n`);
 execFileSync('zip', ['-qr', '../doorloop-tours-extension.zip', '.'], { cwd: ext });
 

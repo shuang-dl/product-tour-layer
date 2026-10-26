@@ -100,7 +100,7 @@ try {
     window.result = 'waiting';
     const tab = window.open('https://acme.app.doorloop.com/home', 'dl');
     const tour = { id: 'draft-x', title: 'Draft', page: '/home', steps: [
-      { title: ${JSON.stringify(title)}, text: 'hi', target: ["[data-cy='global-search-trigger']", "[data-cy='SideMenu-CreateNewMenu-Button']"] },
+      { title: ${JSON.stringify(title)}, text: 'hi', target: ["[data-cy='global-search-trigger']", "[data-cy='SideMenu-CreateNewMenu-Button']", "[data-cy='mockField']"] },
       { title: 'Second', text: 'two' },
     ] };
     const timer = setInterval(() => tab.postMessage({ type: 'tour-layer:draft', id: 'one', tour }, '*'), 300);
@@ -134,7 +134,11 @@ try {
   // Items inside a highlighted group must stay usable (driver.js blocks clicks on everything else)
   await tab.click("[data-cy='SideMenu-CreateNewMenu-Button']");
   check('items in a highlighted group can be clicked', await tab.evaluate(() => !document.getElementById('createDialog').hidden));
-  await tab.evaluate(() => (document.getElementById('createDialog').hidden = true)); // not Escape: that ends the tour
+  await tab.evaluate(() => (document.getElementById('createDialog').hidden = true));
+  await tab.click("[data-cy='mockField']"); // lands on the decorative outline, which must let the click through
+  check("a highlighted field's own click-through layers still work", await tab.evaluate(() => document.activeElement === document.querySelector("[aria-label='Mock field']")));
+  await tab.click("body", { position: { x: 900, y: 600 } }); // outside the highlight: blocked by the overlay
+  check('clicks outside the highlight are blocked', (await title(tab)) === 'Drafted in the builder');
   await tab.click('.driver-popover-next-btn');
   await tab.waitForTimeout(500);
   await tab.reload();
