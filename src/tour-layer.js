@@ -15,6 +15,10 @@
     titleSize: 'h2', titleAlign: 'left', textAlign: 'left',
   };
   const POLL_MS = 250;
+  const OVERLAY_OPACITY = 0.45;
+  const STAGE_PADDING = 6;
+  const STAGE_RADIUS = 8;
+  const OVERLAY_Z = 10000; // driver.js draws its dimmed overlay at this z-index
 
   let tours = [];
   let driverObj = null;
@@ -209,7 +213,46 @@
     requestAnimationFrame(() => { liftQueued = false; liftPopups(); });
   }).observe(document.documentElement, { childList: true, subtree: true });
 
+  // App dialogs can sit above driver.js's overlay (DoorLoop's Create new and Receive payment are at z-index 1000000),
+  // so the dimming and the clear ring around the target end up underneath the dialog and nothing looks highlighted.
+  // Then draw both just above that dialog instead: a ring whose huge shadow dims everything else. It takes no clicks,
+  // and the dialog's own dropdowns (a step higher) still show on top. driver.js's dimming is hidden so the page
+  // isn't darkened twice; its overlay still blocks clicks outside the highlight.
+  let ring = null;
+  function layerAbove(el) {
+    let z = null;
+    for (let e = el; e && e !== document.body; e = e.parentElement) {
+      const v = parseInt(getComputedStyle(e).zIndex, 10);
+      if (!Number.isNaN(v)) z = v; // the outermost one decides where the whole layer sits
+    }
+    return z !== null && z > OVERLAY_Z ? z : null;
+  }
+  function ringOver(anchor, target) {
+    const z = layerAbove(Array.isArray(target) ? target[0] : target);
+    if (z === null) return;
+    const box = el('div', { className: 'tour-layer-ring' });
+    box.style.zIndex = String(z + 1);
+    const fit = () => {
+      const r = anchor.getBoundingClientRect();
+      Object.assign(box.style, {
+        left: r.left - STAGE_PADDING + 'px', top: r.top - STAGE_PADDING + 'px',
+        width: r.width + STAGE_PADDING * 2 + 'px', height: r.height + STAGE_PADDING * 2 + 'px',
+      });
+    };
+    fit();
+    document.body.append(box);
+    document.body.classList.add('tour-layer-ringed');
+    const timer = setInterval(fit, 100);
+    ring = () => {
+      clearInterval(timer);
+      box.remove();
+      document.body.classList.remove('tour-layer-ringed');
+    };
+  }
+
   function destroyDriver() {
+    ring?.();
+    ring = null;
     group?.remove();
     group = null;
     stopBlocking?.();
@@ -289,9 +332,9 @@
       // accident in the middle of a form, e.g. Escape to close an address dropdown.
       allowClose: false,
       allowKeyboardControl: false,
-      overlayOpacity: 0.45,
-      stagePadding: 6,
-      stageRadius: 8,
+      overlayOpacity: OVERLAY_OPACITY,
+      stagePadding: STAGE_PADDING,
+      stageRadius: STAGE_RADIUS,
       popoverClass: 'tour-layer-popover',
     });
     driverObj.highlight({
@@ -315,6 +358,7 @@
       },
     });
 
+    if (anchor) ringOver(anchor, el);
     if (step.showOnly && el) stopBlocking = blockClicks(step.target);
 
     if (clickToAdvance) {
@@ -498,6 +542,8 @@
       padding: max(4px, calc((var(--tl-footer-h) - 22px) / 2.6)) calc(max(4px, calc((var(--tl-footer-h) - 22px) / 2.6)) + 10px); }
     .tour-layer-popover .driver-popover-next-btn:hover { filter: brightness(.95); }
     .tour-layer-group { position: fixed; pointer-events: none; }
+    .tour-layer-ring { position: fixed; pointer-events: none; border-radius: ${STAGE_RADIUS}px; box-shadow: 0 0 0 200vmax rgba(0, 0, 0, ${OVERLAY_OPACITY}); }
+    .tour-layer-ringed .driver-overlay { opacity: 0 !important; }
     .tour-layer-popover .driver-popover-footer .tl-fill { margin-left: auto; background: none; color: inherit; border: 1px solid currentColor; border-radius: 6px; padding: 3px 8px; cursor: pointer; }
     .tour-layer-popover .driver-popover-footer .tl-fill:disabled { opacity: .7; cursor: default; }
     .tour-layer-popover .tl-fill + .driver-popover-next-btn, .tour-layer-popover .tl-fill + .tl-hint { margin-left: 0; }

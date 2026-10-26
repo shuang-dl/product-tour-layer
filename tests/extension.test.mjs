@@ -33,6 +33,7 @@ try {
   check('?tour= stripped from URL', !page.url().includes('tour='), page.url());
   check('driver.css injected', (await page.locator('.driver-popover').evaluate((e) => getComputedStyle(e).position)) === 'fixed');
   check('step box header shows step count', (await page.locator('.tl-head').textContent()).includes('Step 1 of 5'));
+  check('no extra highlight layer outside dialogs', (await page.locator('.tour-layer-ring').count()) === 0);
   check('default style applied', (await page.locator('.driver-popover').evaluate((e) => getComputedStyle(e).backgroundColor)) === 'rgb(11, 31, 68)');
   await page.click('.driver-popover-next-btn');
   check('optional step shows when its target is visible', (await title(page)) === 'Open People');
@@ -403,6 +404,15 @@ try {
   const dp = await ctx.newPage();
   await dp.goto('https://acme.app.doorloop.com/payment?tour=dropdown-test');
   await title(dp);
+  check('a target inside a dialog above the overlay gets its highlight drawn above the dialog', await dp.evaluate(() => {
+    const ring = document.querySelector('.tour-layer-ring');
+    const lease = document.querySelector('[data-cy=mockLease]').getBoundingClientRect();
+    if (!ring) return false;
+    const r = ring.getBoundingClientRect();
+    return getComputedStyle(ring).zIndex === '1000001' && r.left < lease.left && r.right > lease.right &&
+      getComputedStyle(document.querySelector('.driver-overlay')).opacity === '0' &&
+      document.elementFromPoint(lease.x + 5, lease.y + 5)?.getAttribute('aria-label') === 'Lease';
+  }));
   const lease = await dp.locator('[aria-label=Lease]').boundingBox();
   await dp.mouse.click(lease.x + lease.width / 2, lease.y + lease.height / 2);
   await dp.waitForTimeout(1200);
