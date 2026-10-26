@@ -502,11 +502,23 @@
       if (el.getAttribute('name')) out.push(`${tag}[name='${el.getAttribute('name')}']`);
       return out;
     }
-    // The tour engine uses the first match on screen, so a label shared by several elements only works for the first.
+    // The tour engine uses the match people can see (inside every scrolling area around it), else the first match on
+    // the page, so a label shared by several elements only works for that one.
     const isShown = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    const inView = (e) => {
+      const r = e.getBoundingClientRect();
+      for (let p = e.parentElement; p; p = p.parentElement) {
+        const cs = getComputedStyle(p);
+        if (!/(auto|scroll|hidden|clip)/.test(cs.overflowX + cs.overflowY)) continue;
+        const pr = p.getBoundingClientRect();
+        if (r.bottom <= pr.top || r.top >= pr.bottom || r.right <= pr.left || r.left >= pr.right) return false;
+      }
+      return true;
+    };
     const findsIt = (sel, el) => {
       try {
-        return [...el.ownerDocument.querySelectorAll(sel)].find(isShown) === el;
+        const shown = [...el.ownerDocument.querySelectorAll(sel)].filter(isShown);
+        return (shown.find(inView) || shown[0]) === el;
       } catch {
         return false;
       }

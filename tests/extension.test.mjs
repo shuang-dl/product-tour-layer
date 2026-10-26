@@ -387,7 +387,19 @@ try {
     ],
   };
   await ctx.unroute(TOURS_URL);
-  await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [dropTour] }) }));
+  const dupTour = {
+    id: 'dup-test', title: 'Dup', page: '/home',
+    steps: [{ title: 'Start', text: 'x' }, { target: "[data-item-id='dupItem']", title: 'Pick it', text: 'y', advanceOn: 'click' }],
+  };
+  await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [dropTour, dupTour] }) }));
+  const dup = await ctx.newPage();
+  await dup.goto('https://acme.app.doorloop.com/home?tour=dup-test');
+  await title(dup);
+  await dup.evaluate(() => (document.getElementById('menuList').scrollTop = 200)); // Dup A scrolls out, Dup B in
+  await dup.click('.driver-popover-next-btn');
+  await dup.waitForTimeout(800);
+  check('a label on two elements highlights the one in view', (await dup.evaluate(() => document.querySelector('.driver-active-element')?.textContent)) === 'Dup B');
+  await dup.close();
   const dp = await ctx.newPage();
   await dp.goto('https://acme.app.doorloop.com/payment?tour=dropdown-test');
   await title(dp);

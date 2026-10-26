@@ -51,6 +51,24 @@
     return true;
   };
 
+  // Can be seen without scrolling anything: inside every scrolling or clipping area around it.
+  const inView = (el) => {
+    const r = el.getBoundingClientRect();
+    for (let p = el.parentElement; p; p = p.parentElement) {
+      const cs = getComputedStyle(p);
+      if (!/(auto|scroll|hidden|clip)/.test(cs.overflowX + cs.overflowY)) continue;
+      const pr = p.getBoundingClientRect();
+      if (r.bottom <= pr.top || r.top >= pr.bottom || r.right <= pr.left || r.left >= pr.right) return false;
+    }
+    return true;
+  };
+  // When a label matches more than one element (e.g. a menu item listed under Favorites and again in its section),
+  // use the one people can see; otherwise the first one on the page, scrolled to when shown.
+  const bestOf = (els) => {
+    const shown = els.filter(isVisible);
+    return shown.find(inView) || shown[0] || null;
+  };
+
   // "/tenants" matches exactly; "*" matches one path segment, e.g. "/tenants/*".
   function pageMatches(pattern, path) {
     const escaped = pattern.split('*').map((p) => p.replace(/[.+?^${}()|[\]\\]/g, '\\$&'));
@@ -64,16 +82,10 @@
       const els = target.map(findTarget);
       return els.every(Boolean) ? els : null;
     }
-    if (typeof target === 'string') {
-      return [...document.querySelectorAll(target)].find(isVisible) || null;
-    }
+    if (typeof target === 'string') return bestOf([...document.querySelectorAll(target)]);
     const want = target.text.trim().toLowerCase();
     const candidates = document.querySelectorAll(target.selector || 'button, a, [role="button"]');
-    return (
-      [...candidates].find(
-        (el) => isVisible(el) && el.innerText.trim().split('\n')[0].trim().toLowerCase() === want
-      ) || null
-    );
+    return bestOf([...candidates].filter((el) => el.innerText.trim().split('\n')[0].trim().toLowerCase() === want));
   }
 
   async function waitForTarget(target, token, timeout) {
