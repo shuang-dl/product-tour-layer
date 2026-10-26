@@ -99,6 +99,13 @@ Add `tours/<id>.json`:
 
 The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html)'s Tour style panel (◐) sets these visually, and "View tour file" writes them in this format.
 
+**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.3.0 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
+
+- The builder is `src/builder.js`, shared by the builder page (demo mode, with the demo app in a frame) and the extension (live mode). It draws inside a shadow root so DoorLoop's CSS and the builder's can't affect each other.
+- Pages change through DoorLoop's own links (an in-app page change). Where there's no link, the page loads normally and the builder comes back with the draft, which is kept in `sessionStorage` for that tab.
+- The tour launcher is hidden while building. Closing the builder discards the draft, so copy the tour file first.
+- Like draft previews, the extension only opens the builder when asked by the builder's own site.
+
 **Testing a draft on live DoorLoop.** In the builder, set **Test on** to **Live DoorLoop** and click **Preview**. DoorLoop opens in a new tab and the DoorLoop Tours extension (version 0.2.0 or later) runs the draft there, on your own account. DoorLoop can't be shown inside the builder, so you still build on the demo, whose element labels match DoorLoop's.
 
 - The extension only accepts drafts sent from the builder's own site (`https://shuang-dl.github.io`, or `http://localhost:4173` for `npm run serve`). Messages from anywhere else are ignored.
@@ -116,7 +123,8 @@ The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-con
 
 | Path | |
 |---|---|
-| `src/tour-layer.js` | the engine (`TourLayer.init`, `start`, `stop`) |
+| `src/tour-layer.js` | the engine (`TourLayer.init`, `start`, `run`, `stop`) |
+| `src/builder.js` | the tour builder, used by the builder page and the extension |
 | `tours/*.json` | one file per tour on real DoorLoop |
 | `demo-tours/*.json` | tours for the demo app (same format) |
 | `site/demo/` | the demo app |

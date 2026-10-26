@@ -47,7 +47,7 @@ One style per tour: every step in a tour looks the same. Set in the builder's To
 
 **Notes on how it could fit the current setup**
 
-- DoorLoop can't be shown inside another site, so the real builder can't be a popup on the links page showing live DoorLoop. It would open on top of the DoorLoop tab itself, through the extension. The concept embeds the demo app instead, which works because both are on the same site.
+- DoorLoop can't be shown inside another site, so the builder can't show live DoorLoop in a popup. Instead, **Build on: Live DoorLoop** opens the same builder on top of the DoorLoop tab itself, through the extension (0.3.0). **Build on: Demo site** embeds the demo app, which works because both are on the same site.
 - Pages picked while browsing are exact paths like `/tenants/t1`; the tour file turns demo record pages into patterns like `/tenants/*`. A real builder would let you choose.
 - "Type text to continue" would be a new `advanceOn` option in the engine.
 - Groups would need the engine to accept a list of targets and highlight the area around all of them. driver.js highlights one element, so the engine would place an invisible box over the group and highlight that.
