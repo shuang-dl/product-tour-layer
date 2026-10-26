@@ -91,6 +91,43 @@ try {
   await page3.click('.driver-popover-close-btn');
   await page3.waitForTimeout(300);
   check('close button ends the tour', (await page3.locator('.driver-popover').count()) === 0);
+
+  // "Test on: Live DoorLoop": a page opens DoorLoop and sends it a draft tour. Only the builder's site is accepted.
+  const sender = (title) => `<!doctype html><script>
+    window.result = 'waiting';
+    const tab = window.open('https://acme.app.doorloop.com/home', 'dl');
+    const tour = { id: 'draft-x', title: 'Draft', page: '/home', steps: [
+      { title: ${JSON.stringify(title)}, text: 'hi', target: "[data-cy='global-search-trigger']" },
+      { title: 'Second', text: 'two' },
+    ] };
+    const timer = setInterval(() => tab.postMessage({ type: 'tour-layer:draft', id: 'one', tour }, '*'), 300);
+    addEventListener('message', (e) => { if (e.data && e.data.type === 'tour-layer:draft-received') { window.result = 'ack'; clearInterval(timer); } });
+  </script>`;
+  await ctx.route('https://shuang-dl.github.io/product-tour-layer/test-sender.html', (r) => r.fulfill({ contentType: 'text/html', body: sender('Drafted in the builder') }));
+  await ctx.route('https://evil.example/', (r) => r.fulfill({ contentType: 'text/html', body: sender('Not from the builder') }));
+
+  const evil = await ctx.newPage();
+  const evilTab = ctx.waitForEvent('page');
+  await evil.goto('https://evil.example/');
+  const evilPopup = await evilTab;
+  await evilPopup.waitForTimeout(3000);
+  check('draft from another site is ignored', (await evilPopup.locator('.driver-popover').count()) === 0 && (await evil.evaluate(() => window.result)) === 'waiting');
+  await evilPopup.close();
+  await evil.close();
+
+  const builder = await ctx.newPage();
+  const builderTab = ctx.waitForEvent('page');
+  await builder.goto('https://shuang-dl.github.io/product-tour-layer/test-sender.html');
+  const tab = await builderTab;
+  check('draft from the builder runs on DoorLoop', (await title(tab)) === 'Drafted in the builder');
+  check('builder hears back', (await builder.evaluate(() => window.result)) === 'ack');
+  await tab.click('.driver-popover-next-btn');
+  await tab.waitForTimeout(500);
+  await tab.reload();
+  check('draft survives a page reload', (await title(tab)) === 'Second');
+  await tab.click('.driver-popover-next-btn');
+  await tab.waitForTimeout(500);
+  check('finished draft is cleared', (await tab.evaluate(() => sessionStorage.getItem('tourLayer.draft'))) === null);
 } finally {
   await ctx.close();
 }

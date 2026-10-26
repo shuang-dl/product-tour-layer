@@ -5,6 +5,7 @@
   if (window.TourLayer) return;
 
   const STATE_KEY = 'tourLayer.state';
+  const DRAFT_KEY = 'tourLayer.draft'; // a draft tour sent by the tour builder, kept across page loads
   const TARGET_TIMEOUT_MS = 8000;
   const OPTIONAL_TIMEOUT_MS = 1500;
   // The agreed step box look. A tour's "style" block overrides any of these.
@@ -91,6 +92,20 @@
   const saveState = (state) => sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
   const clearState = () => sessionStorage.removeItem(STATE_KEY);
   const findTour = (id) => tours.find((t) => t.id === id);
+  const loadDraft = () => {
+    try {
+      return JSON.parse(sessionStorage.getItem(DRAFT_KEY));
+    } catch {
+      return null;
+    }
+  };
+  // Draft tours come straight from the builder rather than from the checked tour files, so check the basics.
+  const isTour = (t) =>
+    t && typeof t.id === 'string' && typeof t.page === 'string' && Array.isArray(t.steps) && t.steps.length > 0 &&
+    t.steps.every((s) =>
+      s && typeof s.title === 'string' && typeof s.text === 'string' &&
+      (s.target === undefined || typeof s.target === 'string' || (s.target && typeof s.target.text === 'string')) &&
+      (s.image === undefined || /^(https:|data:image\/)/.test(s.image)));
 
   // ---------- tour flow ----------
 
@@ -104,6 +119,12 @@
 
   function endTour() {
     runToken++;
+    const state = loadState();
+    const draft = loadDraft();
+    if (draft && state && state.tourId === draft.id) {
+      sessionStorage.removeItem(DRAFT_KEY);
+      tours = tours.filter((t) => t.id !== draft.id);
+    }
     clearState();
     destroyDriver();
     renderLauncher();
@@ -326,6 +347,8 @@
     if (!(window.driver && window.driver.js)) throw new Error('[TourLayer] load vendor/driver.js before tour-layer.js');
     tours = options.tours;
     basePath = options.basePath || '';
+    const draft = loadDraft();
+    if (isTour(draft)) tours = [...tours.filter((t) => t.id !== draft.id), draft];
     document.head.append(el('style', { textContent: STYLE }));
 
     const params = new URLSearchParams(location.search);
@@ -357,9 +380,18 @@
     goTo(tour, 0);
   }
 
+  // Run a tour that isn't in the published list (a draft from the tour builder).
+  function run(tour) {
+    if (!isTour(tour)) return console.warn('[TourLayer] ignored a draft tour with missing fields', tour);
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(tour));
+    tours = [...tours.filter((t) => t.id !== tour.id), tour];
+    goTo(tour, 0);
+  }
+
   window.TourLayer = {
     init,
     start,
+    run,
     stop: endTour,
     get tours() {
       return tours;

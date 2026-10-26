@@ -99,6 +99,13 @@ Add `tours/<id>.json`:
 
 The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html)'s Tour style panel (◐) sets these visually, and "View tour file" writes them in this format.
 
+**Testing a draft on live DoorLoop.** In the builder, set **Test on** to **Live DoorLoop** and click **Preview**. DoorLoop opens in a new tab and the DoorLoop Tours extension (version 0.2.0 or later) runs the draft there, on your own account. DoorLoop can't be shown inside the builder, so you still build on the demo, whose element labels match DoorLoop's.
+
+- The extension only accepts drafts sent from the builder's own site (`https://shuang-dl.github.io`, or `http://localhost:4173` for `npm run serve`). Messages from anywhere else are ignored.
+- The draft is kept for that tab until it finishes, so multi-page drafts keep going after a page loads.
+- Demo record pages like `/tenants/t1` become `/tenants/*`, so a step works on any record.
+- For the live test, features the engine doesn't support yet are simplified: groups highlight their first item, "type text" steps use a Next button, and text formatting is left out. The builder says which applied.
+
 **Picking targets.** Prefer, in order: `data-cy` (DoorLoop's test ids, e.g. `[data-cy='SideMenu-People-Tenants']`), `data-intercom-target`, `aria-label`, then `{ "text": ... }`. Avoid class names; they change with every DoorLoop release. In DevTools, `document.querySelectorAll('[data-cy]')` lists what's available on a page.
 
 **Check your tour:** `node scripts/build.mjs` validates every tour and fails with a list of problems if any are wrong. CI runs the same check on every pull request.
