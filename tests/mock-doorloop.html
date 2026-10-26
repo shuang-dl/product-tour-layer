@@ -26,11 +26,50 @@
 </div>
 <script>
   function render() {
+    // like DoorLoop's New property wizard: a street field with suggestions, a checkbox, a choice, Cancel and Finish
+    if (location.pathname === '/properties/new') {
+      main.innerHTML = '<div data-cy="mockStreet" style="padding:4px;width:260px"><input aria-label="Street" aria-autocomplete="list" style="width:100%"></div>' +
+        '<div data-cy="mockCity" style="width:260px"><input aria-label="City" style="width:100%"></div>' +
+        '<div data-cy="mockCheck" style="width:120px"><span><input type="checkbox" aria-label="Federal"></span> Federal</div>' +
+        '<button data-cy="mockChoice" aria-pressed="false">Single-Family</button>' +
+        '<div style="margin-top:40px"><button data-cy="mockCancel">Cancel</button> <button data-cy="mockFinish">Finish</button></div>';
+      wizard();
+      return;
+    }
     main.innerHTML = location.pathname === '/tenants'
       ? '<div data-cy="DetailScreen-ScreenTitle">Tenants</div><input aria-label="Search"><button aria-label="Filter">Filter</button><button aria-label="Columns">C</button><button aria-label="Export">E</button><button>New lease</button><div data-cy="list-engine-row">row</div>' +
         // like DoorLoop's bank and ownership choices: wrappers share a label, the buttons inside are unique
         '<div style="display:flex;gap:8px"><div data-cy="choiceWrap" style="padding:12px;border:1px solid #ccc"><button data-cy="Choice-A">A</button></div><div data-cy="choiceWrap" style="padding:12px;border:1px solid #ccc"><button data-cy="Choice-B">B</button></div></div>'
       : '<div data-cy="Widget-dashboards.thingsToDo" style="height:100px">todo</div><div style="height:1500px"></div><div data-cy="Widget-dashboards.occupancyRate" style="height:100px">occ</div>';
+  }
+  function wizard() {
+    const street = document.querySelector('[aria-label=Street]');
+    const city = document.querySelector('[aria-label=City]');
+    street.addEventListener('input', () => {
+      document.getElementById('streetPopper')?.remove();
+      if (!street.value) return;
+      const popper = Object.assign(document.createElement('div'), { id: 'streetPopper', role: 'presentation' });
+      const r = street.getBoundingClientRect();
+      popper.setAttribute('role', 'presentation');
+      popper.style.cssText = `position:absolute;z-index:10000;background:#fff;border:1px solid #ccc;left:${r.left}px;top:${r.bottom + 30}px`;
+      popper.innerHTML = '<ul role="listbox" style="margin:0;padding:4px"></ul>';
+      for (const place of ['Sacramento, CA, 95838', 'Austin, TX, 78701']) {
+        const li = Object.assign(document.createElement('li'), { role: 'option' });
+        li.setAttribute('role', 'option');
+        li.textContent = `${street.value}  ${place}`;
+        li.onclick = () => { city.value = place.split(',')[0]; popper.remove(); };
+        popper.firstChild.append(li);
+      }
+      document.body.append(popper);
+    });
+    const choice = document.querySelector('[data-cy=mockChoice]');
+    choice.onclick = () => choice.setAttribute('aria-pressed', 'true');
+    document.querySelector('[data-cy=mockFinish]').onclick = () => (main.dataset.saved = 'yes');
+    document.querySelector('[data-cy=mockCancel]').onclick = () => {
+      document.body.dataset.cancelled = 'yes';
+      history.pushState({}, '', '/home');
+      render();
+    };
   }
   render();
   window.addEventListener('popstate', render);

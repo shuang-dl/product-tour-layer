@@ -3,6 +3,9 @@
   "title": "Add a new property",
   "description": "Create new → Property, through the five-part New property wizard. Built with the live builder.",
   "page": "/home",
+  "exitClicks": [
+    "[data-cy='SideMenu-Rentals-Properties']"
+  ],
   "steps": [
     {
       "target": "[data-cy='SideMenu-CreateNewMenu-Button']",
@@ -39,7 +42,13 @@
         "[data-cy='NewProperty-Selection-ResidentialOther']"
       ],
       "title": "Choose the property type",
-      "text": "Read the descriptions and pick the one that fits. If you plan to list it online, choose a residential type."
+      "text": "Read the descriptions and pick the one that fits. If you plan to list it online, choose a residential type.",
+      "fill": [
+        {
+          "target": "[data-cy='NewProperty-Selection-SingleFamily']",
+          "click": true
+        }
+      ]
     },
     {
       "page": "/properties/new",
@@ -59,7 +68,14 @@
         "[data-cy='country']"
       ],
       "title": "Enter the address",
-      "text": "Start typing the street and pick a suggested address. The time zone is set from it."
+      "text": "Start typing the street and pick a suggested address. The time zone is set from it. Click Fill example to try it with a sample address.",
+      "fill": [
+        {
+          "target": "[data-cy='street1']",
+          "value": "1100 Congress Ave",
+          "pick": "1100 Congress Ave Austin, TX, 78701"
+        }
+      ]
     },
     {
       "page": "/properties/new",
@@ -85,7 +101,13 @@
         "[data-cy='units[0].marketRent']"
       ],
       "title": "Add your units",
-      "text": "Only the unit name is required. Beds, baths, size and listing price are optional, and you can fill them in later."
+      "text": "Only the unit name is required. Beds, baths, size and listing price are optional, and you can fill them in later.",
+      "fill": [
+        {
+          "target": "[data-cy='units[0].name']",
+          "value": "Sample 101"
+        }
+      ]
     },
     {
       "page": "/properties/new",
@@ -103,7 +125,10 @@
     },
     {
       "page": "/properties/new",
-      "target": ["[data-cy='NewProperty-DefaultAccountButton']", "[data-cy='NewProperty-SpecifyAccountButton']"],
+      "target": [
+        "[data-cy='NewProperty-DefaultAccountButton']",
+        "[data-cy='NewProperty-SpecifyAccountButton']"
+      ],
       "title": "Choose the bank account",
       "text": "Every property needs a bank account. Use your default account, or add a new one just for this property."
     },
@@ -116,15 +141,25 @@
     },
     {
       "page": "/properties/new",
-      "target": ["[data-cy='NewProperty-Ownership-OwnedBySomeoneElse']", "[data-cy='NewProperty-Ownership-OwnedByMe']"],
+      "target": [
+        "[data-cy='NewProperty-Ownership-OwnedBySomeoneElse']",
+        "[data-cy='NewProperty-Ownership-OwnedByMe']"
+      ],
       "title": "Who owns it?",
-      "text": "Assign one or more owners (their shares must add up to 100%), or choose Self-owned if the property is yours."
+      "text": "Assign one or more owners (their shares must add up to 100%), or choose Self-owned if the property is yours.",
+      "fill": [
+        {
+          "target": "[data-cy='NewProperty-Ownership-OwnedByMe']",
+          "click": true
+        }
+      ]
     },
     {
       "page": "/properties/new",
       "target": "[data-cy='BottomNavigationPanel-NextButton']",
       "title": "Finish",
-      "text": "Click Finish to create the property. DoorLoop then suggests next steps, like adding listing details or a lease."
+      "text": "Clicking Finish creates the property, and DoorLoop then suggests next steps, like adding listing details or a lease. It's turned off during the tour. If you filled in sample data, clicking Done leaves without saving it.",
+      "showOnly": true
     }
   ]
 }

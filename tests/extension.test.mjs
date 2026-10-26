@@ -313,6 +313,88 @@ try {
   await E.locator('.file-close').click();
   await E.locator('.story-btn').click();
   check('edit: the storyboard can be collapsed', !(await E.locator('.story').isVisible()));
+
+  // Sample data: Fill example types and picks, the Finish step can't be used, and ending the tour clicks Cancel.
+  const sampleTour = {
+    id: 'sample-test', title: 'Sample', page: '/properties/new', exitClicks: ["[data-cy='mockCancel']"],
+    steps: [
+      {
+        target: ["[data-cy='mockStreet']", "[data-cy='mockCity']", "[data-cy='mockCheck']", "[data-cy='mockChoice']"], title: 'Fill it', text: 'x',
+        fill: [
+          { target: "[data-cy='mockStreet']", value: '1100 Congress Ave', pick: '1100 Congress Ave Austin, TX, 78701' },
+          { target: "[data-cy='mockCheck']", click: true },
+          { target: "[data-cy='mockChoice']", click: true },
+        ],
+      },
+      { target: "[data-cy='mockFinish']", title: 'Finish', text: 'y', showOnly: true },
+    ],
+  };
+  await ctx.unroute(TOURS_URL);
+  await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [sampleTour] }) }));
+  const sp = await ctx.newPage();
+  await sp.goto('https://acme.app.doorloop.com/properties/new?tour=sample-test');
+  check('sample: the step box offers Fill example', (await title(sp)) === 'Fill it' && (await sp.locator('.tl-fill').textContent()) === 'Fill example');
+  await sp.click('.tl-fill');
+  await sp.waitForFunction(() => document.querySelector('.tl-fill')?.textContent !== 'Filling…', null, { timeout: 15000 }).catch(() => {});
+  check('sample: Fill example types, picks the suggestion and clicks choices', await sp.evaluate(() =>
+    document.querySelector('[aria-label=Street]').value === '1100 Congress Ave' && document.querySelector('[aria-label=City]').value === 'Austin' &&
+    document.querySelector('[aria-label=Federal]').checked && document.querySelector('[data-cy=mockChoice]').getAttribute('aria-pressed') === 'true' &&
+    document.querySelector('.tl-fill').textContent === 'Filled'));
+  await sp.click('.driver-popover-next-btn');
+  check('sample: reaches the show-only step', (await title(sp)) === 'Finish');
+  const fin = await sp.locator('[data-cy=mockFinish]').boundingBox();
+  await sp.mouse.click(fin.x + fin.width / 2, fin.y + fin.height / 2);
+  await sp.focus('[data-cy=mockFinish]');
+  await sp.keyboard.press('Enter');
+  check("sample: a show-only step's element can't be clicked or pressed", (await sp.evaluate(() => document.getElementById('main').dataset.saved)) === undefined);
+  await sp.click('.driver-popover-next-btn'); // Done
+  await sp.waitForTimeout(800);
+  check('sample: ending the tour after Fill example clicks the exit clicks', (await sp.evaluate(() => document.body.dataset.cancelled)) === 'yes' && sp.url().endsWith('/home'));
+  await sp.goto('https://acme.app.doorloop.com/properties/new?tour=sample-test');
+  await title(sp);
+  await sp.click('.driver-popover-close-btn');
+  await sp.waitForTimeout(800);
+  check('sample: without Fill example, ending the tour clicks nothing', (await sp.evaluate(() => document.body.dataset.cancelled)) === undefined);
+  await sp.close();
+
+  // Recording sample data in the live builder, and picking the exit click
+  const site3 = await ctx.newPage();
+  await site3.goto('https://shuang-dl.github.io/product-tour-layer/builder-concept.html');
+  await site3.click('#create');
+  await site3.fill('#tourName', 'Recorded');
+  await site3.fill('#tourUrl', '/properties/new');
+  await site3.check('input[value=live]');
+  const recTabP = ctx.waitForEvent('page');
+  await site3.click('#openBtn');
+  const rec = await recTabP;
+  await rec.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
+  const R = rec.locator('#tour-layer-builder');
+  await R.locator('.adders .add', { hasText: '+ Step' }).click();
+  await rec.click('[aria-label=Street]');
+  check('record: picking a field highlights its labelled wrapper', (await R.locator('.pop code').textContent()) === "[data-cy='mockStreet']");
+  await R.locator('.pop .tb-title').click();
+  await rec.keyboard.type('Street');
+  await R.locator('.pop [data-record]').click();
+  await rec.click('[aria-label=Street]');
+  await rec.keyboard.type('1100 Congress Ave');
+  await rec.click('#streetPopper li:has-text("Austin")');
+  await rec.click('[aria-label=City]'); // outside the highlight: not recorded
+  await rec.keyboard.type('Elsewhere');
+  await R.locator('.pop [data-record]').click();
+  const rows = await R.locator('.sample-list li').allInnerTexts();
+  check('record: typing and the picked suggestion show in the review list',
+    rows.length === 1 && rows[0].includes('mockStreet') && rows[0].includes('1100 Congress Ave Austin, TX, 78701') &&
+    (await R.locator('.sample-list input').inputValue()) === '1100 Congress Ave', JSON.stringify(rows));
+  await R.locator('.pop [data-save]').click();
+  await R.locator('.exit-tool').click();
+  await R.locator('.exit-pick').click();
+  await rec.click('[data-cy=mockCancel]');
+  check('record: picking an exit click does not press it', (await rec.evaluate(() => document.body.dataset.cancelled)) === undefined);
+  await R.locator('.file-btn').click();
+  const recorded = JSON.parse((await R.locator('.file-out').textContent()).split('\n\n//')[0]);
+  check('record: the tour file has the sample data and exit clicks',
+    JSON.stringify(recorded.steps[0].fill) === JSON.stringify([{ target: "[data-cy='mockStreet']", value: '1100 Congress Ave', pick: '1100 Congress Ave Austin, TX, 78701' }]) &&
+    JSON.stringify(recorded.exitClicks) === JSON.stringify(["[data-cy='mockCancel']"]), JSON.stringify(recorded));
 } finally {
   await ctx.close();
 }

@@ -127,6 +127,17 @@
     .card.drop-here { box-shadow: -4px 0 0 var(--accent); }
     .story-collapsed .story { display: none; }
     .pop .meta .opt { display: flex; align-items: center; gap: 6px; }
+    .pop .meta .sample { border-top: 1px solid var(--border); padding-top: 6px; display: grid; gap: 4px; }
+    .pop .meta .sample .rec { color: #c62828; font-weight: 600; }
+    .sample-list, .exit-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+    .sample-list li, .exit-list li { display: flex; align-items: center; gap: 6px; }
+    .sample-list li > span:first-child, .exit-list li > span:first-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); max-width: 45%; }
+    .sample-list input { flex: 1; min-width: 0; font: inherit; font-size: 12px; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); }
+    .sample-list small { color: var(--muted); }
+    .sample-list li.empty, .exit-list li.empty { color: var(--muted); font-style: italic; }
+    .sample-list .rm, .exit-list .rm { margin-left: auto; background: none; border: 0; color: var(--muted); padding: 0 4px; }
+    .tb-fill { background: none; color: inherit; border: 1px solid currentColor; border-radius: 6px; font: inherit; font-size: 12px; padding: 3px 8px; margin-left: auto; }
+    .tb-fill + .tb-advance { margin-left: 0; }
     .card.page-card { flex-basis: 140px; border-style: dashed; border-color: var(--border); }
     .card.draft { border-style: dashed; border-color: var(--accent); }
     .card.draft .t { color: var(--muted); font-weight: 500; font-style: italic; }
@@ -223,12 +234,18 @@
             <button class="tool" data-tool="box" data-tip="Box: draw around an area">▭</button>
             <button class="tool text-tool" data-tip="Text: edit the step's text">T</button>
             <button class="tool style-tool" data-tip="Tour style">◐</button>
+            <button class="tool exit-tool" data-tip="Leaving without saving">⎋</button>
             <hr>
             <button class="tool undo-tool" data-tip="Remove last storyboard item">↶</button>
           </div>
           ${live ? LAYERS : `<div class="stage"><div class="stage-inner"><iframe class="frame" title="Demo app"></iframe>${LAYERS}</div></div>`}
           <div class="story"></div>
           <div class="panel style-panel" hidden>${STYLE_PANEL}</div>
+          <div class="panel exit-panel" hidden>
+            <h3>Leaving without saving<small>When a tour ends after someone used Fill example, these are clicked in order so the sample data isn't saved (e.g. Cancel, then the Discard button it opens).</small></h3>
+            <ol class="exit-list"></ol>
+            <button class="ghost exit-pick">+ Pick a button</button>
+          </div>
         </div>
         <div class="filebox" hidden>
           <header><strong>Tour file</strong><button class="ghost copy-btn">Copy</button><button class="ghost file-close">Close</button></header>
@@ -258,7 +275,9 @@
     // flow: the storyboard, in order. { type: 'page', path } or { type: 'step', page, draft?, els, target, ... }.
     // active: index of the step being picked or edited; highlighting only works while a step is active.
     // id: kept from the tour file when editing an existing tour, so the edited file replaces the original.
-    const state = { name: options.name, id: null, flow: [{ type: 'page', path: options.startPath }], tool: 'pointer', active: null, previewing: false, addingPage: false, testOn: 'demo' };
+    // exitClicks: targets clicked when a tour that filled in sample data ends. recording: sample data being recorded
+    // for the step in the editor; pickingExit: the next click on the app picks an exit click.
+    const state = { name: options.name, id: null, flow: [{ type: 'page', path: options.startPath }], tool: 'pointer', active: null, previewing: false, addingPage: false, testOn: 'demo', exitClicks: [], recording: null, pickingExit: false };
     const style = { titleTag: 'h2', titleAlign: 'left', textAlign: 'left' };
     let closed = false;
 
@@ -401,6 +420,14 @@
       // With a step active, clicks pick; otherwise you can use the app normally.
       on('click', (e) => {
         if (inBuilder(e) || navigating) return;
+        if (state.recording) return recordClick(e);
+        if (state.pickingExit) {
+          e.preventDefault();
+          e.stopPropagation();
+          const el = pickable(e.target);
+          if (el) addExitClick(el);
+          return;
+        }
         if (state.previewing || (canPick() && state.tool === 'pointer')) {
           e.preventDefault();
           e.stopPropagation();
@@ -410,6 +437,7 @@
         if (el) select([el]);
       }, true);
       on('scroll', refreshOverlay, true);
+      on('input', recordInput, true);
       // Apps open menus and dialogs as the mouse button goes down, before the click, so block the whole press.
       for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'touchstart']) {
         on(type, (e) => {
@@ -648,7 +676,7 @@
       applyStyle();
     }));
 
-    const canPick = () => state.active !== null && !state.previewing;
+    const canPick = () => (state.active !== null || state.pickingExit) && !state.previewing && !state.recording;
 
     let hoverBox = null;
     function clearHover() {
@@ -844,6 +872,11 @@
       meta.innerHTML = `
         <label>Continue when: <select>${Object.entries(ADVANCE).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label>
         <label class="opt"><input type="checkbox" data-optional> Skip this step if it isn't on screen</label>
+        <label class="opt"><input type="checkbox" data-showonly> Show only: it can't be clicked (e.g. Finish)</label>
+        <div class="sample">
+          <div class="row"><strong>Sample data</strong><button class="link rec" data-record>● Record</button></div>
+          <ul class="sample-list"></ul>
+        </div>
         <span>Anchored to <code></code></span>
         <div class="row"><button class="link" data-cancel>Cancel</button><button class="save" data-save>Save step</button></div>`;
       pop.append(meta);
@@ -856,6 +889,7 @@
       text.innerHTML = step ? step.textHtml : '';
       let image = step ? step.image : null;
       meta.querySelector('[data-optional]').checked = !!(step && step.optional);
+      meta.querySelector('[data-showonly]').checked = !!(step && step.showOnly);
       const showImage = () => { setImage(box, image, () => { image = null; showImage(); }); placePop(); };
       showImage();
       const single = els.length === 1;
@@ -866,6 +900,19 @@
       const target = !els.length ? undefined : single ? targetFor(els[0]) : els.map(targetFor);
       const show = (t) => (typeof t === 'string' ? t : `text “${t.text}”`);
       meta.querySelector('code').textContent = !els.length ? 'nothing (shows centred)' : single ? show(target) : `${els.length} items: ${target.map(show).join(', ')}`;
+
+      // Sample data: recorded from what you type and choose in the highlighted area, then reviewed here.
+      const fill = step && step.fill ? step.fill.map((f) => ({ ...f })) : [];
+      editing = { target, fill, list: meta.querySelector('.sample-list') };
+      renderSample();
+      const recBtn = meta.querySelector('[data-record]');
+      recBtn.onclick = () => {
+        if (!els.length) return toast('Sample data needs a step that highlights something.');
+        state.recording = state.recording ? null : { lastTyped: null };
+        recBtn.textContent = state.recording ? '■ Stop' : '● Record';
+        rootEl.classList.toggle('picking', canPick());
+        if (state.recording) toast('Recording. Fill in the highlighted area the way people should: type, pick suggestions, click choices. Then click Stop.');
+      };
 
       pop.querySelectorAll('[data-cmd]').forEach((b) => (b.onmousedown = (e) => { e.preventDefault(); document.execCommand(b.dataset.cmd); }));
       pop.querySelector('.fmt input[type=color]').oninput = (e) => document.execCommand('foreColor', false, e.target.value);
@@ -886,12 +933,19 @@
       };
       meta.querySelector('[data-save]').onclick = () => {
         if (!title().innerText.trim()) return toast('Give the step a title.');
+        if (fill.length && !state.exitClicks.length) setTimeout(() => toast('This step has sample data. Use ⎋ in the toolbox to pick what to click when the tour ends (e.g. Cancel), so it isn\'t saved.'), 3300);
         const page = state.flow[state.active].page;
         state.flow[state.active] = {
           type: 'step', page, els, target, label: !els.length ? 'centred' : single ? labelFor(els[0]) : `${els.length} items`,
           titleHtml: title().innerHTML, textHtml: text.innerHTML, image, advanceOn: advance.value,
           optional: meta.querySelector('[data-optional]').checked,
+          showOnly: meta.querySelector('[data-showonly]').checked,
+          fill: fill.filter((f) => f.click || f.value !== ''),
         };
+        if (state.flow[state.active].showOnly && advance.value === 'click') {
+          state.flow[state.active].showOnly = false;
+          toast("A step that continues on a click can't be show-only; that box was cleared.");
+        }
         state.active = null;
         clearSelection();
         renderStory();
@@ -902,9 +956,104 @@
     }
 
     function clearSelection() {
+      state.recording = null;
+      editing = null;
       pop?.remove();
       selBox?.remove();
       pop = selBox = shown = null;
+    }
+
+    // ---------- sample data and leaving without saving ----------
+    let editing = null; // the step in the editor: { target, fill, list }
+    const key = (t) => JSON.stringify(t);
+    // Inside the step's highlighted area (found again if the app re-rendered it).
+    function inHighlight(node) {
+      const els = shown && shown.length && shown.every((e) => e.isConnected) ? shown : (editing && editing.target && resolve(editing.target)) || [];
+      return els.some((e) => e.contains(node));
+    }
+    function recordInput(e) {
+      if (!state.recording || !e.isTrusted || inBuilder(e)) return;
+      const field = e.target;
+      if (!field.matches || !field.matches('input:not([type=checkbox]):not([type=radio]), textarea') || !inHighlight(field)) return;
+      const target = targetFor(pickable(field) || field);
+      let item = editing.fill.find((f) => key(f.target) === key(target));
+      if (!item) editing.fill.push((item = { target, value: '' }));
+      delete item.click;
+      delete item.pick; // typed again: any suggestion picked before no longer applies
+      item.value = field.value;
+      state.recording.lastTyped = item;
+      renderSample();
+    }
+    function recordClick(e) {
+      if (!e.isTrusted) return;
+      // A suggestion in a dropdown (outside the highlight): it belongs to the field typed into just before.
+      const option = e.target.closest && e.target.closest('[role=option]');
+      if (option) {
+        if (state.recording.lastTyped) state.recording.lastTyped.pick = option.textContent.replace(/\s+/g, ' ').trim();
+        return renderSample();
+      }
+      if (e.target.closest('input:not([type=checkbox]):not([type=radio]), textarea') || !inHighlight(e.target)) return;
+      // Clicks around a text field (its dropdown arrow, its label) are part of typing into it, not a choice.
+      const wrap = e.target.closest(LABELLED);
+      if (wrap && wrap.querySelector('input:not([type=checkbox]):not([type=radio]), textarea')) return;
+      const el = pickable(e.target);
+      if (!el) return;
+      const target = targetFor(el);
+      if (!editing.fill.some((f) => key(f.target) === key(target))) editing.fill.push({ target, click: true });
+      renderSample();
+    }
+    function renderSample() {
+      if (!editing) return;
+      const list = editing.list;
+      list.replaceChildren();
+      if (!editing.fill.length) {
+        list.append(Object.assign(document.createElement('li'), { className: 'empty', textContent: 'None. Click Record, then fill in the highlighted area.' }));
+      }
+      editing.fill.forEach((item, i) => {
+        const li = document.createElement('li');
+        li.append(Object.assign(document.createElement('span'), { textContent: describe(item.target), title: typeof item.target === 'string' ? item.target : item.target.text }));
+        if (item.click) li.append(Object.assign(document.createElement('small'), { textContent: 'click' }));
+        else {
+          const input = Object.assign(document.createElement('input'), { value: item.value, title: 'Text typed into this field' });
+          input.oninput = () => (item.value = input.value);
+          li.append(input);
+          if (item.pick) li.append(Object.assign(document.createElement('small'), { textContent: `→ ${item.pick}`, title: 'Suggestion picked after typing' }));
+        }
+        const rm = Object.assign(document.createElement('button'), { className: 'rm', textContent: '×', title: 'Remove' });
+        rm.onclick = () => { editing.fill.splice(i, 1); renderSample(); };
+        li.append(rm);
+        list.append(li);
+      });
+      if (pop) placePop();
+    }
+
+    $('.exit-tool').onclick = () => { $('.exit-panel').hidden = !$('.exit-panel').hidden; renderExit(); };
+    $('.exit-pick').onclick = () => {
+      clearSelection();
+      state.active = null;
+      state.pickingExit = true;
+      renderStory();
+      toast('Click the button to press when the tour ends, e.g. Cancel.');
+    };
+    function addExitClick(el) {
+      state.exitClicks.push(targetFor(el));
+      state.pickingExit = false;
+      renderExit();
+      renderStory();
+      toast(`Added “${labelFor(el)}”. Pick another if it opens a confirmation.`);
+    }
+    function renderExit() {
+      const list = $('.exit-list');
+      list.replaceChildren();
+      if (!state.exitClicks.length) list.append(Object.assign(document.createElement('li'), { className: 'empty', textContent: 'Nothing yet.' }));
+      state.exitClicks.forEach((t, i) => {
+        const li = document.createElement('li');
+        li.append(Object.assign(document.createElement('span'), { textContent: `${i + 1}. ${describe(t)}` }));
+        const rm = Object.assign(document.createElement('button'), { className: 'rm', textContent: '×', title: 'Remove' });
+        rm.onclick = () => { state.exitClicks.splice(i, 1); renderExit(); save(); };
+        li.append(rm);
+        list.append(li);
+      });
     }
 
     // ---------- storyboard ----------
@@ -1065,6 +1214,18 @@
       box.querySelector('.close').onclick = () => endPreview();
       const go = () => showPreview(i + 1);
       setAdvance(box, s.advanceOn, i === all.length - 1, go);
+      if (s.fill && s.fill.length) {
+        const fillBtn = Object.assign(document.createElement('button'), { className: 'tb-fill', textContent: 'Fill example' });
+        fillBtn.onclick = async () => {
+          // The tour engine does the typing: in this page on DoorLoop, in the demo's own page otherwise.
+          const engine = live ? window.TourLayer : frame.contentWindow && frame.contentWindow.TourLayer;
+          if (!engine || !engine.fill) return toast("The tour engine isn't loaded here, so Fill example can't run.");
+          fillBtn.disabled = true;
+          fillBtn.textContent = 'Filling…';
+          fillBtn.textContent = (await engine.fill(s.fill)) ? 'Filled' : 'Partly filled';
+        };
+        box.querySelector('.tb-advance').before(fillBtn);
+      }
       if (s.advanceOn === 'click' && selBox) {
         selBox.style.pointerEvents = 'auto';
         selBox.style.cursor = 'pointer';
@@ -1099,6 +1260,7 @@
           titleAlign: style.titleAlign,
           textAlign: style.textAlign,
         },
+        ...(state.exitClicks.length ? { exitClicks: state.exitClicks } : {}),
         steps: steps().map((s, i) => {
           const target = s.target;
           let advanceOn = s.advanceOn;
@@ -1115,6 +1277,8 @@
             text: plain(s.textHtml),
             ...(advanceOn !== 'next' ? { advanceOn } : {}),
             ...(s.optional ? { optional: true } : {}),
+            ...(s.showOnly ? { showOnly: true } : {}),
+            ...(s.fill && s.fill.length ? { fill: s.fill } : {}),
             ...(!forEngine && formatted ? { formattedText: '(formatting kept)' } : {}),
             ...(s.image ? { image: forEngine || !s.image.startsWith('data:') ? s.image : `images/${id}-step-${i + 1}.png` } : {}),
           };
@@ -1155,7 +1319,7 @@
       if (!live || closed) return;
       const flow = state.flow.map(({ els, ...rest }) => rest); // elements can't be saved; targets find them again
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-        name: state.name, id: state.id, flow, style, active: state.active,
+        name: state.name, id: state.id, flow, style, active: state.active, exitClicks: state.exitClicks,
         inputs: Object.fromEntries([...$$('.style-panel input')].map((i) => [i.dataset.var, i.value])),
       }));
     }
@@ -1164,6 +1328,7 @@
       state.id = saved.id || null;
       state.flow = saved.flow;
       state.active = saved.active ?? null;
+      state.exitClicks = saved.exitClicks || [];
       Object.assign(style, saved.style);
       $$('.style-panel input').forEach((i) => { if (saved.inputs[i.dataset.var] !== undefined) i.value = saved.inputs[i.dataset.var]; });
       $$('.style-panel .seg').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === style[seg.dataset.key])));
@@ -1175,12 +1340,14 @@
       state.name = tour.title || tour.id;
       state.id = tour.id;
       state.flow = [{ type: 'page', path: tour.page }];
+      state.exitClicks = tour.exitClicks ? [...tour.exitClicks] : [];
       for (const step of tour.steps) {
         if (step.page && step.page !== currentPage()) state.flow.push({ type: 'page', path: step.page });
         state.flow.push({
           type: 'step', page: currentPage(), target: step.target, label: describe(step.target || 'centred'),
           titleHtml: esc(step.title), textHtml: esc(step.text), image: step.image || null,
-          advanceOn: step.advanceOn || 'next', optional: !!step.optional,
+          advanceOn: step.advanceOn || 'next', optional: !!step.optional, showOnly: !!step.showOnly,
+          fill: step.fill ? step.fill.map((f) => ({ ...f })) : [],
         });
       }
       const st = tour.style || {};
@@ -1215,6 +1382,7 @@
     $('.ws-name').textContent = state.name;
     applyStyle();
     renderStory();
+    renderExit();
     showPage(live ? app.path() : currentPage());
     if (live) {
       toast(options.restore ? 'Builder restored. Your draft is still here.' : options.tour ? LOADED : 'Building on live DoorLoop. Click + Step, then click what it should highlight.');

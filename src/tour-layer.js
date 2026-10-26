@@ -94,6 +94,11 @@
     }
   };
   const saveState = (state) => sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
+  // Moving to a step keeps the note that this tour filled in sample data (see fillSample and endTour).
+  const saveStep = (tour, step) => {
+    const prev = loadState();
+    saveState({ tourId: tour.id, step, ...(prev && prev.tourId === tour.id && prev.sampleUsed ? { sampleUsed: true } : {}) });
+  };
   const clearState = () => sessionStorage.removeItem(STATE_KEY);
   const findTour = (id) => tours.find((t) => t.id === id);
   const loadDraft = () => {
@@ -104,13 +109,16 @@
     }
   };
   const isTarget = (t) => typeof t === 'string' || (t && typeof t.text === 'string');
+  const isFill = (f) => f && isTarget(f.target) && (f.click === true || typeof f.value === 'string');
   // Draft tours come straight from the builder rather than from the checked tour files, so check the basics.
   const isTour = (t) =>
     t && typeof t.id === 'string' && typeof t.page === 'string' && Array.isArray(t.steps) && t.steps.length > 0 &&
     t.steps.every((s) =>
       s && typeof s.title === 'string' && typeof s.text === 'string' &&
       (s.target === undefined || isTarget(s.target) || (Array.isArray(s.target) && s.target.length > 0 && s.target.every(isTarget))) &&
-      (s.image === undefined || /^(https:|data:image\/)/.test(s.image)));
+      (s.image === undefined || /^(https:|data:image\/)/.test(s.image)) &&
+      (s.fill === undefined || (Array.isArray(s.fill) && s.fill.every(isFill)))) &&
+    (t.exitClicks === undefined || (Array.isArray(t.exitClicks) && t.exitClicks.every(isTarget)));
 
   // ---------- tour flow ----------
 
@@ -156,6 +164,8 @@
   function destroyDriver() {
     group?.remove();
     group = null;
+    stopBlocking?.();
+    stopBlocking = null;
     if (!driverObj) return;
     driverObj.destroy();
     driverObj = null;
@@ -164,6 +174,9 @@
   function endTour() {
     runToken++;
     const state = loadState();
+    const tour = state && findTour(state.tourId);
+    // The tour typed sample data into the app: leave without saving it (e.g. click Cancel), once the highlight is gone.
+    if (state && state.sampleUsed && tour && tour.exitClicks) setTimeout(() => clickInOrder(tour.exitClicks), 0);
     const draft = loadDraft();
     if (draft && state && state.tourId === draft.id) {
       sessionStorage.removeItem(DRAFT_KEY);
@@ -179,7 +192,7 @@
     if (index < 0) return;
     if (index >= tour.steps.length) return endTour();
     const token = ++runToken;
-    saveState({ tourId: tour.id, step: index });
+    saveStep(tour, index);
     removeLauncher();
 
     // Clear the previous highlight first: driver.js styles the highlighted element's parent
@@ -243,17 +256,107 @@
       },
     });
 
+    if (step.showOnly && el) stopBlocking = blockClicks(step.target);
+
     if (clickToAdvance) {
       const token = runToken;
       const onClick = () => {
         if (token !== runToken) return;
         runToken++; // a group has several listeners; only the first click counts
         destroyDriver();
-        saveState({ tourId: tour.id, step: index + 1 });
+        saveStep(tour, index + 1);
         // Let the click do its thing (navigate, open a dialog) before looking for the next target.
         setTimeout(() => goTo(tour, index + 1), 300);
       };
       for (const target of Array.isArray(el) ? el : [el]) target.addEventListener('click', onClick, { once: true, capture: true });
+    }
+  }
+
+  // A "show only" step points at something (e.g. Finish) without letting it be used. The overlay already blocks the
+  // rest of the page; this blocks presses and Enter/Space on the highlighted element itself.
+  let stopBlocking = null;
+  function blockClicks(target) {
+    const block = (e) => {
+      if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+      const found = findTarget(target);
+      if (!found || !(Array.isArray(found) ? found : [found]).some((t) => t.contains(e.target))) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    };
+    const types = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'touchstart', 'keydown'];
+    types.forEach((t) => window.addEventListener(t, block, true));
+    return () => types.forEach((t) => window.removeEventListener(t, block, true));
+  }
+
+  // ---------- sample data ----------
+
+  // A full press, for apps that act on mouse-down (DoorLoop's menus) as well as on click.
+  function press(target) {
+    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup']) {
+      target.dispatchEvent(new (type.startsWith('pointer') ? PointerEvent : MouseEvent)(type, { bubbles: true, cancelable: true, view: window }));
+    }
+    target.click();
+  }
+  const normal = (t) => t.replace(/\s+/g, ' ').trim().toLowerCase();
+  async function waitFor(find, ms) {
+    for (const deadline = Date.now() + ms; Date.now() < deadline; await sleep(100)) {
+      const found = find();
+      if (found) return found;
+    }
+    return null;
+  }
+
+  // Types a value the way a person would, so frameworks like React see the change, then picks a suggestion if asked.
+  async function fillItem(item) {
+    const target = await waitFor(() => findTarget(item.target), 3000);
+    if (!target) return false;
+    if (item.click) {
+      // A wrapper around a checkbox or radio (e.g. a labelled field): the click has to reach the control itself.
+      const control = target.matches('input, button, a, [role=button], [role=option], [role=radio], [role=checkbox]')
+        ? target : target.querySelector('input[type=checkbox], input[type=radio]') || target;
+      press(control);
+      return true;
+    }
+    const field = target.matches('input, textarea') ? target : target.querySelector('input:not([type=hidden]), textarea');
+    if (!field) return false;
+    field.focus();
+    field.select();
+    if (!document.execCommand('insertText', false, item.value) || field.value !== item.value) {
+      Object.getOwnPropertyDescriptor(Object.getPrototypeOf(field), 'value').set.call(field, item.value);
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (!item.pick) return true;
+    const want = normal(item.pick);
+    const option = await waitFor(() => [...document.querySelectorAll('[role=option]')].find((o) => isVisible(o) && normal(o.textContent) === want), 5000);
+    if (option) press(option);
+    return !!option;
+  }
+
+  async function fillSample(tour, step, button) {
+    const token = runToken;
+    const prev = loadState();
+    saveState({ ...prev, sampleUsed: true });
+    button.disabled = true;
+    button.textContent = 'Filling…';
+    const ok = await fillAll(step.fill, () => token === runToken);
+    if (token === runToken) button.textContent = ok ? 'Filled' : 'Partly filled';
+  }
+  async function fillAll(items, stillOn = () => true) {
+    let ok = true;
+    for (const item of items) {
+      if (!stillOn()) break;
+      ok = (await fillItem(item)) && ok;
+      await sleep(150);
+    }
+    return ok;
+  }
+
+  async function clickInOrder(targets) {
+    for (const target of targets) {
+      const found = await waitFor(() => findTarget(target), 3000);
+      if (!found) return console.warn('[TourLayer] exit click target not found', target);
+      press(Array.isArray(found) ? found[0] : found);
+      await sleep(400);
     }
   }
 
@@ -279,7 +382,8 @@
     body.append(el('div', { className: 'tl-pad' }, [title, p.description]));
 
     const right = clickToAdvance ? el('span', { className: 'tl-hint', textContent: 'Click the highlighted item' }) : p.nextButton;
-    p.footer.replaceChildren(p.previousButton, right);
+    const fill = step.fill ? [el('button', { className: 'tl-fill', textContent: 'Fill example', onclick: (e) => fillSample(tour, step, e.currentTarget) })] : [];
+    p.footer.replaceChildren(p.previousButton, ...fill, right);
     p.wrapper.replaceChildren(p.arrow, el('div', { className: 'tl-head' }, [p.progress, p.closeButton]), body, p.footer);
   }
 
@@ -329,6 +433,9 @@
     .tour-layer-group { position: fixed; pointer-events: none; }
     /* Dropdowns that a highlighted field opens are mounted on <body>, outside the highlight; lift them above the overlay. */
     body.driver-active > :is([role=presentation], [data-radix-popper-content-wrapper]):has([role=listbox], [role=menu]) { z-index: 10001 !important; }
+    .tour-layer-popover .driver-popover-footer .tl-fill { margin-left: auto; background: none; color: inherit; border: 1px solid currentColor; border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+    .tour-layer-popover .driver-popover-footer .tl-fill:disabled { opacity: .7; cursor: default; }
+    .tour-layer-popover .tl-fill + .driver-popover-next-btn, .tour-layer-popover .tl-fill + .tl-hint { margin-left: 0; }
     .tour-layer-popover .tl-hint { margin-left: auto; font-size: 12px; font-style: italic; }
     .tour-layer-popover .driver-popover-arrow { border-color: transparent; }
     .tour-layer-popover .driver-popover-arrow-side-left { border-left-color: var(--tl-frame); }
@@ -440,6 +547,7 @@
     start,
     run,
     stop: endTour,
+    fill: (items) => fillAll(items), // the tour builder's preview uses it for a step's sample data
     get tours() {
       return tours;
     },

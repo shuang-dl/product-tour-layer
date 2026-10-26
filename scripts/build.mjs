@@ -8,8 +8,8 @@ import { execFileSync } from 'node:child_process';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 
-const TOUR_KEYS = ['id', 'title', 'description', 'page', 'style', 'steps'];
-const STEP_KEYS = ['target', 'title', 'text', 'page', 'advanceOn', 'optional', 'image'];
+const TOUR_KEYS = ['id', 'title', 'description', 'page', 'style', 'exitClicks', 'steps'];
+const STEP_KEYS = ['target', 'title', 'text', 'page', 'advanceOn', 'optional', 'showOnly', 'image', 'fill'];
 // The step box style (one per tour). Colours are #rrggbb, sizes are whole pixels in a range, the rest are choices.
 const STYLE_RULES = {
   frame: 'color', bandText: 'color', button: 'color', buttonText: 'color', bodyText: 'color', bodyBg: 'color',
@@ -43,6 +43,20 @@ function validateTour(tour, file) {
   if (tour.description !== undefined && !isText(tour.description)) err('"description" must be text');
   if (!/^\/[^*]*$/.test(tour.page || '')) err('"page" must be a path like "/tenants" (no "*": it is where the tour starts)');
   if (tour.style !== undefined) validateStyle(tour.style, err);
+  // A target is a CSS selector or { text, selector? }; a non-empty list of those is a group, highlighted as one area.
+  const checkTarget = (t, where) => {
+    if (!isText(t) && !(t && typeof t === 'object' && !Array.isArray(t) && isText(t.text))) {
+      return err(`${where}: "target" must be a CSS selector, { "text": "...", "selector": "..." }, or a list of those (a group)`);
+    }
+    if (typeof t === 'object') {
+      for (const key of Object.keys(t)) if (!['text', 'selector'].includes(key)) err(`${where}: unknown target field "${key}"`);
+    }
+  };
+  // Clicks that leave without saving (e.g. Cancel), made when the tour ends after it filled in sample data.
+  if (tour.exitClicks !== undefined) {
+    if (!Array.isArray(tour.exitClicks) || !tour.exitClicks.length) err('"exitClicks" must be a non-empty list of targets');
+    else tour.exitClicks.forEach((t, k) => checkTarget(t, `exitClicks item ${k + 1}`));
+  }
   if (!Array.isArray(tour.steps) || !tour.steps.length) {
     err('"steps" must be a non-empty list');
     return errors;
@@ -63,15 +77,26 @@ function validateTour(tour, file) {
     if (step.image !== undefined && !(typeof step.image === 'string' && IMAGE.test(step.image))) {
       err(`${at}: "image" must be an https URL or a path to a .png, .jpg, .gif, .webp or .svg file`);
     }
-    // A target is a CSS selector or { text, selector? }; a non-empty list of those is a group, highlighted as one area.
-    const checkTarget = (t, where) => {
-      if (!isText(t) && !(t && typeof t === 'object' && !Array.isArray(t) && isText(t.text))) {
-        return err(`${where}: "target" must be a CSS selector, { "text": "...", "selector": "..." }, or a list of those (a group)`);
+    if (step.showOnly !== undefined && typeof step.showOnly !== 'boolean') err(`${at}: "showOnly" must be true or false`);
+    if (step.showOnly && step.target === undefined) err(`${at}: "showOnly" needs a "target"`);
+    if (step.showOnly && step.advanceOn === 'click') err(`${at}: a "showOnly" step can't advance on a click`);
+    // Sample data: { target, value, pick? } types value (then picks the suggestion whose text is pick), { target, click: true } clicks.
+    if (step.fill !== undefined) {
+      if (!Array.isArray(step.fill) || !step.fill.length) err(`${at}: "fill" must be a non-empty list`);
+      else {
+        step.fill.forEach((f, k) => {
+          const where = `${at}, fill item ${k + 1}`;
+          if (!f || typeof f !== 'object' || Array.isArray(f)) return err(`${where}: must be an object`);
+          for (const key of Object.keys(f)) if (!['target', 'value', 'pick', 'click'].includes(key)) err(`${where}: unknown field "${key}"`);
+          if (Array.isArray(f.target)) err(`${where}: "target" must be one element, not a group`);
+          else checkTarget(f.target, where);
+          if (f.click !== undefined && f.click !== true) err(`${where}: "click" must be true`);
+          if (f.click && (f.value !== undefined || f.pick !== undefined)) err(`${where}: use either "click" or "value", not both`);
+          if (!f.click && typeof f.value !== 'string') err(`${where}: needs a "value" (text to type) or "click": true`);
+          if (f.pick !== undefined && !isText(f.pick)) err(`${where}: "pick" must be the text of the suggestion to choose`);
+        });
       }
-      if (typeof t === 'object') {
-        for (const key of Object.keys(t)) if (!['text', 'selector'].includes(key)) err(`${where}: unknown target field "${key}"`);
-      }
-    };
+    }
     const t = step.target;
     if (Array.isArray(t)) {
       if (!t.length) err(`${at}: a group "target" needs at least one item`);

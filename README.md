@@ -68,6 +68,7 @@ Add `tours/<id>.json`:
 | `title`, `description` | shown on the links page and in the launcher |
 | `page` | the DoorLoop path the tour starts on |
 | `style` | optional. How every step box in this tour looks (see below) |
+| `exitClicks` | optional. A list of targets clicked in order when the tour ends, if the user clicked **Fill example** on any step: e.g. Cancel, then the Discard button it opens, so the sample data isn't saved (see "Sample data" below) |
 | `steps` | list of steps |
 
 | Step field | |
@@ -78,6 +79,19 @@ Add `tours/<id>.json`:
 | `advanceOn` | `"next"` (default) or `"click"`: the user clicks the highlighted element to continue |
 | `optional` | `true` = skip this step if its target isn't on screen (e.g. "open the People menu" when it's already open) |
 | `image` | optional. An image shown full width at the top of the step: an `https://` URL or a path to a `.png`, `.jpg`, `.gif`, `.webp` or `.svg` file |
+| `showOnly` | `true` = the highlighted element can't be clicked or pressed (e.g. point at Finish without anyone saving). Can't be combined with `advanceOn: "click"` |
+| `fill` | optional. Sample data: adds a **Fill example** button to the step. A list of `{ "target", "value", "pick"? }` (type the value into the field, then click the suggestion whose text is `pick`) or `{ "target", "click": true }` (click a choice or checkbox) |
+
+**Sample data.** A step with `fill` lets people try a form without making up data: **Fill example** types the values the way a person would (so the app sees real typing), picks suggestions and clicks choices. To keep sample data from being saved, the last step points at the save button with `showOnly`, and `exitClicks` leave the form when the tour ends (Done or ×). The exit clicks only run if Fill example was used, so someone entering their own real data keeps it. This only works for forms that save nothing until the last button; check that before adding sample data to a tour.
+
+```json
+"exitClicks": ["[data-cy='SideMenu-Rentals-Properties']"],
+"steps": [
+  { "target": "[data-cy='street1']", "title": "Enter the address", "text": "...",
+    "fill": [{ "target": "[data-cy='street1']", "value": "1100 Congress Ave", "pick": "1100 Congress Ave Austin, TX, 78701" }] },
+  { "target": "[data-cy='BottomNavigationPanel-NextButton']", "title": "Finish", "text": "...", "showOnly": true }
+]
+```
 
 **Step box style.** Each step shows as a box with a coloured header band (step count and close), a body (image, title, text) and a coloured footer band (Back and Next). One `style` per tour keeps every step consistent; any field left out uses the default.
 
@@ -101,7 +115,7 @@ Add `tours/<id>.json`:
 
 The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html)'s Tour style panel (◐) sets these visually, and "View tour file" writes them in this format.
 
-**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.5.3 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
+**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.6.0 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
 
 - The builder is `src/builder.js`, shared by the builder page (demo mode, with the demo app in a frame) and the extension (live mode). It draws inside a shadow root so DoorLoop's CSS and the builder's can't affect each other.
 - Pages change through DoorLoop's own links (an in-app page change). Where there's no link, the page loads normally and the builder comes back with the draft, which is kept in `sessionStorage` for that tab.
@@ -111,7 +125,9 @@ The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-con
 
 - Click a card to edit that step (the builder goes to its page and finds its element again). For a page pattern like `/tenants/*`, open a matching page first.
 - **+** between cards inserts a step there; drag cards to reorder (a step dragged past a page card moves to that page); × removes one.
-- The step editor's **Skip this step if it isn't on screen** sets `optional`.
+- The step editor's **Skip this step if it isn't on screen** sets `optional`, and **Show only** sets `showOnly`.
+- **Sample data** in the step editor: click **Record**, then fill in the highlighted area the way people should (type, pick a suggestion, click a choice) and click **Stop**. Only what happens inside the highlight is recorded; a picked suggestion attaches to the field typed into just before it. The list shows what was recorded: edit a value or remove a row before saving the step. Everything in it ends up in the published tour file, so use made-up data.
+- **⎋ Leaving without saving** in the toolbox: **+ Pick a button**, then click what should be pressed when the tour ends (it isn't pressed while picking). These are the tour's `exitClicks`.
 - **View tour file** keeps the tour's id, so the edited file replaces the original in `tours/` (or `demo-tours/`).
 - When an element's label is shared by several elements (e.g. two choice cards with the same wrapper label), the builder uses a uniquely labelled element inside it instead, since the tour engine would only ever find the first.
 - **Storyboard ▾** in the top bar collapses the storyboard, e.g. to reach an app's bottom bar.
