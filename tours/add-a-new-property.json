@@ -1,0 +1,129 @@
+{
+  "id": "add-a-new-property",
+  "title": "Add a new property",
+  "description": "Create new → Property, through the five-part New property wizard. Built with the live builder.",
+  "page": "/home",
+  "steps": [
+    {
+      "target": "[data-cy='SideMenu-CreateNewMenu-Button']",
+      "title": "Start with Create new",
+      "text": "Everything you add in DoorLoop starts here: properties, leases, tenants, and more. Click Create new.",
+      "advanceOn": "click"
+    },
+    {
+      "target": "button[data-section-value='rentals']",
+      "title": "Open Rentals",
+      "text": "Properties and units live under Rentals. Click Rentals.",
+      "advanceOn": "click"
+    },
+    {
+      "target": "[data-item-id='property']",
+      "title": "Choose Property",
+      "text": "Click Property to open the New property wizard.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='NewProperty-Selection-Residential']",
+      "title": "Residential or commercial?",
+      "text": "Pick Residential for homes and apartments, or Commercial for offices and retail. Click Residential to continue.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/properties/new",
+      "target": [
+        "[data-cy='NewProperty-Selection-SingleFamily']",
+        "[data-cy='NewProperty-Selection-MultiFamily']",
+        "[data-cy='NewProperty-Selection-Condo']",
+        "[data-cy='NewProperty-Selection-Townhome']",
+        "[data-cy='NewProperty-Selection-ResidentialOther']"
+      ],
+      "title": "Choose the property type",
+      "text": "Read the descriptions and pick the one that fits. If you plan to list it online, choose a residential type."
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='BottomNavigationPanel-NextButton']",
+      "title": "On to the address",
+      "text": "Click Next to enter the property's address.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/properties/new",
+      "target": [
+        "[data-cy='street1']",
+        "[data-cy='street2']",
+        "[data-cy='city']",
+        "[data-cy='state']",
+        "[data-cy='zip']",
+        "[data-cy='country']"
+      ],
+      "title": "Enter the address",
+      "text": "Start typing the street and pick a suggested address. The time zone is set from it."
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='property-affordable-housing-federal']",
+      "title": "Affordable housing",
+      "text": "Tick this if the property is federal affordable housing. Leave it unticked otherwise.",
+      "optional": true
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='BottomNavigationPanel-NextButton']",
+      "title": "On to your units",
+      "text": "Click Next to add the units.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/properties/new",
+      "target": [
+        "[data-cy='units[0].name']",
+        "[data-cy='units[0].beds']",
+        "[data-cy='units[0].baths']",
+        "[data-cy='units[0].size']",
+        "[data-cy='units[0].marketRent']"
+      ],
+      "title": "Add your units",
+      "text": "Only the unit name is required. Beds, baths, size and listing price are optional, and you can fill them in later."
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='NewProperty-NewUnitLink']",
+      "title": "More than one unit?",
+      "text": "Click Add another unit for each one. The duplicate icon copies a unit with similar details."
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='BottomNavigationPanel-NextButton']",
+      "title": "On to bank accounts",
+      "text": "Click Next once your units are in.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/properties/new",
+      "target": ["[data-cy='NewProperty-DefaultAccountButton']", "[data-cy='NewProperty-SpecifyAccountButton']"],
+      "title": "Choose the bank account",
+      "text": "Every property needs a bank account. Use your default account, or add a new one just for this property."
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='BottomNavigationPanel-NextButton']",
+      "title": "Last step: ownership",
+      "text": "Click Next to set who owns the property.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/properties/new",
+      "target": ["[data-cy='NewProperty-Ownership-OwnedBySomeoneElse']", "[data-cy='NewProperty-Ownership-OwnedByMe']"],
+      "title": "Who owns it?",
+      "text": "Assign one or more owners (their shares must add up to 100%), or choose Self-owned if the property is yours."
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='BottomNavigationPanel-NextButton']",
+      "title": "Finish",
+      "text": "Click Finish to create the property. DoorLoop then suggests next steps, like adding listing details or a lease."
+    }
+  ]
+}
