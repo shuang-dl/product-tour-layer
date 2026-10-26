@@ -934,6 +934,7 @@
       };
       meta.querySelector('[data-save]').onclick = () => {
         if (!title().innerText.trim()) return toast('Give the step a title.');
+        if (!text.innerText.trim()) return toast('Add some text for the step: what should people know or do here?');
         if (fill.length && !state.exitClicks.length) setTimeout(() => toast('This step has sample data. Use ⎋ in the toolbox to pick what to click when the tour ends (e.g. Cancel), so it isn\'t saved.'), 3300);
         const page = state.flow[state.active].page;
         state.flow[state.active] = {

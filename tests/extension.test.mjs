@@ -240,6 +240,10 @@ try {
   await B.locator('.pop .tb-title').click();
   await live.keyboard.type('Search your tenants');
   await B.locator('.pop [data-save]').click();
+  check('live: a step needs text before it saves', (await B.locator('.pop').count()) === 1 && (await B.locator('.toast').textContent()).startsWith('Add some text'));
+  await B.locator('.pop .tb-text').click();
+  await live.keyboard.type('Step text');
+  await B.locator('.pop [data-save]').click();
   // /home has no link on the stand-in page, so this is a full page load: the builder must come back
   await B.locator('.add >> text=+ Page').click();
   await B.locator('.add-page input').fill('/home');
@@ -259,6 +263,8 @@ try {
   check('live: box tool picks a widget', (await B2.locator('.pop code').textContent()) === "[data-cy='Widget-dashboards.thingsToDo']");
   await B2.locator('.pop .tb-title').click();
   await live.keyboard.type('Things to do');
+  await B2.locator('.pop .tb-text').click();
+  await live.keyboard.type('Step text');
   await B2.locator('.pop [data-save]').click();
   await B2.locator('[data-tool=pointer]').click();
   // Preview step 1 goes to /tenants through the app's own link (no reload)
@@ -304,6 +310,8 @@ try {
   await E.locator('.pop .tb-title').click();
   await ed.keyboard.type('Inserted');
   await E.locator('.pop [data-optional]').check();
+  await E.locator('.pop .tb-text').click();
+  await ed.keyboard.type('Step text');
   await E.locator('.pop [data-save]').click();
   check('edit: inserted step lands in place', JSON.stringify(await cards()) === JSON.stringify(['First', 'Inserted', 'Second']));
   // Drag "Second" onto "First": it moves before it
@@ -396,6 +404,8 @@ try {
   check('record: typing and the picked suggestion show in the review list',
     rows.length === 1 && rows[0].includes('mockStreet') && rows[0].includes('1100 Congress Ave Austin, TX, 78701') &&
     (await R.locator('.sample-list input').inputValue()) === '1100 Congress Ave', JSON.stringify(rows));
+  await R.locator('.pop .tb-text').click();
+  await rec.keyboard.type('Step text');
   await R.locator('.pop [data-save]').click();
   await R.locator('.exit-tool').click();
   await R.locator('.exit-pick').click();
