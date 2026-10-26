@@ -376,6 +376,31 @@ try {
   check('sample: without Fill example, ending the tour clicks nothing', (await sp.evaluate(() => document.body.dataset.cancelled)) === undefined);
   await sp.close();
 
+  // A dropdown step: click the field to open its list, then pick from it. Showing the next step must not take
+  // focus from the field (its list closes when the field loses focus).
+  const dropTour = {
+    id: 'dropdown-test', title: 'Dropdown', page: '/payment',
+    steps: [
+      { target: "[data-cy='mockLease']", title: 'Open the list', text: 'x', advanceOn: 'click' },
+      { target: "[data-cy='mockLeasePicker']", title: 'Pick a lease', text: 'y', advanceOn: 'click' },
+      { title: 'Done', text: 'z' },
+    ],
+  };
+  await ctx.unroute(TOURS_URL);
+  await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [dropTour] }) }));
+  const dp = await ctx.newPage();
+  await dp.goto('https://acme.app.doorloop.com/payment?tour=dropdown-test');
+  await title(dp);
+  const lease = await dp.locator('[aria-label=Lease]').boundingBox();
+  await dp.mouse.click(lease.x + lease.width / 2, lease.y + lease.height / 2);
+  await dp.waitForTimeout(1200);
+  check('dropdown: the list stays open when the next step shows', (await title(dp)) === 'Pick a lease' && (await dp.locator('#leasePopper').count()) === 1);
+  const pick = await dp.locator('#leasePopper li', { hasText: 'Lease 2' }).boundingBox().catch(() => null);
+  if (pick) await dp.mouse.click(pick.x + pick.width / 2, pick.y + pick.height / 2);
+  await dp.waitForTimeout(1200);
+  check('dropdown: picking from the list works and the tour moves on', (await dp.inputValue('[aria-label=Lease]')) === 'Lease 2' && (await title(dp)) === 'Done');
+  await dp.close();
+
   // Recording sample data in the live builder, and picking the exit click
   const site3 = await ctx.newPage();
   await site3.goto('https://shuang-dl.github.io/product-tour-layer/builder-concept.html');

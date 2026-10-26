@@ -27,6 +27,12 @@
 <script>
   function render() {
     // like DoorLoop's New property wizard: a street field with suggestions, a checkbox, a choice, Cancel and Finish
+    // like DoorLoop's Receive payment lease field: its list opens on <body> and closes when the field loses focus
+    if (location.pathname === '/payment') {
+      main.innerHTML = '<div data-cy="mockLease" style="width:260px"><input aria-label="Lease" role="combobox" style="width:100%"></div>';
+      leaseField();
+      return;
+    }
     if (location.pathname === '/properties/new') {
       main.innerHTML = '<div data-cy="mockStreet" style="padding:4px;width:260px"><input aria-label="Street" aria-autocomplete="list" style="width:100%"></div>' +
         '<div data-cy="mockCity" style="width:260px"><input aria-label="City" style="width:100%"></div>' +
@@ -41,6 +47,24 @@
         // like DoorLoop's bank and ownership choices: wrappers share a label, the buttons inside are unique
         '<div style="display:flex;gap:8px"><div data-cy="choiceWrap" style="padding:12px;border:1px solid #ccc"><button data-cy="Choice-A">A</button></div><div data-cy="choiceWrap" style="padding:12px;border:1px solid #ccc"><button data-cy="Choice-B">B</button></div></div>'
       : '<div data-cy="Widget-dashboards.thingsToDo" style="height:100px">todo</div><div style="height:1500px"></div><div data-cy="Widget-dashboards.occupancyRate" style="height:100px">occ</div>';
+  }
+  function leaseField() {
+    const input = document.querySelector('[aria-label=Lease]');
+    const close = () => document.getElementById('leasePopper')?.remove();
+    input.addEventListener('focus', () => {
+      if (document.getElementById('leasePopper')) return;
+      const r = input.getBoundingClientRect();
+      const popper = document.createElement('div');
+      popper.id = 'leasePopper';
+      popper.setAttribute('role', 'presentation');
+      popper.style.cssText = `position:absolute;z-index:1300;background:#fff;border:1px solid #ccc;left:${r.left}px;top:${r.bottom + 4}px`;
+      popper.innerHTML = '<ul role="listbox" data-cy="mockLeasePicker" style="margin:0;padding:4px"><li role="option">Lease 1</li><li role="option">Lease 2</li></ul>';
+      // MUI keeps focus in the field while an option is pressed, then picks it on click
+      popper.addEventListener('mousedown', (e) => e.preventDefault());
+      popper.addEventListener('click', (e) => { if (e.target.matches('[role=option]')) { input.value = e.target.textContent; close(); } });
+      document.body.append(popper);
+    });
+    input.addEventListener('blur', close);
   }
   function wizard() {
     const street = document.querySelector('[aria-label=Street]');

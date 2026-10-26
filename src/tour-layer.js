@@ -161,13 +161,32 @@
     return box;
   }
 
+  // driver.js moves focus to the step box when a step shows, and back to where it was when the step ends. While
+  // someone is in a field, that takes focus away from it, and dropdowns close when their field loses focus. So leave
+  // focus where it is then: focus() does nothing while driver.js runs (it runs in this same script world).
+  const inField = () => {
+    const a = document.activeElement;
+    return !!a && !a.closest('.driver-popover') &&
+      a.matches('input, textarea, select, [contenteditable=""], [contenteditable=true], [role=combobox], [aria-expanded=true]');
+  };
+  function keepFocus() {
+    const focus = HTMLElement.prototype.focus;
+    HTMLElement.prototype.focus = function () {};
+    return () => (HTMLElement.prototype.focus = focus);
+  }
+
   function destroyDriver() {
     group?.remove();
     group = null;
     stopBlocking?.();
     stopBlocking = null;
     if (!driverObj) return;
-    driverObj.destroy();
+    const restore = inField() ? keepFocus() : null;
+    try {
+      driverObj.destroy();
+    } finally {
+      restore?.();
+    }
     driverObj = null;
   }
 
@@ -252,7 +271,11 @@
         onNextClick: () => goTo(tour, index + 1),
         onPrevClick: () => goTo(tour, index - 1, -1),
         onCloseClick: endTour,
-        onPopoverRender: (popover) => renderStepBox(popover, tour, step, clickToAdvance),
+        onPopoverRender: (popover) => {
+          renderStepBox(popover, tour, step, clickToAdvance);
+          // driver.js focuses the step box right after this returns; skip that while someone is in a field.
+          if (inField()) queueMicrotask(keepFocus());
+        },
       },
     });
 
