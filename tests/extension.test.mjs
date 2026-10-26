@@ -200,6 +200,8 @@ try {
   const site = await ctx.newPage();
   await site.goto('https://shuang-dl.github.io/product-tour-layer/builder-concept.html');
   await site.click('#create');
+  check('builder: a new tour starts on /home by default', (await site.inputValue('#tourUrl')) === '/home');
+  await site.fill('#tourUrl', '/tenants');
   await site.check('input[value=live]');
   const liveTabP = ctx.waitForEvent('page');
   await site.click('#openBtn');
