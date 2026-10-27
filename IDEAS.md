@@ -56,3 +56,36 @@ One style per tour: every step in a tour looks the same. Set in the builder's To
 - Picking an element would need to produce a target that survives DoorLoop releases. Prefer `data-cy`, `data-intercom-target` and `aria-label` over class names, as described under "Picking targets" in the README.
 - Images, styling and formatted text would each need new fields in the tour format, plus checks in `scripts/build.mjs`. Formatted text must stay safe: allow a limited set of formatting, never raw HTML.
 - The extension could host the builder, since it already runs on DoorLoop pages.
+
+## Tour reporting
+
+Data on how each tour is used, so we can tell which tours help, where people drop off, and which steps break.
+
+**What to measure**
+
+- **Runs:** how many times each tour was started, and how: by itself (`autoStart`), from the Tours launcher, from a `?tour=` link, or from the builder.
+- **How far they got:** the furthest step reached, and how many people reached each step (a funnel per tour).
+- **How they left:**
+  - finished with Done on the last step;
+  - closed with × (and on which step);
+  - Stop tour in the launcher;
+  - left mid-tour by going to another page, and whether they came back with Resume;
+  - never came back (abandoned).
+- **Finished or not:** completion rate per tour.
+- **Repeats:** did the same person run the tour again, and how often. A high repeat rate may mean the tour, or the feature, is confusing.
+- **Time:** how long each step and the whole tour took.
+- **Sample data:** whether Fill example was used, and on the last step whether they discarded (Done) or saved for real.
+- **Broken steps:** steps whose target was never found (shown centred) or skipped as optional. A spike usually means a DoorLoop release changed the page and the tour needs updating.
+
+**Where it could show up**
+
+- A per-tour report: runs, completion rate, the funnel by step, how people exited, repeat rate, average time.
+- An alert when a step starts failing to find its target, so tours get fixed before many people notice.
+
+**Notes on how it could fit the current setup**
+
+- The engine already knows every moment worth counting: start, each step shown, Fill example, how the tour ended, and a step's target not found. It would report them as events, e.g. `tour_started`, `step_shown`, `sample_filled`, `tour_ended` (with how: done, close, stop, left page), `target_missing`.
+- `TourLayer.init({ tours, onEvent })` could pass each event to whatever DoorLoop already uses for analytics. That way the engine doesn't need its own server, and the data sits with the rest of DoorLoop's product data.
+- Knowing who ran a tour (for repeats) needs DoorLoop's own user id, which only works once tours run inside DoorLoop's app rather than the extension. Until then, a per-browser id would do for the proof of concept.
+- Never send what people typed into forms. Only tour ids, step numbers, timings and how it ended.
+- Sending data anywhere from the extension needs a destination DoorLoop controls and a security review. This is part of the "Path to production" list in the README.
