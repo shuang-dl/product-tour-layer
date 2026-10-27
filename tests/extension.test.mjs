@@ -365,6 +365,7 @@ try {
     document.querySelector('.tl-fill').textContent === 'Filled'));
   await sp.click('.driver-popover-next-btn');
   check('sample: reaches the show-only step', (await title(sp)) === 'Finish');
+  check('sample: the last show-only step says Done discards the sample data', (await sp.locator('.tl-note').textContent()) === 'Click Done to discard the sample data.');
   const fin = await sp.locator('[data-cy=mockFinish]').boundingBox();
   await sp.mouse.click(fin.x + fin.width / 2, fin.y + fin.height / 2);
   await sp.focus('[data-cy=mockFinish]');
@@ -386,6 +387,17 @@ try {
   await sp.click('.driver-popover-next-btn'); // Done
   await sp.waitForTimeout(800);
   check('Done on the last step runs the exit clicks even without Fill example', (await sp.evaluate(() => document.body.dataset.cancelled)) === 'yes');
+  // Without sample data, the last show-only step's button works: it saves (here, marks the page) and ends the tour
+  await sp.goto('https://acme.app.doorloop.com/properties/new?tour=sample-test');
+  await title(sp);
+  await sp.click('.driver-popover-next-btn');
+  await title(sp);
+  check('without sample data, the last step offers Done or the real button', (await sp.locator('.tl-note').textContent()) === 'Click Done to discard what you entered, or click “Finish” to save it.');
+  const finBox = await sp.locator('[data-cy=mockFinish]').boundingBox();
+  await sp.mouse.click(finBox.x + finBox.width / 2, finBox.y + finBox.height / 2);
+  await sp.waitForTimeout(800);
+  check('without sample data, the real button saves and ends the tour, without exit clicks', await sp.evaluate(() =>
+    document.getElementById('main').dataset.saved === 'yes' && !document.querySelector('.driver-popover') && document.body.dataset.cancelled === undefined));
   await sp.close();
 
   // A dropdown step: click the field to open its list, then pick from it. Showing the next step must not take

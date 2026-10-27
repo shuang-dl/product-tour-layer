@@ -357,6 +357,17 @@
     const prev = tour.steps[index - 1];
     const canGoBack = prev && (!prev.page || pageMatches(prev.page, currentPath()));
 
+    // The last step pointing at the save button (show only): with sample data typed in, the button stays blocked and
+    // Done discards it. Without, it's the person's own data, so the button works: it saves and ends the tour.
+    const last = index === total - 1;
+    const sampleUsed = !!(loadState() || {}).sampleUsed;
+    const target = Array.isArray(el) ? el[0] : el;
+    const saveLabel = target && target.innerText.trim().split('\n')[0];
+    const canSave = step.showOnly && last && !sampleUsed && !!el;
+    const note = !(step.showOnly && last && el) ? null
+      : sampleUsed ? 'Click Done to discard the sample data.'
+      : `Click Done to discard what you entered, or click ${saveLabel ? `“${saveLabel}”` : 'the highlighted button'} to save it.`;
+
     const buttons = [];
     if (canGoBack) buttons.push('previous');
     if (!clickToAdvance) buttons.push('next');
@@ -390,7 +401,7 @@
         onPrevClick: () => goTo(tour, index - 1, -1),
         onCloseClick: () => endTour(),
         onPopoverRender: (popover) => {
-          renderStepBox(popover, tour, step, clickToAdvance, (index + 1) / total);
+          renderStepBox(popover, tour, step, clickToAdvance, (index + 1) / total, note);
           // driver.js focuses the step box right after this returns; skip that while someone is in a field.
           if (inField()) queueMicrotask(keepFocus());
         },
@@ -400,7 +411,13 @@
     if (el) stepDialog = (Array.isArray(el) ? el[0] : el).closest('[role=dialog]') || stepDialog;
     if (anchor) ringOver(anchor, el);
     screenTimer = setInterval(keepOnScreen, 200);
-    if (step.showOnly && el) stopBlocking = blockClicks(step.target);
+    if (step.showOnly && el && !canSave) stopBlocking = blockClicks(step.target);
+    if (canSave) {
+      // Saving ends the tour, leaving the form as it is (no exit clicks); the click itself goes on to the app.
+      const token = runToken;
+      const onSave = () => token === runToken && setTimeout(() => endTour(), 0);
+      for (const t of Array.isArray(el) ? el : [el]) t.addEventListener('click', onSave, { once: true, capture: true });
+    }
 
     if (clickToAdvance) {
       const token = runToken;
@@ -538,7 +555,7 @@
   // Rebuild driver.js's popover into the step box: a header band (step count, close), a body
   // (full-width image, heading title, text) and a footer band (Back, Next or a hint).
   // driver.js's own button classes are kept, so its click handling still works.
-  function renderStepBox(p, tour, step, clickToAdvance, progress) {
+  function renderStepBox(p, tour, step, clickToAdvance, progress, note) {
     const s = Object.assign({}, DEFAULT_STYLE, tour.style);
     const vars = {
       '--tl-frame': s.frame, '--tl-band-text': s.bandText, '--tl-button': s.button, '--tl-button-text': s.buttonText,
@@ -560,7 +577,7 @@
     title.textContent = step.title;
     const body = el('div', { className: 'tl-body' });
     if (step.image) body.append(el('img', { className: 'tl-img', src: step.image, alt: '' }));
-    body.append(el('div', { className: 'tl-pad' }, [title, p.description]));
+    body.append(el('div', { className: 'tl-pad' }, [title, p.description, ...(note ? [el('p', { className: 'tl-note', textContent: note })] : [])]));
 
     const right = clickToAdvance ? el('span', { className: 'tl-hint', textContent: 'Click the highlighted item' }) : p.nextButton;
     const fill = step.fill ? [el('button', { className: 'tl-fill', textContent: 'Fill example', onclick: (e) => fillSample(tour, step, e.currentTarget) })] : [];
@@ -626,6 +643,7 @@
     .tour-layer-popover .driver-popover-footer .tl-fill { margin-left: auto; background: none; color: inherit; border: 1px solid currentColor; border-radius: 6px; padding: 3px 8px; cursor: pointer; }
     .tour-layer-popover .driver-popover-footer .tl-fill:disabled { opacity: .7; cursor: default; }
     .tour-layer-popover .tl-fill + .driver-popover-next-btn, .tour-layer-popover .tl-fill + .tl-hint { margin-left: 0; }
+    .tour-layer-popover .tl-note { margin: 8px 0 0; font-size: 13px; line-height: 1.45; font-weight: 600; text-align: var(--tl-text-align); }
     .tour-layer-popover .tl-hint { margin-left: auto; font-size: 12px; font-style: italic; }
     .tour-layer-popover .driver-popover-arrow { border-color: transparent; }
     .tour-layer-popover .driver-popover-arrow-side-left { border-left-color: var(--tl-frame); }
