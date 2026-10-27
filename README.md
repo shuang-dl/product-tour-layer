@@ -2,7 +2,9 @@
 
 Proof of concept: guided product tours that run **on top of DoorLoop** without changing DoorLoop's code.
 
-Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN.
+Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
+
+**Current extension version:** 0.7.2. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -20,9 +22,13 @@ links page ──click──▶ app.doorloop.com/tenants?tour=tenants-list
 - **Multi-page tours:** progress is kept in `sessionStorage`, so a tour continues after a step navigates to another page.
 - **Waits for the page:** each step waits (up to 8s) for its element to render before showing.
 - **Missing elements:** if a step's element never appears, the step still shows, centred, so the tour doesn't get stuck. An `optional` step is skipped instead.
-- **Clicks:** the highlighted area works as normal, including dropdowns its fields open. The dimmed page around it doesn't take clicks. A highlighted group follows its items when the page layout shifts.
-- **On screen:** the step box is kept inside the window, with a progress bar under the step count. With "reduce motion" turned on in the system settings, the highlight jumps between steps instead of gliding.
-- **Closing:** only the × ends a tour. Escape and clicks on the dimmed page don't, since they're easy to do by accident in the middle of a form.
+- **Clicks:** the highlighted area works as normal, including dropdowns its fields open. The dimmed page around it doesn't take clicks: the overlay's shape blocks them, rather than driver.js's rule that made every element unclickable (the build removes that rule from driver.css, since it broke DoorLoop's form fields). A highlighted group follows its items when the page scrolls, resizes, shifts its layout or re-renders them.
+- **Fields and dropdowns:** while someone is typing in a field or has a dropdown open, moving to the next step doesn't take focus away, so the dropdown stays open. Dropdowns that open outside the highlight are lifted above the dimmed layer, but never lowered.
+- **DoorLoop's dialogs:** dialogs like Create new and Receive payment sit above the tour's dimmed layer, so for targets inside them the tour draws the dimming and highlight just above the dialog. The step box stays clickable even when a dialog blocks clicks outside itself, and its clicks don't count as "outside" for the dialog.
+- **Shared labels:** when a label matches more than one element (e.g. Receive payment under Favorites and again under Transactions), the tour uses the one people can see.
+- **On screen:** the step box is kept inside the window (and shrinks on narrow windows), with a progress bar under the step count. With "reduce motion" turned on in the system settings, the highlight jumps between steps instead of gliding.
+- **Starting by itself:** a tour with `autoStart` opens the first time someone visits its page, once per browser.
+- **Ending:** × ends a tour at any step; **Done** ends it on the last step. Escape and clicks on the dimmed page don't, since they're easy to do by accident in the middle of a form. Done on the last step also leaves the form the tour went through, without saving (see "Sample data").
 
 ## Demo app (no setup)
 
@@ -40,7 +46,12 @@ links page ──click──▶ app.doorloop.com/tenants?tour=tenants-list
 2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select the folder.
 3. Log in to DoorLoop, then click a tour on the [links page](https://shuang-dl.github.io/product-tour-layer/). Or open any page that has tours and use the **Tours** button in the bottom-right corner.
 
-Tours included: `home-overview` (`/home`), `tenants-list` (`/tenants`), and `find-a-tenant` (starts on `/home`, continues on `/tenants`).
+Tours included:
+
+- `home-overview` (`/home`) and `tenants-list` (`/tenants`)
+- `find-a-tenant`: starts on `/home`, continues on `/tenants`
+- `add-a-new-property`: Create new → Property, through the five-part New property wizard, with sample data
+- `receive-a-payment`: Create new → Receive payment, in DoorLoop's full-screen payment dialog, with a sample amount
 
 New and edited tours reach installed extensions on the next page refresh once merged to `main`. Reinstall only when the extension code changes. If GitHub Pages can't be reached, the extension uses the copy of the tours bundled into it at build time.
 
@@ -117,11 +128,15 @@ Add `tours/<id>.json`:
 
 The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html)'s Tour style panel (◐) sets these visually, and "View tour file" writes them in this format.
 
-**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.7.0 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
+**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.7.0 or later; 0.7.2 is current) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
 
 - The builder is `src/builder.js`, shared by the builder page (demo mode, with the demo app in a frame) and the extension (live mode). It draws inside a shadow root so DoorLoop's CSS and the builder's can't affect each other.
 - Pages change through DoorLoop's own links (an in-app page change). Where there's no link, the page loads normally and the builder comes back with the draft, which is kept in `sessionStorage` for that tab.
 - The tour launcher is hidden while building. Closing the builder discards the draft, so copy the tour file first.
+- A new tour needs a name, and starts on `/home` unless you enter another page. Each step needs a title and some text before it saves.
+- **Start by itself once** in the top bar sets the tour's `autoStart`.
+- In **View tour file**, the box holds only the tour file (notes sit below it), and select-all inside the box selects just the file. Copying the whole page instead brings the builder's screen text along, which the build rejects.
+- The builder's **Preview** is a quick stand-in: it doesn't block show-only steps, run exit clicks, or behave exactly like the tour engine. To check those, publish the tour (or use **Test on: Live DoorLoop** from the demo builder) and run it from DoorLoop.
 
 **Saving a tour.** In **View tour file**, **Save to GitHub** publishes it through GitHub's own pages, signed in as you (the builder never holds a GitHub login):
 
@@ -138,7 +153,7 @@ The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-con
 - **Sample data** in the step editor: click **Record**, then fill in the highlighted area the way people should (type, pick a suggestion, click a choice) and click **Stop**. Only what happens inside the highlight is recorded; a picked suggestion attaches to the field typed into just before it. The list shows what was recorded: edit a value or remove a row before saving the step. Everything in it ends up in the published tour file, so use made-up data.
 - **⎋ Leaving without saving** in the toolbox: **+ Pick a button**, then click what should be pressed when the tour ends (it isn't pressed while picking). These are the tour's `exitClicks`. When you save a step with sample data inside a dialog and the tour has no exit clicks yet, the builder suggests the dialog's × and shows it here to keep or remove.
 - **View tour file** keeps the tour's id, so the edited file replaces the original in `tours/` (or `demo-tours/`).
-- When an element's label is shared by several elements (e.g. two choice cards with the same wrapper label), the builder uses a uniquely labelled element inside it instead, since the tour engine would only ever find the first.
+- When an element's label is shared by several elements (e.g. two choice cards with the same wrapper label), the builder uses a uniquely labelled element inside it instead, since the tour engine only uses one of them: the one in view, otherwise the first on the page.
 - **Storyboard ▾** in the top bar collapses the storyboard, e.g. to reach an app's bottom bar.
 - Like draft previews, the extension only opens the builder when asked by the builder's own site.
 
@@ -151,9 +166,9 @@ The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-con
 
 **Picking targets.** Prefer, in order: `data-cy` (DoorLoop's test ids, e.g. `[data-cy='SideMenu-People-Tenants']`), `data-intercom-target`, `aria-label`, then `{ "text": ... }`. Avoid class names; they change with every DoorLoop release. In DevTools, `document.querySelectorAll('[data-cy]')` lists what's available on a page.
 
-**Check your tour:** `node scripts/build.mjs` validates every tour and fails with a list of problems if any are wrong. CI runs the same check on every pull request.
+**Check your tour:** `node scripts/build.mjs` validates every tour and fails with a list of problems if any are wrong, e.g. a step with no text, or other text pasted in with the file. CI runs the same check on every pull request.
 
-**Test the extension:** `npm install`, `npx playwright install chromium` (once), then `npm run build && npm test`. This loads the built extension into a headless Chromium and runs the tours against a mock DoorLoop page (`tests/mock-doorloop.html`): multi-page and click-to-advance steps, optional steps, targets below the fold, published vs. bundled tours, and closing. CI runs it on every push and pull request. Publishing stops if it fails. If a tour starts pointing at new DoorLoop elements, add them to the mock page.
+**Test the extension:** `npm install`, `npx playwright install chromium` (once), then `npm run build && npm test`. This loads the built extension into a headless Chromium and runs 89 checks against a stand-in DoorLoop page (`tests/mock-doorloop.html`) that copies the traps found on the real app: a field outline over its input, dropdowns mounted outside the field, a full-screen dialog that blocks outside clicks and asks before discarding, a scrolling menu with the same item twice, a wizard with a suggesting street field. The checks cover the engine (steps, groups, dropdowns, dialogs, sample data, show-only, exit clicks, auto-start, on-screen) and the live builder (picking, recording sample data, editing, saving). CI runs it on every push and pull request; publishing stops if it fails. Each check added for a bug was confirmed to fail without its fix. If a tour starts pointing at new DoorLoop elements, add them to the mock page.
 
 ## Layout
 
@@ -184,4 +199,4 @@ Future ideas, such as a visual tour builder, are collected in [IDEAS.md](IDEAS.m
 
 The extension only does three things: load driver.js, load `tour-layer.js`, and call `TourLayer.init({ tours })` (see `extension/content.js`). If DoorLoop's app did the same, customers would get tours with nothing to install. The engine and tour files carry over unchanged.
 
-Before that, engineering would want: hosting on a DoorLoop-controlled domain, a security review, targeting by role/plan (passed to `init`), per-user "seen" state, analytics events, and a kill switch.
+Before that, engineering would want: hosting on a DoorLoop-controlled domain, a security review, targeting by role/plan (passed to `init`), per-user "seen" state stored with the account (today `autoStart` remembers per browser), analytics events, a kill switch, and a decision on driver.js (replace it with our own spotlight, or keep it).
