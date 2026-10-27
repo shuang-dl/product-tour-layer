@@ -301,13 +301,16 @@
     driverObj = null;
   }
 
-  function endTour() {
+  // finished: ended with Done on the last step, rather than × or Stop tour.
+  function endTour(finished = false) {
     runToken++;
     const state = loadState();
     const tour = state && findTour(state.tourId);
     if (tour) markSeen(tour.id);
-    // The tour typed sample data into the app: leave without saving it, once the highlight is gone.
-    if (state && state.sampleUsed && tour) setTimeout(() => leaveSample(tour), 0);
+    // Leave the form the tour went through, without saving, once the highlight is gone: always after Done, and after
+    // × only if the tour typed sample data (closing early must not throw away what someone typed themselves).
+    if (tour && (finished || state.sampleUsed)) setTimeout(() => leaveForm(tour), 0);
+    else sampleDialog = stepDialog = null;
     const draft = loadDraft();
     if (draft && state && state.tourId === draft.id) {
       sessionStorage.removeItem(DRAFT_KEY);
@@ -323,7 +326,7 @@
   // direction: +1 or -1, so a skipped optional step keeps moving the same way.
   async function goTo(tour, index, direction = 1) {
     if (index < 0) return;
-    if (index >= tour.steps.length) return endTour();
+    if (index >= tour.steps.length) return endTour(true);
     const token = ++runToken;
     saveStep(tour, index);
     removeLauncher();
@@ -385,7 +388,7 @@
         prevBtnText: 'Back',
         onNextClick: () => goTo(tour, index + 1),
         onPrevClick: () => goTo(tour, index - 1, -1),
-        onCloseClick: endTour,
+        onCloseClick: () => endTour(),
         onPopoverRender: (popover) => {
           renderStepBox(popover, tour, step, clickToAdvance, (index + 1) / total);
           // driver.js focuses the step box right after this returns; skip that while someone is in a field.
@@ -394,6 +397,7 @@
       },
     });
 
+    if (el) stepDialog = (Array.isArray(el) ? el[0] : el).closest('[role=dialog]') || stepDialog;
     if (anchor) ringOver(anchor, el);
     screenTimer = setInterval(keepOnScreen, 200);
     if (step.showOnly && el) stopBlocking = blockClicks(step.target);
@@ -472,7 +476,8 @@
     return !!option;
   }
 
-  let sampleDialog = null; // the app dialog the sample data went into, if any (see leaveSample)
+  let sampleDialog = null; // the app dialog the sample data went into, if any (see leaveForm)
+  let stepDialog = null; // the app dialog the latest step's target is in, if any
   async function fillSample(tour, step, button) {
     const token = runToken;
     const first = findTarget(step.fill[0].target);
@@ -508,18 +513,20 @@
     return true;
   }
 
-  // Leave the form without saving the sample data: the tour's exit clicks; if it has none, or one isn't there, the
-  // close button (×) of the dialog the sample data went into. Then, if the app asks "Discard your changes?", discard.
+  // Leave the form without saving: the tour's exit clicks; if it has none, or one isn't there, the close button (×) of
+  // the dialog the sample data went into (or else the one the tour was in). Then, if the app asks "Discard your
+  // changes?", discard.
   const CLOSE_BUTTON = "[data-slot$='dialog-close'], button[aria-label='Close' i]";
   const DISCARD = /^(discard|leave|close without saving|don't save|yes, discard)\b/i;
-  async function leaveSample(tour) {
+  async function leaveForm(tour) {
+    const dialog = [sampleDialog, stepDialog].find((d) => d && d.isConnected);
+    sampleDialog = stepDialog = null;
     const done = tour.exitClicks ? await clickInOrder(tour.exitClicks) : false;
-    if (!done && sampleDialog && sampleDialog.isConnected) {
-      const close = [...sampleDialog.querySelectorAll(CLOSE_BUTTON)].find(isVisible);
+    if (!done && dialog) {
+      const close = [...dialog.querySelectorAll(CLOSE_BUTTON)].find(isVisible);
       if (close) press(close);
     }
-    const before = sampleDialog;
-    sampleDialog = null;
+    const before = dialog;
     // A confirmation the app opened just now (not the form's own dialog): press its discard button.
     const discard = await waitFor(() => [...document.querySelectorAll('[role=alertdialog], [role=dialog]')]
       .filter((d) => d !== before && !d.closest('.driver-popover'))
@@ -663,7 +670,7 @@
             location.assign(basePath + page);
           }
         }),
-        item('Stop tour', null, endTour)
+        item('Stop tour', null, () => endTour())
       );
     }
     if (here.length) {
@@ -729,7 +736,7 @@
     init,
     start,
     run,
-    stop: endTour,
+    stop: () => endTour(),
     fill: (items) => fillAll(items), // the tour builder's preview uses it for a step's sample data
     get tours() {
       return tours;

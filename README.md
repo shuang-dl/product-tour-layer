@@ -70,7 +70,7 @@ Add `tours/<id>.json`:
 | `page` | the DoorLoop path the tour starts on |
 | `style` | optional. How every step box in this tour looks (see below) |
 | `autoStart` | optional. `true` = the tour opens by itself the first time someone visits its `page`. Once it ends (Done or ×), that browser remembers and it only runs again from the launcher or a `?tour=` link. The builder's **Start by itself once** sets it |
-| `exitClicks` | optional. A list of targets clicked in order when the tour ends, if the user clicked **Fill example** on any step: e.g. Cancel, then the Discard button it opens, so the sample data isn't saved (see "Sample data" below) |
+| `exitClicks` | optional. A list of targets clicked in order to leave the form without saving when the tour ends with **Done** on its last step (and after × too, if **Fill example** was used): e.g. Cancel, then the Discard button it opens (see "Sample data" below) |
 | `steps` | list of steps |
 
 | Step field | |
@@ -84,7 +84,7 @@ Add `tours/<id>.json`:
 | `showOnly` | `true` = the highlighted element can't be clicked or pressed (e.g. point at Finish without anyone saving). Can't be combined with `advanceOn: "click"` |
 | `fill` | optional. Sample data: adds a **Fill example** button to the step. A list of `{ "target", "value", "pick"? }` (type the value into the field, then click the suggestion whose text is `pick`) or `{ "target", "click": true }` (click a choice or checkbox) |
 
-**Sample data.** A step with `fill` lets people try a form without making up data: **Fill example** types the values the way a person would (so the app sees real typing), picks suggestions and clicks choices. To keep sample data from being saved, the last step points at the save button with `showOnly`, and `exitClicks` leave the form when the tour ends (Done or ×). The exit clicks only run if Fill example was used, so someone entering their own real data keeps it. If a tour has no exit clicks, or one of them isn't on the page, and the sample data went into a dialog, the tour closes that dialog with its close button (×) instead. Either way, if the app then asks "Discard your changes?" (or offers Leave), the tour discards. Full-page forms with no dialog, like New property, still need exit clicks. This only works for forms that save nothing until the last button; check that before adding sample data to a tour.
+**Sample data.** A step with `fill` lets people try a form without making up data: **Fill example** types the values the way a person would (so the app sees real typing), picks suggestions and clicks choices. To keep sample data from being saved, the last step points at the save button with `showOnly`, and `exitClicks` leave the form when the tour ends (Done or ×). **Done** on the last step always leaves the form this way, typed data or not. Closing with × partway through only leaves it if Fill example was used, so stopping early never throws away what someone typed themselves. If a tour has no exit clicks, or one of them isn't on the page, and the form is in a dialog, the tour closes that dialog with its close button (×) instead. Either way, if the app then asks "Discard your changes?" (or offers Leave), the tour discards. Full-page forms with no dialog, like New property, still need exit clicks. This only works for forms that save nothing until the last button; check that before adding sample data to a tour.
 
 ```json
 "exitClicks": ["[data-cy='SideMenu-Rentals-Properties']"],

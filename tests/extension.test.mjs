@@ -377,7 +377,15 @@ try {
   await title(sp);
   await sp.click('.driver-popover-close-btn');
   await sp.waitForTimeout(800);
-  check('sample: without Fill example, ending the tour clicks nothing', (await sp.evaluate(() => document.body.dataset.cancelled)) === undefined);
+  check('sample: without Fill example, closing with × clicks nothing', (await sp.evaluate(() => document.body.dataset.cancelled)) === undefined);
+  // Done on the last step always leaves the form, Fill example or not
+  await sp.goto('https://acme.app.doorloop.com/properties/new?tour=sample-test');
+  await title(sp);
+  await sp.click('.driver-popover-next-btn');
+  check('sample: reaches the last step without Fill example', (await title(sp)) === 'Finish');
+  await sp.click('.driver-popover-next-btn'); // Done
+  await sp.waitForTimeout(800);
+  check('Done on the last step runs the exit clicks even without Fill example', (await sp.evaluate(() => document.body.dataset.cancelled)) === 'yes');
   await sp.close();
 
   // A dropdown step: click the field to open its list, then pick from it. Showing the next step must not take
@@ -398,10 +406,11 @@ try {
   // Sample data in a dialog: with no exit clicks (or one that isn't there), ending the tour closes the dialog with its
   // × and answers "Discard your changes?"
   const amountStep = { target: "[data-cy='mockAmount']", title: 'Amount', text: 'x', fill: [{ target: "[data-cy='mockAmount']", value: '1500' }] };
+  const doneTour = { id: 'done-test', title: 'Done', page: '/payment', steps: [{ target: "[data-cy='mockAmount']", title: 'Amount', text: 'x' }] };
   const autoTour = { id: 'auto-test', title: 'Auto', page: '/welcome', autoStart: true, steps: [{ title: 'Welcome', text: 'x' }] };
   const leaveTour = { id: 'leave-test', title: 'Leave', page: '/payment', steps: [amountStep] };
   const leaveTour2 = { id: 'leave-test-2', title: 'Leave 2', page: '/payment', exitClicks: ["[data-cy='notThere']"], steps: [amountStep] };
-  await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [dropTour, dupTour, leaveTour, leaveTour2, autoTour] }) }));
+  await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [dropTour, dupTour, leaveTour, leaveTour2, autoTour, doneTour] }) }));
   // autoStart: opens by itself on its page once; after it ends, this browser doesn't start it again
   const ap = await ctx.newPage();
   await ap.goto('https://acme.app.doorloop.com/welcome');
@@ -432,6 +441,14 @@ try {
   });
   check('the step box is brought back inside the window', boxAt.ok, JSON.stringify(boxAt));
   await np.close();
+  const dp2 = await ctx.newPage();
+  await dp2.goto('https://acme.app.doorloop.com/payment?tour=done-test');
+  await title(dp2);
+  await dp2.locator('[aria-label=Amount]').fill('42'); // typed by hand, no Fill example
+  await dp2.click('.driver-popover-next-btn'); // Done
+  await dp2.waitForTimeout(1500);
+  check("Done without sample data closes the tour's dialog with its × and discards", await dp2.evaluate(() => document.body.dataset.discarded === 'yes' && !document.getElementById('takeover')));
+  await dp2.close();
   for (const [id, wait, name] of [['leave-test', 1500, 'with no exit clicks'], ['leave-test-2', 5000, "when an exit click isn't there"]]) {
     const lp = await ctx.newPage();
     await lp.goto(`https://acme.app.doorloop.com/payment?tour=${id}`);
