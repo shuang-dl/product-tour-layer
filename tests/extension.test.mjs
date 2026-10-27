@@ -10,6 +10,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EXT = join(root, 'dist/extension');
 const MOCK = readFileSync(join(root, 'tests/mock-doorloop.html'), 'utf8');
 const TOURS_URL = 'https://shuang-dl.github.io/product-tour-layer/tours.json';
+const DRAFTS_URL = 'https://shuang-dl.github.io/product-tour-layer/drafts.json';
 
 const ctx = await chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), 'tour-layer-test-')), {
   channel: 'chromium', // full Chromium: the headless shell can't load extensions
@@ -324,7 +325,7 @@ try {
   check('file view: select all picks only the tour file', JSON.parse(await ed.evaluate(() => getSelection().toString())).id === 'edit-me');
   const edited = JSON.parse(await E.locator('.file-out').textContent());
   check('edit: the tour file keeps the id and reflects the edits',
-    edited.id === 'edit-me' && edited.steps.map((x) => x.title).join() === 'Second,First,Inserted' &&
+    edited.id === 'edit-me' && edited.status === 'live' && edited.steps.map((x) => x.title).join() === 'Second,First,Inserted' &&
     edited.steps[2].optional === true && edited.steps[2].target === "[data-cy='Choice-B']" && edited.steps[0].advanceOn === 'click' && edited.style.frame === '#0f6e56');
   // Save to GitHub on an edited tour: opens that file's edit page (GitHub can't pre-fill an edit)
   await ctx.route('https://github.com/**', (r) => r.fulfill({ contentType: 'text/html', body: '<!doctype html>GitHub' }));
@@ -423,6 +424,31 @@ try {
   const leaveTour = { id: 'leave-test', title: 'Leave', page: '/payment', steps: [amountStep] };
   const leaveTour2 = { id: 'leave-test-2', title: 'Leave 2', page: '/payment', exitClicks: ["[data-cy='notThere']"], steps: [amountStep] };
   await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [dropTour, dupTour, leaveTour, leaveTour2, autoTour, doneTour] }) }));
+  // Drafts: only load for people who turned on Show drafts (?drafts=on), and are labelled as drafts
+  const draftTour = { id: 'draft-test', title: 'Not live yet', status: 'draft', page: '/drafty', steps: [{ title: 'Draft step', text: 'x' }] };
+  await ctx.route(DRAFTS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [draftTour] }) }));
+  const dr = await ctx.newPage();
+  await dr.goto('https://acme.app.doorloop.com/drafty?tour=draft-test');
+  await dr.waitForTimeout(3000);
+  check("drafts: a draft doesn't run without Show drafts", (await dr.locator('.driver-popover').count()) === 0);
+  await dr.goto('https://acme.app.doorloop.com/drafty?tour=draft-test&drafts=on');
+  check('drafts: ?drafts=on turns on Show drafts and the draft runs, labelled',
+    (await title(dr)) === 'Draft step' && (await dr.locator('.tl-head').textContent()).includes('Draft · Step 1 of 1') &&
+    !dr.url().includes('drafts=') && (await dr.evaluate(() => localStorage.getItem('tourLayer.showDrafts'))) === '1');
+  await dr.click('.driver-popover-close-btn');
+  await dr.goto('https://acme.app.doorloop.com/drafty');
+  await dr.click('.tour-layer-launcher > button');
+  check('drafts: listed apart in the launcher', await dr.evaluate(() => {
+    const heads = [...document.querySelectorAll('.tour-layer-heading')];
+    const h = heads.find((x) => x.textContent === 'Drafts (not live yet)');
+    return !!h && h.nextElementSibling?.textContent === 'Not live yet';
+  }));
+  await dr.goto('https://acme.app.doorloop.com/drafty?drafts=off');
+  await dr.waitForTimeout(2000);
+  check('drafts: ?drafts=off turns Show drafts off', (await dr.locator('.tour-layer-launcher').count()) === 0 &&
+    (await dr.evaluate(() => localStorage.getItem('tourLayer.showDrafts'))) === null);
+  await dr.close();
+
   // autoStart: opens by itself on its page once; after it ends, this browser doesn't start it again
   const ap = await ctx.newPage();
   await ap.goto('https://acme.app.doorloop.com/welcome');
@@ -553,6 +579,7 @@ try {
   await R.locator('.auto-start input').check();
   await R.locator('.file-btn').click();
   check('builder: Start by itself once sets autoStart in the tour file', JSON.parse(await R.locator('.file-out').textContent()).autoStart === true);
+  check('builder: a new tour is saved as a draft', JSON.parse(await R.locator('.file-out').textContent()).status === 'draft');
   const recorded = JSON.parse((await R.locator('.file-out').textContent()).split('\n\n//')[0]);
   check('record: the tour file has the sample data and exit clicks',
     JSON.stringify(recorded.steps[0].fill) === JSON.stringify([{ target: "[data-cy='mockStreet']", value: '1100 Congress Ave', pick: '1100 Congress Ave Austin, TX, 78701' }]) &&

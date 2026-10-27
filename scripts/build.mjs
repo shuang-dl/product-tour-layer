@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 
-const TOUR_KEYS = ['id', 'title', 'description', 'page', 'style', 'autoStart', 'exitClicks', 'steps'];
+const TOUR_KEYS = ['id', 'title', 'description', 'status', 'page', 'style', 'autoStart', 'exitClicks', 'steps'];
 const STEP_KEYS = ['target', 'title', 'text', 'page', 'advanceOn', 'optional', 'showOnly', 'image', 'fill'];
 // The step box style (one per tour). Colours are #rrggbb, sizes are whole pixels in a range, the rest are choices.
 const STYLE_RULES = {
@@ -44,6 +44,8 @@ function validateTour(tour, file) {
   if (!/^\/[^*]*$/.test(tour.page || '')) err('"page" must be a path like "/tenants" (no "*": it is where the tour starts)');
   if (tour.style !== undefined) validateStyle(tour.style, err);
   if (tour.autoStart !== undefined && typeof tour.autoStart !== 'boolean') err('"autoStart" must be true or false');
+  // A draft is published separately (drafts.json) and only shows for people who turn on Show drafts. No status = live.
+  if (tour.status !== undefined && !['draft', 'live'].includes(tour.status)) err('"status" must be "draft" or "live"');
   // A target is a CSS selector or { text, selector? }; a non-empty list of those is a group, highlighted as one area.
   const checkTarget = (t, where) => {
     if (!isText(t) && !(t && typeof t === 'object' && !Array.isArray(t) && isText(t.text))) {
@@ -132,7 +134,9 @@ async function loadTours(dir) {
   return { tours, errors };
 }
 
-const { tours, errors: tourErrors } = await loadTours('tours');
+const { tours: allTours, errors: tourErrors } = await loadTours('tours');
+const tours = allTours.filter((t) => t.status !== 'draft');
+const drafts = allTours.filter((t) => t.status === 'draft');
 const { tours: demoTours, errors: demoErrors } = await loadTours('demo-tours');
 const errors = [...tourErrors, ...demoErrors];
 
@@ -144,6 +148,7 @@ if (errors.length) {
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist);
 await writeFile(join(dist, 'tours.json'), JSON.stringify({ tours }, null, 2));
+await writeFile(join(dist, 'drafts.json'), JSON.stringify({ tours: drafts }, null, 2)); // never bundled into the extension
 await copyFile(join(root, 'site/index.html'), join(dist, 'index.html'));
 await copyFile(join(root, 'site/builder-concept.html'), join(dist, 'builder-concept.html'));
 await copyFile(join(root, 'src/builder.js'), join(dist, 'builder.js'));
@@ -187,4 +192,4 @@ for (const f of ['tour-layer.js', 'driver.js.iife.js', 'driver.css']) await copy
 await writeFile(join(demo, 'tours.json'), JSON.stringify({ tours: demoTours }, null, 2));
 await copyFile(join(root, 'site/demo/index.html'), join(dist, '404.html'));
 
-console.log(`Built ${tours.length} DoorLoop tour(s), ${demoTours.length} demo tour(s), the extension and the demo app into dist/`);
+console.log(`Built ${tours.length} live and ${drafts.length} draft DoorLoop tour(s), ${demoTours.length} demo tour(s), the extension and the demo app into dist/`);

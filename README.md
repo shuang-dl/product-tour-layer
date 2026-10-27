@@ -4,7 +4,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.7.2. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.8.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -78,6 +78,7 @@ Add `tours/<id>.json`:
 |---|---|
 | `id` | kebab-case, must match the file name |
 | `title`, `description` | shown on the links page and in the launcher |
+| `status` | `"draft"` or `"live"` (no status = live). Drafts are published separately and only show for people who turn on **Show drafts** (see "Drafts and approval" below) |
 | `page` | the DoorLoop path the tour starts on |
 | `style` | optional. How every step box in this tour looks (see below) |
 | `autoStart` | optional. `true` = the tour opens by itself the first time someone visits its `page`. Once it ends (Done or ×), that browser remembers and it only runs again from the launcher or a `?tour=` link. The builder's **Start by itself once** sets it |
@@ -106,6 +107,12 @@ Add `tours/<id>.json`:
 ]
 ```
 
+**Drafts and approval.** A tour with `"status": "draft"` isn't live. The build publishes it to `drafts.json` instead of `tours.json`, and never bundles it into the extension.
+
+- **Seeing drafts:** on DoorLoop, drafts only load for people who turned on **Show drafts** in that browser, with a `?drafts=on` link (`?drafts=off` turns it off). The tours page has both links, and a **Drafts** section where **Try on DoorLoop** runs a draft (and turns Show drafts on). Draft tours say "Draft" in the step box, and the Tours launcher lists them under their own heading.
+- **Approving:** **Approve on GitHub** on the tours page opens the draft's file. Change `"status": "draft"` to `"status": "live"` and commit; once published, everyone with the extension sees it.
+- **The builder** saves new tours as drafts. Its **Status** setting in the top bar switches between Draft and Live. Editing a live tour keeps it live, so saving those edits publishes them right away; switch it to Draft first to review changes before they're live (it stops being shown to everyone until approved again).
+
 **Step box style.** Each step shows as a box with a coloured header band (step count and close), a body (image, title, text) and a coloured footer band (Back and Next). One `style` per tour keeps every step consistent; any field left out uses the default.
 
 ```json
@@ -128,13 +135,13 @@ Add `tours/<id>.json`:
 
 The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html)'s Tour style panel (◐) sets these visually, and "View tour file" writes them in this format.
 
-**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.7.0 or later; 0.7.2 is current) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
+**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.8.0 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
 
 - The builder is `src/builder.js`, shared by the builder page (demo mode, with the demo app in a frame) and the extension (live mode). It draws inside a shadow root so DoorLoop's CSS and the builder's can't affect each other.
 - Pages change through DoorLoop's own links (an in-app page change). Where there's no link, the page loads normally and the builder comes back with the draft, which is kept in `sessionStorage` for that tab.
 - The tour launcher is hidden while building. Closing the builder discards the draft, so copy the tour file first.
 - A new tour needs a name, and starts on `/home` unless you enter another page. Each step needs a title and some text before it saves.
-- **Start by itself once** in the top bar sets the tour's `autoStart`.
+- **Status** in the top bar sets the tour's `status` (new tours start as Draft), and **Start by itself once** sets its `autoStart`.
 - In **View tour file**, the box holds only the tour file (notes sit below it), and select-all inside the box selects just the file. Copying the whole page instead brings the builder's screen text along, which the build rejects.
 - The builder's **Preview** is a quick stand-in: it doesn't block show-only steps, run exit clicks, or behave exactly like the tour engine. To check those, publish the tour (or use **Test on: Live DoorLoop** from the demo builder) and run it from DoorLoop.
 
@@ -189,7 +196,7 @@ The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-con
 
 ## Publishing
 
-A GitHub Actions workflow (`.github/workflows/pages.yml`) runs the tour check and the extension test on every pull request. On merge to `main` it publishes the links page, `tours.json`, and the extension zip to GitHub Pages, usually within a minute.
+A GitHub Actions workflow (`.github/workflows/pages.yml`) runs the tour check and the extension test on every pull request. On merge to `main` it publishes the links page, `tours.json` (live tours), `drafts.json` (drafts), and the extension zip to GitHub Pages, usually within a minute.
 
 ## Ideas
 

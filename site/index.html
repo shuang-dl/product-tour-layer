@@ -24,6 +24,11 @@
     .tour strong { display: block; color: var(--text); }
     .tour span { color: var(--muted); font-size: 14px; }
     .tour em { float: right; font-style: normal; color: var(--accent); font-size: 14px; }
+    .draft { background: var(--card); border: 1px dashed var(--border); border-radius: 10px; padding: 16px 20px; }
+    .draft strong { display: block; }
+    .draft span { color: var(--muted); font-size: 14px; display: block; }
+    .draft .acts { margin-top: 8px; font-size: 14px; display: flex; gap: 16px; }
+    .badge { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; margin-left: 6px; vertical-align: middle; }
     code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 14px; }
   </style>
 </head>
@@ -48,6 +53,11 @@
       <li>Log in to DoorLoop in the same browser, then click a tour above.</li>
     </ol>
     <p>On any DoorLoop page that has tours, a <strong>Tours</strong> button appears in the bottom-right corner. New and edited tours show up automatically; you only reinstall when the extension itself changes.</p>
+
+    <h2>Drafts</h2>
+    <p>Tours that aren't live yet. Only people who turn on <strong>Show drafts</strong> see them on DoorLoop, in that browser: <a href="https://app.doorloop.com/home?drafts=on" target="_blank" rel="noopener">turn on</a> · <a href="https://app.doorloop.com/home?drafts=off" target="_blank" rel="noopener">turn off</a>. Trying a draft below turns it on too.</p>
+    <p>To make a draft live, open it with <strong>Approve on GitHub</strong>, change <code>"status": "draft"</code> to <code>"status": "live"</code>, and commit. It goes live for everyone once published.</p>
+    <div class="tours" id="drafts"><p>Loading drafts…</p></div>
 
     <h2>Coming later</h2>
     <p><a href="builder-concept.html">Tour builder concept</a>: a clickable draft of building tours visually, by pointing at elements or drawing boxes, with a storyboard of steps.</p>
@@ -80,6 +90,27 @@
     }
     showTours('demoTours', 'demo/tours.json', (t) => `demo${t.page}?tour=${encodeURIComponent(t.id)}`, false);
     showTours('tours', 'tours.json', (t) => `https://app.doorloop.com${t.page}?tour=${encodeURIComponent(t.id)}`, true);
+    // Drafts: try one on DoorLoop (turns on Show drafts there), or open its file on GitHub to approve it.
+    fetch('drafts.json', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then(({ tours }) => {
+        const list = document.getElementById('drafts');
+        if (!tours.length) return (list.innerHTML = '<p>No drafts right now.</p>');
+        list.replaceChildren(...tours.map((t) => {
+          const card = Object.assign(document.createElement('div'), { className: 'draft' });
+          const title = Object.assign(document.createElement('strong'), { textContent: t.title });
+          title.append(Object.assign(document.createElement('span'), { className: 'badge', textContent: 'Draft' }));
+          const link = (text, href) => Object.assign(document.createElement('a'), { textContent: text, href, target: '_blank', rel: 'noopener' });
+          const acts = Object.assign(document.createElement('div'), { className: 'acts' });
+          acts.append(
+            link(`Try on DoorLoop (${t.steps.length} steps) →`, `https://app.doorloop.com${t.page}?tour=${encodeURIComponent(t.id)}&drafts=on`),
+            link('Approve on GitHub', `https://github.com/shuang-dl/product-tour-layer/edit/main/tours/${encodeURIComponent(t.id)}.json`)
+          );
+          card.append(title, Object.assign(document.createElement('span'), { textContent: t.description || '' }), acts);
+          return card;
+        }));
+      })
+      .catch(() => { document.getElementById('drafts').textContent = 'Could not load drafts.json.'; });
   </script>
 </body>
 </html>

@@ -4,6 +4,24 @@
 (function () {
   'use strict';
   const TOURS_URL = 'https://shuang-dl.github.io/product-tour-layer/tours.json';
+  const DRAFTS_URL = 'https://shuang-dl.github.io/product-tour-layer/drafts.json';
+  // Draft tours only load for people who turned on Show drafts: a ?drafts=on link (from the tours page) turns it on
+  // in this browser, ?drafts=off turns it off.
+  const DRAFTS_KEY = 'tourLayer.showDrafts';
+  const params = new URLSearchParams(location.search);
+  if (params.has('drafts')) {
+    try {
+      if (params.get('drafts') === 'on') localStorage.setItem(DRAFTS_KEY, '1');
+      else localStorage.removeItem(DRAFTS_KEY);
+    } catch {}
+    params.delete('drafts');
+    const qs = params.toString();
+    history.replaceState(history.state, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
+  }
+  let showDrafts = false;
+  try {
+    showDrafts = localStorage.getItem(DRAFTS_KEY) === '1';
+  } catch {}
   // Only the tour builder's own site may send a draft tour to run here ("Test on: Live DoorLoop")
   // or ask to open the builder here ("Build on: Live DoorLoop").
   // localhost:4173 is `npm run serve`, for trying the builder locally.
@@ -17,6 +35,14 @@
     } catch (e) {
       console.warn('[TourLayer] could not fetch published tours, using the bundled copy', e);
       tours = window.TOUR_LAYER_BUNDLED.tours;
+    }
+    if (showDrafts) {
+      try {
+        const res = await fetch(DRAFTS_URL, { cache: 'no-store' });
+        tours = [...tours, ...(await res.json()).tours];
+      } catch (e) {
+        console.warn('[TourLayer] could not fetch draft tours', e);
+      }
     }
     window.TourLayer.init({ tours });
     // A builder was open in this tab before the page reloaded: bring it back with the draft.

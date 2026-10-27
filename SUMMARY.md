@@ -2,7 +2,7 @@
 
 Where the product tour proof of concept stands, how it got here, and what's still open. For how to use it, see the [README](README.md).
 
-**As of October 27, 2026:** extension 0.7.2, 5 tours for DoorLoop, 3 for the demo app, 89 automated checks, all passing.
+**As of October 27, 2026:** extension 0.8.0, 5 live tours and 1 draft for DoorLoop, 3 for the demo app, 94 automated checks, all passing.
 
 ## What it is
 
@@ -43,6 +43,7 @@ Links: [tours](https://shuang-dl.github.io/product-tour-layer/), [demo app](http
   - a progress bar;
   - "reduce motion" support.
 - **Done on the last step always leaves the form.** A show-only last step now says what Done does, and lets people save their own data.
+- **Drafts and approval:** tours can be drafts, seen only by people who turn on Show drafts, and go live once their status is changed to live on GitHub. *Create a request* is the first draft.
 
 ## What real DoorLoop taught us
 
@@ -78,6 +79,8 @@ Each of these was found by running a tour on DoorLoop. The engine and builder pr
 
 ## Still open
 
+- **Approval is a file edit, not a sign-off.** Anyone who can commit to the repo can make a draft live. For a real review step, protect `main` on GitHub so changes need an approved pull request.
+- **Editing a live tour publishes the edits immediately** unless it's switched to Draft first (which hides it until approved again). A separate draft copy of a live tour would avoid that.
 - **driver.js: replace it or keep it.** Most of the fixes above work around it. Replacing it with our own spotlight (the same box-with-a-shadow approach the NPS tour uses) would remove the last outside code. That would settle the "in-house" question, and it's next to discuss.
 - **The builder's Preview isn't the real engine.** It ignores show-only, exit clicks and other engine behaviour. Making it run the real engine would make Preview match the published tour. This is also the likeliest reason Create payment was clickable in one of your runs; in my run on 0.7.0 it stayed blocked.
 - **A single highlighted item doesn't follow a menu that scrolls.** Groups already do.

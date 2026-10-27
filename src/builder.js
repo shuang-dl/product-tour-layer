@@ -128,6 +128,8 @@
     .card.drop-here { box-shadow: -4px 0 0 var(--accent); }
     .story-collapsed .story { display: none; }
     .pop .meta .opt { display: flex; align-items: center; gap: 6px; }
+    .tour-status { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .tour-status select { font: inherit; font-size: 12px; padding: 2px; border-radius: 6px; }
     .auto-start { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; }
     .pop .meta .sample { border-top: 1px solid var(--border); padding-top: 6px; display: grid; gap: 4px; }
     .pop .meta .sample .rec { color: #c62828; font-weight: 600; }
@@ -227,6 +229,7 @@
             <strong class="ws-name"></strong>
             <span class="url"></span>
             ${live ? '' : '<span class="test-on">Test on <span class="seg test-seg"><button data-v="demo" class="on">Demo</button><button data-v="live">Live DoorLoop</button></span></span>'}
+            <label class="tour-status" title="Drafts only show for people with Show drafts on; Live tours show for everyone">Status <select><option value="draft">Draft</option><option value="live">Live</option></select></label>
             <label class="auto-start" title="Open this tour by itself the first time someone visits its start page (once per browser)"><input type="checkbox"> Start by itself once</label>
             <button class="ghost story-btn" title="Show or hide the storyboard">Storyboard ▾</button>
             <button class="ghost preview-btn">▶ Preview</button>
@@ -1059,6 +1062,10 @@
     }
 
     $('.auto-start input').onchange = save;
+    $('.tour-status select').onchange = () => {
+      save();
+      if ($('.tour-status select').value === 'live') toast('Live: once saved to GitHub, everyone with the extension sees this tour. Keep it a draft until it\'s approved.', 6000);
+    };
 
     $('.exit-tool').onclick = () => { $('.exit-panel').hidden = !$('.exit-panel').hidden; renderExit(); };
     $('.exit-pick').onclick = () => {
@@ -1288,6 +1295,7 @@
       const tour = {
         id,
         title: state.name,
+        status: $('.tour-status select').value, // new tours start as drafts; approving one means changing this to live
         page: start,
         // Same field names the tour engine and the build check use.
         style: {
@@ -1392,7 +1400,7 @@
       const flow = state.flow.map(({ els, ...rest }) => rest); // elements can't be saved; targets find them again
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({
         name: state.name, id: state.id, folder: options.folder, flow, style, active: state.active, exitClicks: state.exitClicks,
-        autoStart: $('.auto-start input').checked,
+        autoStart: $('.auto-start input').checked, status: $('.tour-status select').value,
         inputs: Object.fromEntries([...$$('.style-panel input')].map((i) => [i.dataset.var, i.value])),
       }));
     }
@@ -1404,6 +1412,7 @@
       state.exitClicks = saved.exitClicks || [];
       options.folder = saved.folder;
       $('.auto-start input').checked = !!saved.autoStart;
+      $('.tour-status select').value = saved.status || 'draft';
       Object.assign(style, saved.style);
       $$('.style-panel input').forEach((i) => { if (saved.inputs[i.dataset.var] !== undefined) i.value = saved.inputs[i.dataset.var]; });
       $$('.style-panel .seg').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === style[seg.dataset.key])));
@@ -1417,6 +1426,7 @@
       state.flow = [{ type: 'page', path: tour.page }];
       state.exitClicks = tour.exitClicks ? [...tour.exitClicks] : [];
       $('.auto-start input').checked = !!tour.autoStart;
+      $('.tour-status select').value = tour.status === 'draft' ? 'draft' : 'live'; // a published tour with no status is live
       for (const step of tour.steps) {
         if (step.page && step.page !== currentPage()) state.flow.push({ type: 'page', path: step.page });
         state.flow.push({

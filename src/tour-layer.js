@@ -394,7 +394,7 @@
         description: escapeHtml(step.text),
         showButtons: buttons,
         showProgress: true,
-        progressText: `Step ${index + 1} of ${total}`,
+        progressText: `${tour.status === 'draft' ? 'Draft · ' : ''}Step ${index + 1} of ${total}`,
         nextBtnText: index === total - 1 ? 'Done' : 'Next',
         prevBtnText: 'Back',
         onNextClick: () => goTo(tour, index + 1),
@@ -691,9 +691,16 @@
         item('Stop tour', null, () => endTour())
       );
     }
-    if (here.length) {
+    // Drafts only load for people who turned on Show drafts; list them apart so they're never mistaken for live tours.
+    const live = here.filter((t) => t.status !== 'draft');
+    const drafts = here.filter((t) => t.status === 'draft');
+    if (live.length) {
       panel.append(el('div', { className: 'tour-layer-heading', textContent: 'Tours for this page' }));
-      here.forEach((t) => panel.append(item(t.title, t.description, () => goTo(t, 0))));
+      live.forEach((t) => panel.append(item(t.title, t.description, () => goTo(t, 0))));
+    }
+    if (drafts.length) {
+      panel.append(el('div', { className: 'tour-layer-heading', textContent: 'Drafts (not live yet)' }));
+      drafts.forEach((t) => panel.append(item(t.title, t.description, () => goTo(t, 0))));
     }
 
     const toggle = el('button', {
