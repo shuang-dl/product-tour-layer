@@ -1171,6 +1171,8 @@
         wrap?.querySelector('label, legend')?.innerText.replace(/\*/g, '').trim() ||
         field.getAttribute('placeholder') || field.getAttribute('name') || 'this field';
     }
+    // A required field's label ends with "*"; leave it out of the step's words.
+    const plain = (label) => label.replace(/\s*\*\s*$/, '');
     function recordStep(el, { title, text, advanceOn, fill }) {
       const here = app.path();
       if (here) pageCard(here);
@@ -1193,7 +1195,7 @@
           return save();
         }
         const list = option.closest('[role=listbox], [role=menu]') || option.parentElement;
-        if (pendingOpen) recordStep(pendingOpen.el, { title: `Open “${pendingOpen.label}”`, text: `Click ${pendingOpen.label} to see the options.`, advanceOn: 'click' });
+        if (pendingOpen) recordStep(pendingOpen.el, { title: `Open “${plain(pendingOpen.label)}”`, text: `Click ${plain(pendingOpen.label)} to see the options.`, advanceOn: 'click' });
         pendingOpen = null;
         recordStep(pickable(list) || list, { title: 'Pick from the list', text: `Choose one, for example “${text}”.`, advanceOn: 'click' });
         return;
@@ -1212,7 +1214,7 @@
       if (key === lastClick.key && Date.now() - lastClick.at < 1000) return; // a double click
       lastClick = { key, at: Date.now() };
       lastTyped = null;
-      const label = labelFor(el);
+      const label = plain(labelFor(el));
       const tick = el.matches('input[type=checkbox], [role=checkbox], [role=switch]') || !!el.querySelector('input[type=checkbox]');
       recordStep(el, tick
         ? { title: `Tick “${label}”`, text: `Tick ${label} if it applies.`, advanceOn: 'next' }
@@ -1232,7 +1234,7 @@
         lastTyped.at = Date.now();
         return save();
       }
-      const label = fieldLabel(field);
+      const label = plain(fieldLabel(field));
       const step = recordStep(el, { title: `Enter ${label}`, text: `Type ${label}.`, advanceOn: 'next', fill: [{ target, clues: cluesFor(el), value: field.value }] });
       lastTyped = { step, at: Date.now() };
     }

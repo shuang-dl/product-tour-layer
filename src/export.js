@@ -61,7 +61,7 @@
         el('div', { className: 'row' }, [el('button', { textContent: 'Close', onclick: close })]));
       return document.body.append(card);
     }
-    const what = kind === 'gif' ? 'an animated GIF, one frame per step' : 'a video';
+    const what = kind === 'gif' ? 'the GIF (one frame per step)' : 'the video';
     const note = el('p', { className: 'note' });
     card.append(
       el('strong', { textContent: `Export “${tour.title}” as ${kind === 'gif' ? 'a GIF' : 'a video'}` }),
