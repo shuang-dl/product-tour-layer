@@ -44,9 +44,10 @@
     /* layout: demo = full-screen workspace with the demo app framed; live = floating pieces over the real app */
     .demo .backdrop { position: fixed; inset: 0; background: rgba(10, 15, 25, .55); pointer-events: auto; }
     .demo .ws { position: fixed; inset: 12px; background: var(--card); border-radius: 12px; display: grid; grid-template: auto 1fr auto / 56px 1fr; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.35); pointer-events: auto; }
-    .ws-top { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--card); }
+    .ws-top { grid-column: 1 / -1; position: relative; z-index: 7; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--card); }
     .ws-top strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
     .ws-top .url { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); background: var(--bg); border-radius: 6px; padding: 5px 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ws-top > button { white-space: nowrap; }
     .ws-top .test-on { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
     .tools { border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; padding: 8px; background: var(--card); }
     .tool { width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font-size: 16px; display: grid; place-items: center; position: relative; }
@@ -60,7 +61,7 @@
     .frame { display: block; width: 100%; height: 100%; border: 0; border-radius: 8px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
     .story { grid-column: 1 / -1; border-top: 1px solid var(--border); padding: 10px 14px; display: flex; gap: 8px; align-items: stretch; overflow-x: auto; min-height: 112px; background: var(--card); }
 
-    .live .ws-top { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); width: min(980px, calc(100vw - 140px)); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.18); pointer-events: auto; z-index: 3; }
+    .live .ws-top { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); width: min(980px, calc(100vw - 140px)); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.18); pointer-events: auto; z-index: 7; }
     .live .ws-top .badge { font-size: 11px; font-weight: 600; background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 8px; white-space: nowrap; }
     .live .tools { position: fixed; right: 10px; top: 50%; transform: translateY(-50%); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.18); pointer-events: auto; z-index: 3; }
     .live .story { position: fixed; left: 0; right: 0; bottom: 0; box-shadow: 0 -6px 24px rgba(0,0,0,.12); pointer-events: auto; z-index: 3; }
@@ -128,11 +129,14 @@
     .card.drop-here { box-shadow: -4px 0 0 var(--accent); }
     .story-collapsed .story { display: none; }
     .pop .meta .opt { display: flex; align-items: center; gap: 6px; }
-    .export-wrap { position: relative; }
-    .export-menu { position: absolute; top: calc(100% + 4px); right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.15); padding: 4px; display: grid; z-index: 5; white-space: nowrap; }
-    .export-menu[hidden] { display: none; }
-    .export-menu button { background: none; border: 0; text-align: left; padding: 6px 10px; border-radius: 6px; font: inherit; font-size: 13px; color: var(--text); }
-    .export-menu button:hover { background: var(--bg); }
+    .more-wrap { position: relative; }
+    .more-menu { position: absolute; top: calc(100% + 6px); right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.15); padding: 6px; display: grid; gap: 2px; z-index: 5; white-space: nowrap; font-size: 13px; }
+    .more-menu[hidden] { display: none; }
+    .more-menu label { display: flex; align-items: center; gap: 6px; padding: 4px 8px; color: var(--text); }
+    .more-menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; width: 100%; }
+    .more-menu .export-menu { display: grid; }
+    .more-menu button { background: none; border: 0; text-align: left; padding: 6px 8px; border-radius: 6px; font: inherit; color: var(--text); }
+    .more-menu button:hover { background: var(--bg); }
     .record-btn.on { color: #c62828; border-color: #c62828; font-weight: 600; }
     .tour-status { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; }
     .tour-status select { font: inherit; font-size: 12px; padding: 2px; border-radius: 6px; }
@@ -235,13 +239,19 @@
             <strong class="ws-name"></strong>
             <span class="url"></span>
             ${live ? '' : '<span class="test-on">Test on <span class="seg test-seg"><button data-v="demo" class="on">Demo</button><button data-v="live">Live DoorLoop</button></span></span>'}
-            <label class="tour-status" title="Drafts only show for people with Show drafts on; Live tours show for everyone">Status <select><option value="draft">Draft</option><option value="live">Live</option></select></label>
-            <label class="auto-start" title="Open this tour by itself the first time someone visits its start page (once per browser)"><input type="checkbox"> Start by itself once</label>
             <button class="ghost story-btn" title="Show or hide the storyboard">Storyboard ▾</button>
             <button class="ghost record-btn" title="Click through the workflow; each click or typed value becomes a step">● Record tour</button>
             <button class="ghost preview-btn">▶ Preview</button>
-            <span class="export-wrap"><button class="ghost export-btn" title="Record this tour as a video or GIF while you play it">⤓ Export</button><span class="export-menu" hidden><button data-kind="video">Video</button><button data-kind="gif">GIF (a frame per step)</button></span></span>
-            <button class="ghost file-btn">View tour file</button>
+            <button class="ghost save-btn" title="Save this tour to GitHub (sign in from the extension's menu first)">💾 Save tour</button>
+            <span class="more-wrap"><button class="ghost more-btn" title="Status, starting by itself, the tour file, export">⋯ More</button>
+              <span class="more-menu" hidden>
+                <label class="tour-status" title="Drafts only show for people with Show drafts on; Live tours show for everyone">Status <select><option value="draft">Draft</option><option value="live">Live</option></select></label>
+                <label class="auto-start" title="Open this tour by itself the first time someone visits its start page (once per browser)"><input type="checkbox"> Start by itself once</label>
+                <hr>
+                <button class="file-btn">View tour file</button>
+                <span class="export-menu"><button data-kind="video">Export video</button><button data-kind="gif">Export GIF (a frame per step)</button></span>
+              </span>
+            </span>
             <button class="ghost close-btn">Close</button>
           </div>
           <div class="tools">
@@ -1267,13 +1277,51 @@
     };
     let recordStart = 0;
 
+    // ---------- saving to GitHub ----------
+    // On live DoorLoop the extension's background commits the tour file as the signed-in person (extension/
+    // background.js); the GitHub login stays there. A new tour asks before replacing a file with the same name.
+    // The demo builder can't reach the extension, so there it's View tour file → Save to GitHub as before.
+    $('.save-btn').onclick = async () => {
+      if (!steps().length) return toast('Add a step first: there is nothing to save yet.');
+      const extension = live && window.chrome && chrome.runtime && chrome.runtime.id;
+      if (!extension) return toast('Saving straight to GitHub works in the builder on live DoorLoop. Here, use View tour file → Save to GitHub.', 7000);
+      const { tour, changes } = buildTour('publish');
+      const folder = options.folder === 'demo-tours' ? 'demo-tours' : 'tours';
+      const path = `${folder}/${tour.id}.json`;
+      const request = (mode) => chrome.runtime.sendMessage({
+        type: 'tour-layer:github-save', path, mode, content: JSON.stringify(tour, null, 2) + '\n',
+        message: `${state.id ? 'Update' : 'Add'} the "${tour.title}" tour (${tour.status}) from the builder`,
+      });
+      const button = $('.save-btn');
+      button.disabled = true;
+      button.textContent = 'Saving…';
+      try {
+        let result = await request(state.id ? 'replace' : 'create');
+        if (result.exists) {
+          if (!window.confirm(`There's already a tour file ${path} on GitHub. Replace it with this tour?`)) return toast('Not saved. Rename this tour to keep both.');
+          result = await request('replace');
+        }
+        if (result.error === 'signed-out') return toast('Sign in to GitHub first: click the extension icon, then Sign in with GitHub.', 7000);
+        if (result.error) return toast(`Not saved: ${result.error}`, 9000);
+        state.id = tour.id; // later saves update this file
+        save();
+        toast(`Saved ${path} to GitHub (${tour.status}). CI checks it and publishes it in a few minutes.` +
+          (changes.length ? ` For publishing, ${changes.join('; ')}.` : ''), 9000);
+      } catch (e) {
+        toast(`Not saved: ${e.message}`, 9000);
+      } finally {
+        button.disabled = false;
+        button.textContent = '💾 Save tour';
+      }
+    };
+
     // ---------- export (for the tour's creator) ----------
     // Record the tour as a video or GIF while playing it on live DoorLoop (src/export.js). The builder steps aside so
     // it isn't recorded, and comes back with the draft when the file has downloaded or the export is cancelled.
-    $('.export-btn').onclick = () => ($('.export-menu').hidden = !$('.export-menu').hidden);
+    $('.more-btn').onclick = () => ($('.more-menu').hidden = !$('.more-menu').hidden);
     $$('.export-menu button').forEach((b) => (b.onclick = () => exportAs(b.dataset.kind)));
     function exportAs(kind) {
-      $('.export-menu').hidden = true;
+      $('.more-menu').hidden = true;
       if (!steps().length) return toast('Add a step first: there is nothing to record yet.');
       if (!live || !window.TourExport) return toast('Export records the tour on live DoorLoop: build it there (Build on: Live DoorLoop), then export.', 6000);
       const { tour } = buildTour('engine');
@@ -1524,6 +1572,7 @@
       return { tour, changes: [...changes] };
     }
     $('.file-btn').onclick = () => {
+      $('.more-menu').hidden = true;
       const { tour } = buildTour('view');
       const drafts = state.flow.filter((i) => i.draft).length;
       // Only the file goes in the box, so selecting all of it copies a file that's ready to save; notes sit below.

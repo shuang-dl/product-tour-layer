@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.13.1. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.14.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -121,7 +121,7 @@ Add `tours/<id>.json`:
 - **Approving:** **Approve on GitHub** on the tours page opens the draft's file. Change `"status": "draft"` to `"status": "live"` and commit; once published, everyone with the extension sees it.
 - **The builder** saves new tours as drafts. Its **Status** setting in the top bar switches between Draft and Live. Editing a live tour keeps it live, so saving those edits publishes them right away; switch it to Draft first to review changes before they're live (it stops being shown to everyone until approved again).
 
-**Exporting a tour as a video or GIF** (for the tour's creator only). Tours stay tours; an export is a recording of one being played, e.g. for a help article or a message. People taking tours never see it: there's no export link on the tours page and the extension ignores `?export=` links. In the live builder (Build on: Live DoorLoop), go to the tour's start page and use **⤓ Export** in the top bar: **Video** or **GIF**. The builder steps aside and a card appears: click **Start recording**, choose this tab when Chrome asks, then play the tour as usual. When it ends (Done or ×), the file downloads (named after the tour): a video of the whole run (MP4 where Chrome can record it, otherwise WebM, at most 1920×1080), or an animated GIF with one frame per step, 2.5 seconds each, up to 1000 px wide. The card isn't recorded and nothing is clicked for you. Afterwards, or if you cancel, the builder comes back with your draft.
+**Exporting a tour as a video or GIF** (for the tour's creator only). Tours stay tours; an export is a recording of one being played, e.g. for a help article or a message. People taking tours never see it: there's no export link on the tours page and the extension ignores `?export=` links. In the live builder, go to the tour's start page and use **⋯ More → Export video** or **Export GIF**. The builder steps aside and a card appears: click **Start recording**, choose this tab when Chrome asks, then play the tour as usual. When it ends (Done or ×), the file downloads (named after the tour): a video of the whole run (MP4 where Chrome can record it, otherwise WebM, at most 1920×1080), or an animated GIF with one frame per step, 2.5 seconds each, up to 1000 px wide. The card isn't recorded and nothing is clicked for you. Afterwards, or if you cancel, the builder comes back with your draft.
 
 - The GIF encoder is our own (`src/gif.js`, no outside code): each frame gets a palette of its 256 most common colours, which suits app screens.
 - The tour engine announces each step and its end as window events (`tourlayer:step`, `tourlayer:end`); the export listens for them.
@@ -156,6 +156,7 @@ The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-con
 - **New tour:** type a name and click **Build a new tour here**: the builder opens on top of the page you're on.
 - **Edit a tour:** pick a live tour or a draft and click **Open in the builder**: the builder opens with it loaded.
 - **Drafts:** a **Show drafts** switch (reloads the page), the same as the `?drafts=on` / `?drafts=off` links.
+- **GitHub:** **Sign in with GitHub** shows a short code; enter it on GitHub's page once and the menu shows who's signed in, with **Sign out**. Anyone can sign in, but only someone with write access to this repo can save (the menu says so otherwise). See "Saving a tour".
 - Not on DoorLoop, it offers to open DoorLoop. If the page was open before the extension was loaded or updated, it asks you to reload the page.
 
 Only the extension's own menu can send these requests to the page; websites can't.
@@ -167,16 +168,16 @@ Only the extension's own menu can send these requests to the page; websites can'
 - The tour launcher is hidden while building. Closing the builder discards the draft, so copy the tour file first.
 - A new tour needs a name, and starts on `/home` unless you enter another page. Each step needs a title and some text before it saves.
 - **● Record tour** in the top bar records a tour by clicking through it: do the workflow the way people should, then click **Stop recording**. Each click becomes a step that continues when that element is clicked ("Click "Receive payment""); a checkbox becomes a "Tick" step; typing into a field becomes one "Enter …" step with what you typed as its sample data, and a suggestion picked right after goes with it. Picking from a list without typing records a step to open the field and one pointing at the whole list (so it works whatever the list holds). Changing pages adds page cards, and a full page load keeps recording. Clicks on nothing in particular and double clicks are skipped. Afterwards every step is a normal card: click it to rewrite its title and text, add show-only, and so on. What you typed ends up in the tour file, so use made-up data.
-- **Status** in the top bar sets the tour's `status` (new tours start as Draft), and **Start by itself once** sets its `autoStart`.
+- The top bar has **Storyboard**, **● Record tour**, **▶ Preview**, **💾 Save tour** and **Close**; **⋯ More** holds **Status** (the tour's `status`; new tours start as Draft), **Start by itself once** (`autoStart`), **View tour file** and **Export video / GIF**.
 - In **View tour file**, the box holds only the tour file (notes sit below it), and select-all inside the box selects just the file. Copying the whole page instead brings the builder's screen text along, which the build rejects.
 - The builder's **Preview** is a quick stand-in: it doesn't block show-only steps, run exit clicks, or behave exactly like the tour engine. To check those, publish the tour (or use **Test on: Live DoorLoop** from the demo builder) and run it from DoorLoop.
 
-**Saving a tour.** In **View tour file**, **Save to GitHub** publishes it through GitHub's own pages, signed in as you (the builder never holds a GitHub login):
+**Saving a tour.** In the live builder, **💾 Save tour** in the top bar commits the tour file to `tours/<id>.json` on GitHub, as you, with nothing else to do. Sign in first from the extension's menu (**Sign in with GitHub**). Saving again updates the same file; a new tour whose file name already exists asks before replacing it. Once committed, CI checks the file and publishes it to GitHub Pages; the extension picks it up when DoorLoop next loads (Pages can take a few minutes). New tours are drafts until their status is changed to live.
 
-- A new tour opens GitHub's "new file" page as `tours/<id>.json`, already filled in. Check it and click **Commit changes**. Long files (roughly 4 KB and up) don't fit in the link, so the page opens empty: paste the file, which is copied for you.
-- An edited tour opens its existing file's edit page, since GitHub can't fill in an edit: select everything, paste the copied file, and commit. Demo app tours go to `demo-tours/`.
+- **How the sign-in works:** a GitHub App ("DoorLoop Tours") with permission to change files, installed only on this repo, and GitHub's device sign-in (a code entered at github.com/login/device). A sign-in can never do more than the person's own GitHub access, so only contributors with write access can save. The extension's background keeps the login in its own storage and does the saving; it's never handed to DoorLoop's page. Signing out removes it. Anyone using the same Chrome profile while you're signed in can save tours, so sign out on shared computers.
+- **Setting it up (once):** register the GitHub App (Contents: read and write; device flow on; token expiry off; webhook off; installed only on this repo) and put its Client ID in `extension/background.js` (`CLIENT_ID`). Until then, the menu says sign-in isn't set up.
+- **On the demo builder** (no extension there), **⋯ More → View tour file → Save to GitHub** still opens GitHub's own page instead: a new tour opens the "new file" page (filled in when short, otherwise paste the copied file), an edited tour opens its file's edit page, and you commit there.
 - What the tour format can't hold yet is simplified first ("type text" steps use a Next button, text formatting is left out); the builder says which applied. Uploaded images aren't saved with it: put the image online and set the step's `image` to its `https://` address.
-- Once committed, CI checks the file and publishes it to GitHub Pages; the extension picks it up when DoorLoop next loads (Pages can take up to 10 minutes).
 
 **Editing a tour.** In the builder's start popup choose **Edit existing tour**, then pick a published tour (DoorLoop or demo) or paste a tour file, and build on the demo or live DoorLoop. The storyboard fills in with the tour's pages and steps, and its style loads into the Tour style panel.
 
@@ -216,7 +217,7 @@ Only the extension's own menu can send these requests to the page; websites can'
 | `demo-tours/*.json` | tours for the demo app (same format) |
 | `site/demo/` | the demo app |
 | `site/index.html` | links page (lists tours from `tours.json`) |
-| `extension/` | Chrome extension manifest, loader (`content.js`), the icon's menu (`popup.html`, `popup.js`) and icons |
+| `extension/` | Chrome extension manifest, loader (`content.js`), the icon's menu (`popup.html`, `popup.js`), icons, and the background worker (`background.js`: GitHub sign-in and saving) |
 | `vendor/driver.js/` | highlight/popover library (MIT), bundled into the extension |
 | `scripts/build.mjs` | validation + build site, extension and demo app into `dist/` |
 | `scripts/serve.mjs` | serves `dist/` locally the way GitHub Pages does |

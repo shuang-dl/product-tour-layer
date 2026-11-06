@@ -2,6 +2,7 @@
 // Run: npm test   (after node scripts/build.mjs). Set CHROME_PATH to use a specific Chromium binary.
 import { chromium } from 'playwright';
 import { mkdtempSync, readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -346,6 +347,7 @@ try {
   // Drag "Second" onto "First": it moves before it
   await E.locator('.card:has-text("Second")').dragTo(E.locator('.card:has-text("First")'));
   check('edit: dragging reorders steps', JSON.stringify(await cards()) === JSON.stringify(['Second', 'First', 'Inserted']));
+  await E.locator('.more-btn').click();
   await E.locator('.file-btn').click();
   await ed.keyboard.press('ControlOrMeta+a');
   check('file view: select all picks only the tour file', JSON.parse(await ed.evaluate(() => getSelection().toString())).id === 'edit-me');
@@ -528,7 +530,7 @@ try {
     await xp.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
     await opener.close();
     const X = xp.locator('#tour-layer-builder');
-    await X.locator('.export-btn').click();
+    await X.locator('.more-btn').click();
     await X.locator(`.export-menu [data-kind=${kind}]`).click();
     await xp.waitForSelector('.tour-export-card', { timeout: 5000 }).catch(() => {});
     const offered = (await xp.locator('.tour-export-card').count()) === 1 && (await xp.locator('#tour-layer-builder').count()) === 0;
@@ -621,6 +623,108 @@ try {
   await off.close();
   await mt.evaluate(() => localStorage.removeItem('tourLayer.showDrafts'));
   await mt.close();
+
+  // Saving to GitHub from the builder, against a stand-in GitHub (device sign-in, repo access, contents API)
+  const gh = { push: true, polls: 0, files: {}, puts: [] };
+  const fake = createServer((req, res) => {
+    const send = (code, body) => {
+      res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Authorization, Content-Type, Accept', 'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS' });
+      res.end(body === undefined ? '' : JSON.stringify(body));
+    };
+    let raw = '';
+    req.on('data', (c) => (raw += c));
+    req.on('end', () => {
+      const url = new URL(req.url, 'http://x');
+      if (req.method === 'OPTIONS') return send(204);
+      if (url.pathname === '/login/device/code') return send(200, { device_code: 'dc1', user_code: 'TEST-1234', verification_uri: 'https://github.com/login/device', expires_in: 900, interval: 1 });
+      if (url.pathname === '/login/oauth/access_token') return send(200, ++gh.polls < 2 ? { error: 'authorization_pending' } : { access_token: 'tok-1' });
+      if (req.headers.authorization !== 'Bearer tok-1') return send(401, { message: 'Bad credentials' });
+      if (url.pathname === '/user') return send(200, { login: 'tester' });
+      if (url.pathname === '/repos/shuang-dl/product-tour-layer') return send(200, { permissions: { push: gh.push } });
+      const file = url.pathname.replace('/repos/shuang-dl/product-tour-layer/contents/', '');
+      if (req.method === 'GET') return gh.files[file] ? send(200, { sha: gh.files[file] }) : send(404, { message: 'Not Found' });
+      if (req.method === 'PUT') {
+        const body = JSON.parse(raw);
+        gh.puts.push({ file, body });
+        gh.files[file] = `sha-${gh.puts.length}`;
+        return send(gh.files[file] && body.sha ? 200 : 201, { content: { html_url: `https://github.com/x/${file}` }, commit: { html_url: 'https://github.com/x/commit/1' } });
+      }
+      send(404, {});
+    });
+  });
+  await new Promise((r) => fake.listen(0, '127.0.0.1', r));
+  const ghBase = `http://127.0.0.1:${fake.address().port}`;
+  const setup = await ctx.newPage();
+  await setup.goto(`chrome-extension://${extId}/popup.html`);
+  await setup.evaluate((base) => chrome.storage.local.set({ 'tourLayer.githubTest': { web: base, api: base, clientId: 'test-client' } }), ghBase);
+  await setup.close();
+  const sv = await ctx.newPage();
+  await sv.goto('https://acme.app.doorloop.com/save-test');
+  await sv.waitForTimeout(1500);
+  menu = await openMenu('/save-test');
+  check('github: the menu offers Sign in with GitHub', (await menu.textContent('main')).includes('Sign in with GitHub'));
+  await menu.click('text=Sign in with GitHub');
+  await menu.waitForSelector('.code', { timeout: 5000 }).catch(() => {});
+  const shownCode = await menu.textContent('.code').catch(() => null);
+  await menu.waitForFunction(() => document.querySelector('main').textContent.includes('Signed in as tester'), null, { timeout: 15000 }).catch(() => {});
+  check('github: sign in with a code, then the menu shows who is signed in', shownCode === 'TEST-1234' && (await menu.textContent('main')).includes('Signed in as tester. Save tour'));
+  // A new tour from the menu, one step, then Save tour
+  await menu.click('input[type=text]');
+  await menu.keyboard.type('Saved from builder');
+  await menu.click('text=Build a new tour here');
+  if (!menu.isClosed()) await menu.close();
+  await sv.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 10000 }).catch(() => {});
+  const SB = sv.locator('#tour-layer-builder');
+  await SB.locator('.adders .add', { hasText: '+ Step' }).click();
+  await sv.click('[data-cy="Widget-dashboards.thingsToDo"]');
+  await SB.locator('.pop .tb-title').click();
+  await sv.keyboard.type('Things to do');
+  await SB.locator('.pop .tb-text').click();
+  await sv.keyboard.type('Your open tasks.');
+  await SB.locator('.pop [data-save]').click();
+  await SB.locator('.save-btn').click();
+  await sv.waitForFunction(() => document.getElementById('tour-layer-builder').shadowRoot.querySelector('.toast')?.textContent.startsWith('Saved'), null, { timeout: 10000 }).catch(() => {});
+  const first = gh.puts[0];
+  const savedTour = first ? JSON.parse(Buffer.from(first.body.content, 'base64').toString()) : null;
+  check('github: Save tour commits the tour file as a draft, no other steps',
+    first?.file === 'tours/saved-from-builder.json' && !first.body.sha && savedTour?.status === 'draft' && savedTour.steps[0].title === 'Things to do' &&
+    (await SB.locator('.toast').textContent()).startsWith('Saved tours/saved-from-builder.json to GitHub (draft)'), JSON.stringify(first && { file: first.file, sha: first.body.sha, message: first.body.message }));
+  await sv.waitForTimeout(500);
+  await SB.locator('.save-btn').click();
+  await sv.waitForTimeout(1500);
+  check('github: saving again updates the same file', gh.puts.length === 2 && gh.puts[1].file === 'tours/saved-from-builder.json' && gh.puts[1].body.sha === 'sha-1');
+  // A different new tour with the same name: asks before replacing (here: no, so nothing is saved)
+  await sv.evaluate(() => sessionStorage.removeItem('tourLayer.builder'));
+  menu = await openMenu('/save-test');
+  await menu.click('input[type=text]');
+  await menu.keyboard.type('Saved from builder');
+  await menu.click('text=Build a new tour here');
+  if (!menu.isClosed()) await menu.close();
+  await sv.waitForTimeout(800);
+  await SB.locator('.adders .add', { hasText: '+ Step' }).click();
+  await sv.click('[data-cy="Widget-dashboards.thingsToDo"]');
+  await SB.locator('.pop .tb-title').click();
+  await sv.keyboard.type('Another');
+  await SB.locator('.pop .tb-text').click();
+  await sv.keyboard.type('x');
+  await SB.locator('.pop [data-save]').click();
+  let asked = null;
+  sv.once('dialog', (d) => { asked = d.message(); d.dismiss(); });
+  await SB.locator('.save-btn').click();
+  await sv.waitForTimeout(1500);
+  check('github: a new tour asks before replacing a file with the same name', (asked || '').includes('already a tour file tours/saved-from-builder.json') && gh.puts.length === 2, asked);
+  // Someone without write access can sign in, but saving stays off
+  menu = await openMenu('/save-test');
+  await menu.click('text=Sign out');
+  gh.push = false;
+  gh.polls = 0;
+  await menu.click('text=Sign in with GitHub');
+  await menu.waitForFunction(() => document.querySelector('main').textContent.includes('Signed in as tester'), null, { timeout: 15000 }).catch(() => {});
+  check("github: someone without write access is told saving is off", (await menu.textContent('main')).includes("who can't change shuang-dl/product-tour-layer, so saving is off"));
+  if (!menu.isClosed()) await menu.close();
+  await sv.evaluate(() => sessionStorage.removeItem('tourLayer.builder'));
+  await sv.close();
+  fake.close();
 
   // autoStart: opens by itself on its page once; after it ends, this browser doesn't start it again
   const ap = await ctx.newPage();
@@ -749,6 +853,7 @@ try {
   await R.locator('.exit-pick').click();
   await rec.click('[data-cy=mockCancel]');
   check('record: picking an exit click does not press it', (await rec.evaluate(() => document.body.dataset.cancelled)) === undefined);
+  await R.locator('.more-btn').click();
   await R.locator('.auto-start input').check();
   await R.locator('.file-btn').click();
   check('builder: Start by itself once sets autoStart in the tour file', JSON.parse(await R.locator('.file-out').textContent()).autoStart === true);
@@ -818,6 +923,7 @@ try {
   const recCards = await T.locator('.card .t').allInnerTexts();
   check('record tour: clicks, typing and page changes become steps and page cards',
     JSON.stringify(recCards) === JSON.stringify(['/properties/new', 'Click “Single-Family”', 'Enter Street', 'Tick “Federal”', 'Click “Cancel”', '/home', 'Click “Dup A”']), JSON.stringify(recCards));
+  await T.locator('.more-btn').click();
   await T.locator('.file-btn').click();
   const recTour = JSON.parse(await T.locator('.file-out').textContent());
   const street = recTour.steps.find((x) => x.title === 'Enter Street');
