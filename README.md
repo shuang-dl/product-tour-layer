@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.15.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.16.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -161,7 +161,7 @@ The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-con
 
 Only the extension's own menu can send these requests to the page; websites can't.
 
-**Building on live DoorLoop.** Use the extension's menu (above), or in the [builder page](https://shuang-dl.github.io/product-tour-layer/builder-concept.html) choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.8.0 or later) opens the same builder on top of it, in one panel on the right: the tour's controls at the top, then the tools, then the storyboard as a list of steps from top to bottom. **Hide ▸** slides the panel away to see the whole page (for example a drawer that opens on the right); the **Show builder** tab on the right edge brings it back. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
+**Building on live DoorLoop.** Use the extension's menu (above), or in the [builder page](https://shuang-dl.github.io/product-tour-layer/builder-concept.html) choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.8.0 or later) opens the same builder on top of it, in one panel on the right: the tour's controls at the top, then the tools, then the storyboard as a list of steps from top to bottom. **Hide ▸** slides the panel away to see the whole page (for example a drawer that opens on the right); the **Show builder** tab on the right edge brings it back. While the panel is open, DoorLoop is narrowed to end where the panel starts, so the panel sits beside the page instead of covering it; DoorLoop's dialogs, drawers and dropdowns stop at the panel's edge too. (DoorLoop's own layout rules still see the full window width, so a page may come out a little cramped.) **⋯ More → Keep DoorLoop beside the panel** turns this off, and the panel covers the page instead. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
 
 - The builder is `src/builder.js`, shared by the builder page (demo mode, with the demo app in a frame) and the extension (live mode). It draws inside a shadow root so DoorLoop's CSS and the builder's can't affect each other.
 - Pages change through DoorLoop's own links (an in-app page change). Where there's no link, the page loads normally and the builder comes back with the draft, which is kept in `sessionStorage` for that tab.

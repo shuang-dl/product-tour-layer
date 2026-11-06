@@ -369,12 +369,35 @@ try {
   });
   check('live builder: controls, tools and storyboard are one panel on the right, full height',
     Math.round(side.right) === side.vw && side.width === 340 && side.top === 0 && Math.round(side.height) === side.vh, JSON.stringify(side));
+  // Docking: DoorLoop's body ends where the panel starts, and its fixed-position drawers stop there too
+  const docked = () => E.evaluate(() => {
+    const d = document.createElement('div');
+    d.style.cssText = 'position:fixed;top:0;right:0;width:200px;height:50px';
+    document.body.append(d);
+    const out = { body: Math.round(document.body.getBoundingClientRect().right), drawerRight: Math.round(d.getBoundingClientRect().right), vw: innerWidth,
+      builderOutsideBody: document.getElementById('tour-layer-builder').parentElement === document.documentElement };
+    d.remove();
+    return out;
+  });
+  const dk = await docked();
+  check('live builder: DoorLoop and its fixed drawers end where the panel starts',
+    dk.body === dk.vw - 340 && dk.drawerRight === dk.vw - 340 && dk.builderOutsideBody, JSON.stringify(dk));
+  await E.locator('.more-btn').click();
+  await E.locator('.dock-opt input').uncheck();
+  const undockedByOption = await docked();
+  await E.locator('.dock-opt input').check();
+  await E.locator('.more-btn').click();
+  check('live builder: More → Keep DoorLoop beside the panel switches docking off and on',
+    undockedByOption.drawerRight === undockedByOption.vw && undockedByOption.body > undockedByOption.vw - 20 && (await docked()).body === dk.vw - 340, JSON.stringify(undockedByOption));
   await E.locator('.story-btn').click();
   await E.locator('.panel-tab').waitFor({ timeout: 2000 }).catch(() => {});
+  const hiddenDock = await docked();
+  check('live builder: hiding the panel gives DoorLoop the full width back', hiddenDock.body > hiddenDock.vw - 20 && hiddenDock.drawerRight === hiddenDock.vw, JSON.stringify(hiddenDock));
   check('edit: the panel slides away, leaving a tab to bring it back', !(await E.locator('.story').isVisible()) && (await E.locator('.panel-tab').isVisible()));
   await E.locator('.panel-tab').click();
   await E.locator('.story').waitFor({ timeout: 2000 }).catch(() => {});
   check('edit: the tab brings the panel back', (await E.locator('.story').isVisible()) && !(await E.locator('.panel-tab').isVisible()));
+  check('live builder: showing the panel again narrows DoorLoop again', (await docked()).body === dk.vw - 340);
 
   // Sample data: Fill example types and picks, the Finish step can't be used, and ending the tour clicks Cancel.
   const sampleTour = {

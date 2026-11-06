@@ -30,7 +30,7 @@
       --bg: #f6f8fb; --card: #fff; --text: #1a1a1a; --muted: #5b6472; --accent: #1665d8; --border: #e2e7ef;
       --tour-frame: #0b1f44; --tour-band-text: #ffffff; --tour-button: #d8f34a; --tour-button-text: #0b1f44; --tour-body-text: #1b1d21; --tour-body-bg: #ffffff;
       --tour-header-h: 26px; --tour-footer-h: 48px; --tour-side: 3px; --tour-radius: 10px; --tour-title-align: left; --tour-text-align: left;
-      --panel-w: 340px;
+      --panel-w: 340px; /* PANEL_W in the docking code */
       position: fixed; inset: 0; z-index: 2147483000; pointer-events: none;
       font: 14px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; color: var(--text);
     }
@@ -160,6 +160,7 @@
     .record-btn.on { color: #c62828; border-color: #c62828; font-weight: 600; }
     .tour-status { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; }
     .tour-status select { font: inherit; font-size: 12px; padding: 2px; border-radius: 6px; }
+    .dock-opt { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; }
     .auto-start { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; }
     .pop .meta .sample { border-top: 1px solid var(--border); padding-top: 6px; display: grid; gap: 4px; }
     .pop .meta .sample .rec { color: #c62828; font-weight: 600; }
@@ -266,6 +267,7 @@
             <span class="more-wrap"><button class="ghost more-btn" title="Status, starting by itself, the tour file, export">⋯ More</button>
               <span class="more-menu" hidden>
                 <label class="tour-status" title="Drafts only show for people with Show drafts on; Live tours show for everyone">Status <select><option value="draft">Draft</option><option value="live">Live</option></select></label>
+                ${live ? '<label class="dock-opt" title="Narrow DoorLoop so the panel sits beside it instead of covering it"><input type="checkbox"> Keep DoorLoop beside the panel</label>' : ''}
                 <label class="auto-start" title="Open this tour by itself the first time someone visits its start page (once per browser)"><input type="checkbox"> Start by itself once</label>
                 <hr>
                 <button class="file-btn">View tour file</button>
@@ -299,7 +301,8 @@
         </div>
         <div class="toast" role="status" hidden></div>
       </div>`;
-    document.body.append(host);
+    // On live DoorLoop the builder sits outside <body>, so shrinking the body (see dock) doesn't shrink the builder.
+    (live ? document.documentElement : document.body).append(host);
     // Keep the builder's own presses, typing and focus changes from reaching the app. Otherwise an open app
     // dialog sees them as "outside" and pulls focus back to itself or closes.
     for (const type of ['pointerdown', 'mousedown', 'touchstart', 'focusin', 'focusout', 'keydown', 'keyup', 'keypress']) {
@@ -317,6 +320,26 @@
     // While building on DoorLoop, hide the tour launcher so it doesn't get in the way.
     const hideLauncher = live ? Object.assign(document.createElement('style'), { textContent: '.tour-layer-launcher { display: none !important; }' }) : null;
     if (hideLauncher) document.head.append(hideLauncher);
+
+    // Docking: while the panel is open, DoorLoop's <body> is narrowed to end where the panel starts. "contain: layout"
+    // makes the body the box that DoorLoop's fixed-position dialogs, drawers and dropdowns place themselves in, so they
+    // stop at the panel's edge too. DoorLoop's CSS breakpoints still see the real window width. Can be switched off
+    // under More (remembered per browser).
+    const DOCK_KEY = 'tourLayer.dock';
+    const PANEL_W = 340;
+    const dockStyle = live ? Object.assign(document.createElement('style'), { textContent: `
+      html.tour-layer-docked { overflow: hidden !important; }
+      html.tour-layer-docked > body { width: auto !important; margin-right: ${PANEL_W}px !important; height: 100vh !important;
+        overflow: auto !important; contain: layout !important; }` }) : null;
+    if (dockStyle) document.head.append(dockStyle);
+    const dockWanted = () => { try { return localStorage.getItem(DOCK_KEY) !== 'off'; } catch { return true; } };
+    function dock() {
+      if (!live) return;
+      const on = !closed && dockWanted() && !rootEl.classList.contains('story-collapsed');
+      if (document.documentElement.classList.contains('tour-layer-docked') === on) return;
+      document.documentElement.classList.toggle('tour-layer-docked', on);
+      window.dispatchEvent(new Event('resize')); // let DoorLoop re-measure its layout and open menus
+    }
 
     // flow: the storyboard, in order. { type: 'page', path } or { type: 'step', page, draft?, els, target, ... }.
     // active: index of the step being picked or edited; highlighting only works while a step is active.
@@ -1179,6 +1202,14 @@
     }
 
     $('.auto-start input').onchange = save;
+    if (live) {
+      $('.dock-opt input').checked = dockWanted();
+      $('.dock-opt input').onchange = (e) => {
+        try { localStorage.setItem(DOCK_KEY, e.target.checked ? 'on' : 'off'); } catch {}
+        dock();
+        if (shown && pop) placePop();
+      };
+    }
     $('.tour-status select').onchange = () => {
       save();
       if ($('.tour-status select').value === 'live') toast('Live: once saved to GitHub, everyone with the extension sees this tour. Keep it a draft until it\'s approved.', 6000);
@@ -1383,6 +1414,7 @@
     $('.story-btn').onclick = () => {
       const hidden = rootEl.classList.toggle('story-collapsed');
       if (!live) $('.story-btn').textContent = hidden ? 'Storyboard ▴' : 'Storyboard ▾';
+      dock();
       if (shown && pop) placePop();
     };
     if (live) $('.panel-tab').onclick = () => $('.story-btn').click();
@@ -1742,6 +1774,9 @@
       window.removeEventListener('focusout', keepFocus, true);
       if (live) sessionStorage.removeItem(SESSION_KEY);
       hideLauncher?.remove();
+      document.documentElement.classList.remove('tour-layer-docked');
+      dockStyle?.remove();
+      if (live) window.dispatchEvent(new Event('resize'));
       host.remove();
       if (current && current.host === host) current = null;
       options.onClose?.();
@@ -1757,6 +1792,7 @@
     if (state.recordingTour) setRecordingTour(true); // still recording after a page load
     renderStory();
     renderExit();
+    dock();
     showPage(live ? app.path() : currentPage());
     if (live) {
       toast(options.restore ? 'Builder restored. Your draft is still here.' : options.tour ? LOADED : 'Building on live DoorLoop. Click + Step, then click what it should highlight.');
