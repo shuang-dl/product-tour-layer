@@ -1018,6 +1018,37 @@ try {
   check('record tour: a field with no name gets a path, never an empty target',
     wSteps[1]?.target?.endsWith('textarea') && wSteps[1].fill === wSteps[1].target && pathHits === 1, JSON.stringify(wSteps[1]));
   await W.locator('.file-close').click();
+  // Step box placement: beside the highlighted area, never over it; a step's placement is used when it fits
+  await ctx.unroute(TOURS_URL);
+  await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [{
+    id: 'place-test', title: 'Placement', page: '/home', steps: [
+      { target: "[data-cy='Widget-dashboards.thingsToDo']", title: 'Wide', text: 'A wide widget: the box goes below it' },
+      { target: "[data-cy='SideMenu-CreateNewMenu-Button']", title: 'Auto', text: 'A small button: the box goes beside it' },
+      { target: "[data-cy='SideMenu-CreateNewMenu-Button']", placement: 'bottom', title: 'Below', text: 'Chosen: below it' },
+    ],
+  }] }) }));
+  const pl = await ctx.newPage();
+  await pl.goto('https://acme.app.doorloop.com/home?tour=place-test');
+  const boxVsTarget = async (sel) => {
+    await pl.waitForTimeout(700);
+    return pl.evaluate((s) => {
+      const b = document.querySelector('.driver-popover').getBoundingClientRect();
+      const t = document.querySelector(s).getBoundingClientRect();
+      const overlap = b.left < t.right && b.right > t.left && b.top < t.bottom && b.bottom > t.top;
+      const inside = b.left >= 0 && b.top >= 0 && b.right <= innerWidth && b.bottom <= innerHeight;
+      return { overlap, inside, below: b.top >= t.bottom, right: b.left >= t.right, box: [b.left, b.top, b.right, b.bottom].map(Math.round), target: [t.left, t.top, t.right, t.bottom].map(Math.round) };
+    }, sel);
+  };
+  await title(pl);
+  const wide = await boxVsTarget("[data-cy='Widget-dashboards.thingsToDo']");
+  check('placement: the step box sits below a wide area, not over it', !wide.overlap && wide.inside && wide.below, JSON.stringify(wide));
+  await pl.click('.driver-popover-next-btn');
+  const small = await boxVsTarget("[data-cy='SideMenu-CreateNewMenu-Button']");
+  check('placement: auto puts the box beside a small button', !small.overlap && small.inside && small.right, JSON.stringify(small));
+  await pl.click('.driver-popover-next-btn');
+  const chosen = await boxVsTarget("[data-cy='SideMenu-CreateNewMenu-Button']");
+  check("placement: a step's chosen side is used when the box fits there", !chosen.overlap && chosen.inside && chosen.below, JSON.stringify(chosen));
+  await pl.close();
 } finally {
   await ctx.close();
 }

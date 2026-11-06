@@ -9,7 +9,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 
 const TOUR_KEYS = ['id', 'title', 'description', 'status', 'page', 'style', 'autoStart', 'exitClicks', 'steps'];
-const STEP_KEYS = ['target', 'clues', 'title', 'text', 'page', 'advanceOn', 'optional', 'showOnly', 'image', 'fill'];
+const STEP_KEYS = ['target', 'clues', 'title', 'text', 'page', 'advanceOn', 'optional', 'showOnly', 'placement', 'image', 'fill'];
 // The step box style (one per tour). Colours are #rrggbb, sizes are whole pixels in a range, the rest are choices.
 const STYLE_RULES = {
   frame: 'color', bandText: 'color', button: 'color', buttonText: 'color', bodyText: 'color', bodyBg: 'color',
@@ -89,6 +89,7 @@ function validateTour(tour, file) {
       err(`${at}: "image" must be an https URL or a path to a .png, .jpg, .gif, .webp or .svg file`);
     }
     if (step.showOnly !== undefined && typeof step.showOnly !== 'boolean') err(`${at}: "showOnly" must be true or false`);
+    if (step.placement !== undefined && !['auto', 'right', 'left', 'bottom', 'top'].includes(step.placement)) err(`${at}: "placement" must be auto, right, left, bottom or top`);
     if (step.showOnly && step.target === undefined) err(`${at}: "showOnly" needs a "target"`);
     if (step.showOnly && step.advanceOn === 'click') err(`${at}: a "showOnly" step can't advance on a click`);
     // Sample data: { target, value, pick? } types value (then picks the suggestion whose text is pick), { target, click: true } clicks.

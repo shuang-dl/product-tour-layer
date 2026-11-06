@@ -322,26 +322,48 @@
     };
   }
 
-  // driver.js places the step box beside its target, which can run past the window's edge (e.g. on a zoomed-out
-  // page). Nudge it back inside, and hide its arrow then, since it no longer lines up with the target.
+  // The step box goes beside the highlighted area, never over it: the step's "placement" side (right, left,
+  // bottom or top) when the box fits there, otherwise the first side with room (right, bottom, left, top), and
+  // when none has room, the side with the most. It's also kept inside the window. driver.js places the box first;
+  // this moves it (with "translate") and keeps it placed as the page moves. Its arrow is hidden once it's moved.
+  const GAP = 12;
+  const SIDES = ['right', 'bottom', 'left', 'top'];
+  let placing = null; // { anchor, placement } for the step showing
   let screenTimer = null;
-  function keepOnScreen() {
+  function placeBox() {
     const box = document.querySelector('.driver-popover.tour-layer-popover');
     if (!box) return;
-    const r = box.getBoundingClientRect();
-    const m = 8;
-    const dx = r.left < m ? m - r.left : r.right > innerWidth - m ? innerWidth - m - r.right : 0;
-    const dy = r.top < m ? m - r.top : r.bottom > innerHeight - m ? innerHeight - m - r.bottom : 0;
-    if (!dx && !dy) return;
-    // The current nudge, e.g. "12px 4px"; the browser shortens "12px 0px" to "12px".
-    const [x = 0, y = 0] = (box.style.translate || '').split(' ').map((v) => parseFloat(v) || 0);
-    box.style.translate = `${x + dx}px ${y + dy}px`;
-    box.querySelector('.driver-popover-arrow')?.style.setProperty('display', 'none');
+    const [x0 = 0, y0 = 0] = (box.style.translate || '').split(' ').map((v) => parseFloat(v) || 0);
+    const b = box.getBoundingClientRect();
+    const w = b.width, h = b.height, m = 8;
+    let left = b.left, top = b.top;
+    const a = placing && placing.anchor && placing.anchor.isConnected && placing.anchor.getBoundingClientRect();
+    if (a && (a.width || a.height)) {
+      const r = { left: a.left - STAGE_PADDING, top: a.top - STAGE_PADDING, right: a.right + STAGE_PADDING, bottom: a.bottom + STAGE_PADDING };
+      const room = { right: innerWidth - m - r.right - GAP, left: r.left - GAP - m, bottom: innerHeight - m - r.bottom - GAP, top: r.top - GAP - m };
+      const need = (side) => (side === 'left' || side === 'right' ? w : h);
+      const fits = (side) => room[side] >= need(side);
+      const wanted = SIDES.includes(placing.placement) ? placing.placement : null;
+      const side = (wanted && fits(wanted) ? wanted : null) || SIDES.find(fits) ||
+        SIDES.reduce((best, x) => (room[x] / need(x) > room[best] / need(best) ? x : best));
+      const midX = (r.left + r.right - w) / 2, midY = (r.top + r.bottom - h) / 2;
+      if (side === 'right') [left, top] = [r.right + GAP, midY];
+      else if (side === 'left') [left, top] = [r.left - GAP - w, midY];
+      else if (side === 'bottom') [left, top] = [midX, r.bottom + GAP];
+      else [left, top] = [midX, r.top - GAP - h];
+    }
+    left = Math.max(m, Math.min(left, innerWidth - m - w));
+    top = Math.max(m, Math.min(top, innerHeight - m - h));
+    const dx = Math.round(left - (b.left - x0)), dy = Math.round(top - (b.top - y0));
+    if (Math.abs(dx - x0) < 1 && Math.abs(dy - y0) < 1) return;
+    box.style.translate = dx || dy ? `${dx}px ${dy}px` : '';
+    box.querySelector('.driver-popover-arrow')?.style.setProperty('display', dx || dy ? 'none' : '');
   }
 
   function destroyDriver() {
     clearInterval(screenTimer);
     screenTimer = null;
+    placing = null;
     ring?.();
     ring = null;
     group?.remove();
@@ -455,6 +477,7 @@
     driverObj.highlight({
       element: anchor || undefined,
       popover: {
+        ...(SIDES.includes(step.placement) ? { side: step.placement, align: 'center' } : {}),
         title: escapeHtml(step.title),
         description: escapeHtml(step.text),
         showButtons: buttons,
@@ -476,7 +499,9 @@
     if (el) stepDialog = (Array.isArray(el) ? el[0] : el).closest('[role=dialog]') || stepDialog;
     announce('step', { tourId: tour.id, index, total });
     if (anchor) ringOver(anchor, el);
-    screenTimer = setInterval(keepOnScreen, 200);
+    placing = { anchor, placement: step.placement };
+    requestAnimationFrame(() => requestAnimationFrame(placeBox)); // right after driver.js places it
+    screenTimer = setInterval(placeBox, 150);
     if (step.showOnly && el && !canSave) stopBlocking = blockClicks(step.target, step.clues);
     if (canSave) {
       // Saving ends the tour, leaving the form as it is (no exit clicks); the click itself goes on to the app.

@@ -8,7 +8,7 @@ type: note
 
 Where the product tour proof of concept stands, how it got here, and what's still open. For how to use it, see the [README](README.md).
 
-**As of November 6, 2026:** extension 0.17.0, 5 live tours and 2 drafts for DoorLoop, 3 for the demo app, 129 automated checks, all passing.
+**As of November 6, 2026:** extension 0.18.0, 5 live tours and 2 drafts for DoorLoop, 3 for the demo app, 132 automated checks, all passing.
 
 ## What it is
 
@@ -54,6 +54,7 @@ Links: [tours](https://shuang-dl.github.io/product-tour-layer/), [demo app](http
 - **Exporting a tour as a video or GIF** (also from Mimik), for the tour's creator only: from the live builder, record the tour while playing it on DoorLoop; the tour itself stays a tour.
 - **The extension's menu:** clicking its icon on DoorLoop builds a new tour on that page, opens a live tour or a draft in the builder, or switches Show drafts.
 - **The live builder is one right-side panel beside DoorLoop:** controls, tools and the storyboard (as a vertical list) in one place that slides away. DoorLoop's page, dialogs and drawers are narrowed to end at the panel instead of being covered (can be turned off under More).
+- **Step box placement:** the box sits beside the highlighted area instead of covering it, on a side chosen per step (Box position: Auto, right, left, below, above).
 - **Save tour, straight to GitHub:** sign in once from the extension's menu (a GitHub App limited to this repo; only contributors with write access can save), then the builder's Save tour commits the tour file with no other steps.
 - **Drafts and approval:** tours can be drafts, seen only by people who turn on Show drafts, and go live once their status is changed to live on GitHub. *Create a request* is the first draft.
 

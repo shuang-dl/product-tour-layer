@@ -954,22 +954,32 @@
       openEditor(els, item.draft ? null : item);
       renderStory();
     }
-    // Put the step box beside the highlight (or below it), clear of the builder's own bars in live mode.
+    // Put the step box beside the highlight, never over it, like the tour engine does (tour-layer.js placeBox):
+    // the step's Box position when the box fits there, otherwise the first side with room, otherwise the roomiest.
+    // In live mode it keeps clear of the builder's panel.
+    let boxSide = 'auto';
     function placePop() {
       if (!shown || !shown.length) {
         Object.assign(pop.style, { left: (layer.clientWidth - 320) / 2 + 'px', top: Math.max(8, (layer.clientHeight - pop.offsetHeight) / 2) + 'px' });
         return;
       }
-      const r = unionRect(shown);
-      const w = layer.clientWidth;
-      const top0 = 8;
-      const bottom = layer.clientHeight - 8;
-      // keep clear of the builder's panel on the right in live mode
-      const right = live && !rootEl.classList.contains('story-collapsed') ? $('.ws').getBoundingClientRect().left - 10 : w;
-      const beside = r.left + r.width + 340 < right;
-      const left = beside ? r.left + r.width + 14 : Math.max(8, Math.min(r.left, right - 328));
-      const top = beside ? r.top : r.top + r.height + 14;
-      Object.assign(pop.style, { left: left + 'px', top: Math.max(top0, Math.min(top, bottom - pop.offsetHeight)) + 'px' });
+      const a = unionRect(shown);
+      const m = 8, gap = 14, w = pop.offsetWidth || 320, h = pop.offsetHeight;
+      const right = live && !rootEl.classList.contains('story-collapsed') ? $('.ws').getBoundingClientRect().left - 10 : layer.clientWidth;
+      const bottom = layer.clientHeight;
+      const r = { left: a.left, top: a.top, right: a.left + a.width, bottom: a.top + a.height };
+      const room = { right: right - m - r.right - gap, left: r.left - gap - m, bottom: bottom - m - r.bottom - gap, top: r.top - gap - m };
+      const need = (side) => (side === 'left' || side === 'right' ? w : h);
+      const fits = (side) => room[side] >= need(side);
+      const sides = ['right', 'bottom', 'left', 'top'];
+      const side = (sides.includes(boxSide) && fits(boxSide) ? boxSide : null) || sides.find(fits) ||
+        sides.reduce((best, x) => (room[x] / need(x) > room[best] / need(best) ? x : best));
+      const midX = (r.left + r.right - w) / 2, midY = (r.top + r.bottom - h) / 2;
+      let [left, top] = side === 'right' ? [r.right + gap, midY] : side === 'left' ? [r.left - gap - w, midY]
+        : side === 'bottom' ? [midX, r.bottom + gap] : [midX, r.top - gap - h];
+      left = Math.max(m, Math.min(left, right - m - w));
+      top = Math.max(m, Math.min(top, bottom - m - h));
+      Object.assign(pop.style, { left: left + 'px', top: top + 'px' });
     }
 
     // The tour's step box: header band, body (full-width image, title, text), footer band.
@@ -1038,6 +1048,7 @@
         <label>Continue when: <select>${Object.entries(ADVANCE).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label>
         <label class="opt"><input type="checkbox" data-optional> Skip this step if it isn't on screen</label>
         <label class="opt"><input type="checkbox" data-showonly> Show only: it can't be clicked (e.g. Finish)</label>
+        <label>Box position: <select data-placement><option value="auto">Auto (where there's room)</option><option value="right">Right of it</option><option value="left">Left of it</option><option value="bottom">Below it</option><option value="top">Above it</option></select></label>
         <div class="sample">
           <div class="row"><strong>Sample data</strong><button class="link rec" data-record>● Record</button></div>
           <ul class="sample-list"></ul>
@@ -1049,7 +1060,11 @@
 
       const title = () => box.querySelector('.tb-title'); // re-read: changing the title size swaps the element
       const text = box.querySelector('.tb-text');
-      const advance = meta.querySelector('select');
+      const advance = meta.querySelector('select:not([data-placement])');
+      const placement = meta.querySelector('[data-placement]');
+      placement.value = (step && step.placement) || 'auto';
+      placement.onchange = () => { boxSide = placement.value; placePop(); };
+      boxSide = placement.value;
       title().innerHTML = step ? step.titleHtml : '';
       text.innerHTML = step ? step.textHtml : '';
       let image = step ? step.image : null;
@@ -1107,6 +1122,7 @@
           titleHtml: title().innerHTML, textHtml: text.innerHTML, image, advanceOn: advance.value,
           optional: meta.querySelector('[data-optional]').checked,
           showOnly: meta.querySelector('[data-showonly]').checked,
+          placement: placement.value,
           fill: fill.filter((f) => f.click || f.value !== ''),
         };
         if (state.flow[state.active].showOnly && advance.value === 'click') {
@@ -1646,6 +1662,7 @@
             ...(advanceOn !== 'next' ? { advanceOn } : {}),
             ...(s.optional ? { optional: true } : {}),
             ...(s.showOnly ? { showOnly: true } : {}),
+            ...(s.placement && s.placement !== 'auto' ? { placement: s.placement } : {}),
             ...(s.fill && s.fill.length ? { fill: s.fill } : {}),
             ...(!simplify && formatted ? { formattedText: '(formatting kept)' } : {}),
             ...(s.image ? { image: forEngine || !s.image.startsWith('data:') ? s.image : `images/${id}-step-${i + 1}.png` } : {}),
@@ -1757,7 +1774,7 @@
         state.flow.push({
           type: 'step', page: currentPage(), target: step.target, clues: step.clues, label: describe(step.target || 'centred'),
           titleHtml: esc(step.title), textHtml: esc(step.text), image: step.image || null,
-          advanceOn: step.advanceOn || 'next', optional: !!step.optional, showOnly: !!step.showOnly,
+          advanceOn: step.advanceOn || 'next', optional: !!step.optional, showOnly: !!step.showOnly, placement: step.placement || 'auto',
           fill: step.fill ? step.fill.map((f) => ({ ...f })) : [],
         });
       }
