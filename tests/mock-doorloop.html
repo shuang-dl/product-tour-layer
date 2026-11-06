@@ -57,6 +57,18 @@
       leaseField();
       return;
     }
+    // like DoorLoop's Wallet "Transfer funds" drawer: data-testid names, a field named only by <label for>,
+    // a field with no name at all, a checkbox named by its label, and a "Close transfer funds" button
+    if (location.pathname === '/wallet') {
+      main.innerHTML = '<div data-testid="WalletMovement" style="width:360px;padding:20px">' +
+        '<button aria-label="Close transfer funds" data-slot="drawer-close-button">×</button>' +
+        '<label for="wallet-movement-amount">Amount *</label><input id="wallet-movement-amount" placeholder="0.00">' +
+        '<div><textarea style="width:300px"></textarea></div>' +
+        '<button role="checkbox" id="radix-r30" data-testid="WalletMovement-Authorize" style="width:16px;height:16px"></button>' +
+        '<label for="radix-r30">I authorize this withdrawal from the selected wallet.</label>' +
+        '<button data-testid="WalletMovement-Submit">Withdraw</button></div>';
+      return;
+    }
     if (location.pathname === '/properties/new') {
       main.innerHTML = '<div data-cy="mockStreet" style="padding:4px;width:260px"><input aria-label="Street" aria-autocomplete="list" style="width:100%"></div>' +
         '<div data-cy="mockCity" style="width:260px"><input aria-label="City" style="width:100%"></div>' +

@@ -599,7 +599,7 @@
   // Leave the form without saving: the tour's exit clicks; if it has none, or one isn't there, the close button (×) of
   // the dialog the sample data went into (or else the one the tour was in). Then, if the app asks "Discard your
   // changes?", discard.
-  const CLOSE_BUTTON = "[data-slot$='dialog-close'], button[aria-label='Close' i]";
+  const CLOSE_BUTTON = "[data-slot$='dialog-close'], [data-slot$='-close-button'], button[aria-label='Close' i], button[aria-label^='Close ' i]";
   const DISCARD = /^(discard|leave|close without saving|don't save|yes, discard)\b/i;
   async function leaveForm(tour) {
     const dialog = [sampleDialog, stepDialog].find((d) => d && d.isConnected);

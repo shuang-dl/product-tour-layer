@@ -36,10 +36,7 @@
     },
     {
       "page": "/wallets",
-      "target": {
-        "text": "Transfer funds",
-        "selector": "button"
-      },
+      "target": "[data-testid='WalletsList-TransferFunds']",
       "clues": {
         "tag": "button",
         "text": "Transfer funds",
@@ -51,10 +48,7 @@
     },
     {
       "page": "/wallets",
-      "target": {
-        "text": "",
-        "selector": "input"
-      },
+      "target": "input#wallet-movement-amount",
       "clues": {
         "tag": "input",
         "placeholder": "0.00",
@@ -64,10 +58,7 @@
       "text": "Type Amount.",
       "fill": [
         {
-          "target": {
-            "text": "",
-            "selector": "input"
-          },
+          "target": "input#wallet-movement-amount",
           "clues": {
             "tag": "input",
             "placeholder": "0.00",
@@ -79,22 +70,16 @@
     },
     {
       "page": "/wallets",
-      "target": {
-        "text": "",
-        "selector": "textarea"
-      },
+      "target": "[data-testid='WalletMovement-Memo']",
       "clues": {
         "tag": "textarea",
         "role": "textarea"
       },
-      "title": "Enter this field",
-      "text": "Type this field.",
+      "title": "Add a memo",
+      "text": "Add a short note about this transfer (up to 80 characters).",
       "fill": [
         {
-          "target": {
-            "text": "",
-            "selector": "textarea"
-          },
+          "target": "[data-testid='WalletMovement-Memo']",
           "clues": {
             "tag": "textarea",
             "role": "textarea"
@@ -105,23 +90,17 @@
     },
     {
       "page": "/wallets",
-      "target": {
-        "text": "",
-        "selector": "button"
-      },
+      "target": "[data-testid='WalletMovement-Authorize']",
       "clues": {
         "tag": "button",
         "role": "checkbox"
       },
-      "title": "Tick “button”",
-      "text": "Tick button if it applies."
+      "title": "Authorize the withdrawal",
+      "text": "Tick “I authorize this withdrawal from the selected wallet.”"
     },
     {
       "page": "/wallets",
-      "target": {
-        "text": "Withdraw",
-        "selector": "button"
-      },
+      "target": "[data-testid='WalletMovement-Submit']",
       "clues": {
         "tag": "button",
         "text": "Withdraw",

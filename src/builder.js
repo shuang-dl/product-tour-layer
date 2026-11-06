@@ -6,8 +6,8 @@
   'use strict';
   if (window.TourBuilder) return;
 
-  const PICKABLE = '[data-cy], [data-intercom-target], [data-item-id], [aria-label], [role=tab], button, a, input, tr, h1';
-  const LABELLED = '[data-cy], [data-intercom-target], [data-item-id], [data-section-value]';
+  const PICKABLE = '[data-cy], [data-testid], [data-intercom-target], [data-item-id], [aria-label], [role=tab], [role=checkbox], [role=switch], button, a, input, textarea, tr, h1';
+  const LABELLED = '[data-cy], [data-testid], [data-intercom-target], [data-item-id], [data-section-value]';
   const REPO = 'https://github.com/shuang-dl/product-tour-layer'; // where tours are published from
   const ADVANCE = { next: 'Next button', click: 'Click the element', type: 'Type text' };
   const SESSION_KEY = 'tourLayer.builder'; // live mode: the draft survives page reloads
@@ -513,7 +513,11 @@
       Object.assign(div.style, { left: r.left - pad + 'px', top: r.top - pad + 'px', width: r.width + pad * 2 + 'px', height: r.height + pad * 2 + 'px' });
     }
     function labelFor(el) {
-      return el.getAttribute('aria-label') || el.innerText.trim().split('\n')[0].slice(0, 28) || el.tagName.toLowerCase();
+      const own = el.getAttribute('aria-label') || el.innerText.trim().split('\n')[0].slice(0, 28);
+      if (own) return own;
+      // A checkbox or field with no text of its own: its <label> (e.g. "I authorize this withdrawal ...")
+      const label = (el.id && el.ownerDocument.querySelector(`label[for='${window.CSS.escape(el.id)}']`)) || el.closest('label') || el.labels?.[0];
+      return label?.innerText.trim().split('\n')[0].slice(0, 60) || el.getAttribute('placeholder') || el.tagName.toLowerCase();
     }
     // Same preference order as the README: data-cy, data-intercom-target, other stable data labels, aria-label,
     // a form field's name, then visible text.
@@ -521,13 +525,30 @@
       const tag = el.tagName.toLowerCase();
       const out = [];
       if (el.dataset.cy) out.push(`[data-cy='${el.dataset.cy}']`);
+      if (el.dataset.testid) out.push(`[data-testid='${el.dataset.testid}']`);
       if (el.dataset.intercomTarget) out.push(`[data-intercom-target='${el.dataset.intercomTarget}']`);
       if (el.dataset.itemId) out.push(`[data-item-id='${el.dataset.itemId}']`);
       if (el.dataset.sectionValue) out.push(`${tag}[data-section-value='${el.dataset.sectionValue}']`);
       const aria = el.getAttribute('aria-label');
       if (aria && !/^DLUI_/.test(aria)) out.push(`${tag}[aria-label='${aria}']`);
       if (el.getAttribute('name')) out.push(`${tag}[name='${el.getAttribute('name')}']`);
+      // A hand-written id (not a generated one like "radix-:r30:" or ":r35:")
+      if (el.id && /^[a-z][a-z0-9_-]*$/i.test(el.id) && !/\d{3,}/.test(el.id)) out.push(`${tag}#${el.id}`);
+      if (el.getAttribute('placeholder')) out.push(`${tag}[placeholder='${el.getAttribute('placeholder')}']`);
       return out;
+    }
+    // Last resort for an element with no label or text: a short path from the nearest labelled element around it
+    // (or from <body>), e.g. "[data-testid='WalletMovement'] > div:nth-of-type(2) > textarea". Saved with clues.
+    function pathFor(el) {
+      const parts = [];
+      for (let node = el; node && node !== node.ownerDocument.body; node = node.parentElement) {
+        const anchor = node !== el && selectorsFor(node).find((sel) => findsIt(sel, node));
+        if (anchor) return [anchor, ...parts].join(' > ');
+        const tag = node.tagName.toLowerCase();
+        const same = node.parentElement ? [...node.parentElement.children].filter((c) => c.tagName === node.tagName) : [];
+        parts.unshift(same.length > 1 ? `${tag}:nth-of-type(${same.indexOf(node) + 1})` : tag);
+      }
+      return ['body', ...parts].join(' > ');
     }
     // The tour engine uses the match people can see (inside every scrolling area around it), else the first match on
     // the page, so a label shared by several elements only works for that one.
@@ -558,7 +579,8 @@
         const sel = selectorsFor(inner).find((x) => findsIt(x, inner));
         if (sel) return sel;
       }
-      return { text: el.innerText.trim().split('\n')[0], selector: el.tagName.toLowerCase() };
+      const text = el.innerText.trim().split('\n')[0];
+      return text ? { text, selector: el.tagName.toLowerCase() } : pathFor(el); // never "the element with no text"
     }
     // Clues about an element, saved with its target so the tour engine can still find it if the target stops matching
     // (e.g. a DoorLoop release renames a data-cy): its tag, first line of text, aria-label, name, placeholder, role
@@ -1126,7 +1148,7 @@
     // keep or remove. If the app then asks "Discard your changes?", the tour engine answers it.
     function suggestExit(els) {
       const dialog = els.map((e) => e.closest('[role=dialog]')).find(Boolean);
-      const close = dialog && [...dialog.querySelectorAll("[data-slot$='dialog-close'], button[aria-label='Close' i]")].find(isShown);
+      const close = dialog && [...dialog.querySelectorAll("[data-slot$='dialog-close'], [data-slot$='-close-button'], button[aria-label='Close' i], button[aria-label^='Close ' i]")].find(isShown);
       if (!close) return toast('This step has sample data. Use ⎋ in the toolbox to pick what to click when the tour ends (e.g. Cancel), so it isn\'t saved.', 6000);
       state.exitClicks.push(targetFor(close));
       $('.exit-panel').hidden = false;
@@ -1184,6 +1206,7 @@
     function fieldLabel(field) {
       const wrap = pickable(field);
       return field.getAttribute('aria-label') || field.labels?.[0]?.innerText.trim() ||
+        (field.id && field.ownerDocument.querySelector(`label[for='${window.CSS.escape(field.id)}']`)?.innerText.trim()) ||
         wrap?.querySelector('label, legend')?.innerText.replace(/\*/g, '').trim() ||
         field.getAttribute('placeholder') || field.getAttribute('name') || 'this field';
     }

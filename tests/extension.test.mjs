@@ -942,6 +942,36 @@ try {
   const pickCards = (await D.locator('.card:not(.page-card) .t').allInnerTexts()).slice(-2);
   check('record tour: a pick from a list without typing opens the field, then points at the whole list',
     JSON.stringify(pickCards) === JSON.stringify(['Open “Lease”', 'Pick from the list']), JSON.stringify(pickCards));
+  // Recording on a page named with data-testid and <label for> (like DoorLoop's Wallet): no step without a target
+  const site6 = await ctx.newPage();
+  await site6.goto('https://shuang-dl.github.io/product-tour-layer/builder-concept.html');
+  await site6.click('#create');
+  await site6.fill('#tourName', 'Wallet recorded');
+  await site6.fill('#tourUrl', '/wallet');
+  await site6.check('input[value=live]');
+  const wtP = ctx.waitForEvent('page');
+  await site6.click('#openBtn');
+  const wt = await wtP;
+  await wt.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
+  const W = wt.locator('#tour-layer-builder');
+  await W.locator('.record-btn').click();
+  await wt.click('#wallet-movement-amount');
+  await wt.keyboard.type('1000');
+  await wt.click('textarea');
+  await wt.keyboard.type('Transfer to bank');
+  await wt.click('[data-testid=WalletMovement-Authorize]');
+  await W.locator('.record-btn').click();
+  await W.locator('.more-btn').click();
+  await W.locator('.file-btn').click();
+  const wTour = JSON.parse(await W.locator('.file-out').textContent());
+  const wSteps = wTour.steps.map((x) => ({ title: x.title, target: x.target, fill: x.fill?.[0]?.target }));
+  check('record tour: data-testid, <label for> and stable ids name the steps',
+    wSteps[0]?.title === 'Enter Amount' && wSteps[0].target === 'input#wallet-movement-amount' && wSteps[0].fill === 'input#wallet-movement-amount' &&
+    wSteps[2]?.title === 'Tick “I authorize this withdrawal from the selected wallet.”' && wSteps[2].target === "[data-testid='WalletMovement-Authorize']", JSON.stringify(wSteps));
+  const pathHits = typeof wSteps[1]?.target === 'string' ? await wt.locator(wSteps[1].target).count() : 0;
+  check('record tour: a field with no name gets a path, never an empty target',
+    wSteps[1]?.target?.endsWith('textarea') && wSteps[1].fill === wSteps[1].target && pathHits === 1, JSON.stringify(wSteps[1]));
+  await W.locator('.file-close').click();
 } finally {
   await ctx.close();
 }
