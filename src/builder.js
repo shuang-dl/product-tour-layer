@@ -128,6 +128,11 @@
     .card.drop-here { box-shadow: -4px 0 0 var(--accent); }
     .story-collapsed .story { display: none; }
     .pop .meta .opt { display: flex; align-items: center; gap: 6px; }
+    .export-wrap { position: relative; }
+    .export-menu { position: absolute; top: calc(100% + 4px); right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.15); padding: 4px; display: grid; z-index: 5; white-space: nowrap; }
+    .export-menu[hidden] { display: none; }
+    .export-menu button { background: none; border: 0; text-align: left; padding: 6px 10px; border-radius: 6px; font: inherit; font-size: 13px; color: var(--text); }
+    .export-menu button:hover { background: var(--bg); }
     .record-btn.on { color: #c62828; border-color: #c62828; font-weight: 600; }
     .tour-status { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; }
     .tour-status select { font: inherit; font-size: 12px; padding: 2px; border-radius: 6px; }
@@ -235,6 +240,7 @@
             <button class="ghost story-btn" title="Show or hide the storyboard">Storyboard ▾</button>
             <button class="ghost record-btn" title="Click through the workflow; each click or typed value becomes a step">● Record tour</button>
             <button class="ghost preview-btn">▶ Preview</button>
+            <span class="export-wrap"><button class="ghost export-btn" title="Record this tour as a video or GIF while you play it">⤓ Export</button><span class="export-menu" hidden><button data-kind="video">Video</button><button data-kind="gif">GIF (a frame per step)</button></span></span>
             <button class="ghost file-btn">View tour file</button>
             <button class="ghost close-btn">Close</button>
           </div>
@@ -1260,6 +1266,24 @@
       }
     };
     let recordStart = 0;
+
+    // ---------- export (for the tour's creator) ----------
+    // Record the tour as a video or GIF while playing it on live DoorLoop (src/export.js). The builder steps aside so
+    // it isn't recorded, and comes back with the draft when the file has downloaded or the export is cancelled.
+    $('.export-btn').onclick = () => ($('.export-menu').hidden = !$('.export-menu').hidden);
+    $$('.export-menu button').forEach((b) => (b.onclick = () => exportAs(b.dataset.kind)));
+    function exportAs(kind) {
+      $('.export-menu').hidden = true;
+      if (!steps().length) return toast('Add a step first: there is nothing to record yet.');
+      if (!live || !window.TourExport) return toast('Export records the tour on live DoorLoop: build it there (Build on: Live DoorLoop), then export.', 6000);
+      const { tour } = buildTour('engine');
+      if (!matches(tour.page, app.path())) return toast(`Go to the tour's start page first (${tour.page}): click the Start page card, then Export.`, 6000);
+      clearSelection();
+      save();
+      const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY));
+      close(true);
+      window.TourExport.offer(tour, kind, () => open({ mode: 'live', restore: saved }));
+    }
 
     // ---------- storyboard ----------
     let dragFrom = null;

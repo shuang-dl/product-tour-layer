@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.11.3. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.12.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -120,7 +120,7 @@ Add `tours/<id>.json`:
 - **Approving:** **Approve on GitHub** on the tours page opens the draft's file. Change `"status": "draft"` to `"status": "live"` and commit; once published, everyone with the extension sees it.
 - **The builder** saves new tours as drafts. Its **Status** setting in the top bar switches between Draft and Live. Editing a live tour keeps it live, so saving those edits publishes them right away; switch it to Draft first to review changes before they're live (it stops being shown to everyone until approved again).
 
-**Exporting a tour as a video or GIF.** Tours stay tours; an export is a recording of one being played, e.g. for a help article or a message. On the tours page each DoorLoop tour (live or draft) has **Export video** and **Export GIF**. The link opens DoorLoop with a card: click **Start recording** and choose this tab when Chrome asks, then play the tour as usual. When it ends (Done or ×), the file downloads: a video of the whole run (MP4 where Chrome can record it, otherwise WebM, at most 1920×1080), or an animated GIF with one frame per step, 2.5 seconds each, up to 1000 px wide. The card hides while recording, so it isn't in the file, and nothing is clicked for you.
+**Exporting a tour as a video or GIF** (for the tour's creator only). Tours stay tours; an export is a recording of one being played, e.g. for a help article or a message. People taking tours never see it: there's no export link on the tours page and the extension ignores `?export=` links. In the live builder (Build on: Live DoorLoop), go to the tour's start page and use **⤓ Export** in the top bar: **Video** or **GIF**. The builder steps aside and a card appears: click **Start recording**, choose this tab when Chrome asks, then play the tour as usual. When it ends (Done or ×), the file downloads (named after the tour): a video of the whole run (MP4 where Chrome can record it, otherwise WebM, at most 1920×1080), or an animated GIF with one frame per step, 2.5 seconds each, up to 1000 px wide. The card isn't recorded and nothing is clicked for you. Afterwards, or if you cancel, the builder comes back with your draft.
 
 - The GIF encoder is our own (`src/gif.js`, no outside code): each frame gets a palette of its 256 most common colours, which suits app screens.
 - The tour engine announces each step and its end as window events (`tourlayer:step`, `tourlayer:end`); the export listens for them.

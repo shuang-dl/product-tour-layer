@@ -503,16 +503,35 @@ try {
   check('gif: encodes a GIF that Chromium decodes, with the right colours', gif.loaded && gif.w === 300 && gif.head === 'GIF89a' && near(gif.left, [220, 30, 30]) && near(gif.right, [30, 60, 220]), JSON.stringify(gif));
   await gp.close();
 
-  // Exporting a tour: ?export= offers to record; after Start and playing the tour, the file downloads
+  // Exporting a tour is for its creator only.
+  // The creator exports from the live builder: Export → Video or GIF, Start recording, play the tour, file downloads,
+  // and the builder comes back with the draft
   const exportTour = { id: 'export-test', title: 'Export me', page: '/home', steps: [
     { title: 'First', text: 'x' }, { target: "[data-cy='Widget-dashboards.thingsToDo']", title: 'Second', text: 'y' }] };
   await ctx.unroute(TOURS_URL);
   await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [dropTour, dupTour, leaveTour, leaveTour2, autoTour, doneTour, exportTour] }) }));
+  // A ?export= link does nothing special for someone taking the tour
+  const tk = await ctx.newPage();
+  await tk.goto('https://acme.app.doorloop.com/home?tour=export-test&export=gif');
+  check('export: people taking a tour are never offered an export', (await title(tk)) === 'First' && (await tk.locator('.tour-export-card').count()) === 0);
+  await tk.close();
+  const exportSender = `<!doctype html><script>
+    const tab = window.open('https://acme.app.doorloop.com/home', 'dlx');
+    setInterval(() => tab.postMessage({ type: 'tour-layer:build', id: 'x1', name: 'Export me', page: '/home', tour: ${JSON.stringify(exportTour)} }, '*'), 300);
+  </script>`;
+  await ctx.route('https://shuang-dl.github.io/product-tour-layer/test-build-export.html', (r) => r.fulfill({ contentType: 'text/html', body: exportSender }));
   for (const kind of ['gif', 'video']) {
-    const xp = await ctx.newPage();
-    await xp.goto(`https://acme.app.doorloop.com/home?tour=export-test&export=${kind}`);
-    await xp.waitForSelector('.tour-export-card', { timeout: 15000 }).catch(() => {});
-    const offered = (await xp.locator('.tour-export-card').count()) === 1 && (await xp.locator('.driver-popover').count()) === 0;
+    const opener = await ctx.newPage();
+    const xpP = ctx.waitForEvent('page');
+    await opener.goto('https://shuang-dl.github.io/product-tour-layer/test-build-export.html');
+    const xp = await xpP;
+    await xp.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
+    await opener.close();
+    const X = xp.locator('#tour-layer-builder');
+    await X.locator('.export-btn').click();
+    await X.locator(`.export-menu [data-kind=${kind}]`).click();
+    await xp.waitForSelector('.tour-export-card', { timeout: 5000 }).catch(() => {});
+    const offered = (await xp.locator('.tour-export-card').count()) === 1 && (await xp.locator('#tour-layer-builder').count()) === 0;
     await xp.click('.tour-export-card .go');
     await xp.waitForTimeout(1500);
     const why = await xp.evaluate(() => document.querySelector('.tour-export-card .note')?.textContent || '');
@@ -529,9 +548,11 @@ try {
     const bytes = file ? readFileSync(await file.path()) : Buffer.alloc(0);
     if (kind === 'gif') {
       const frames = bytes.length ? bytes.toString('latin1').split('\x21\xf9\x04').length - 1 : 0;
-      check('export gif: offers to record, then downloads a GIF with a frame per step', offered && file?.suggestedFilename() === 'export-test.gif' && bytes.toString('latin1', 0, 6) === 'GIF89a' && frames === 2, `${file?.suggestedFilename()} frames=${frames}`);
+      check('export gif: the builder offers to record, then a GIF with a frame per step downloads', offered && file?.suggestedFilename() === 'export-test.gif' && bytes.toString('latin1', 0, 6) === 'GIF89a' && frames === 2, `${file?.suggestedFilename()} frames=${frames}`);
+      await xp.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 5000 }).catch(() => {});
+      check('export: the builder comes back with the draft afterwards', (await xp.locator('#tour-layer-builder .card:not(.page-card)').count()) === 2);
     } else {
-      check('export video: offers to record, then downloads a video of the run', offered && /^export-test\.(mp4|webm)$/.test(file?.suggestedFilename() || '') && bytes.length > 1000, `${file?.suggestedFilename()} ${bytes.length} bytes`);
+      check('export video: the builder offers to record, then a video of the run downloads', offered && /^export-test\.(mp4|webm)$/.test(file?.suggestedFilename() || '') && bytes.length > 1000, `${file?.suggestedFilename()} ${bytes.length} bytes`);
       // ... and the video actually plays: load it into a <video> and decode a frame
       const vp = await ctx.newPage();
       await vp.setContent('<!doctype html><video muted></video>');

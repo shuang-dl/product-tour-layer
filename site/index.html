@@ -28,7 +28,6 @@
     .draft strong { display: block; }
     .draft span { color: var(--muted); font-size: 14px; display: block; }
     .draft .acts { margin-top: 8px; font-size: 14px; display: flex; gap: 16px; }
-    .exports { font-size: 13px; color: var(--muted); margin: 6px 0 0 4px; display: flex; gap: 14px; }
     .badge { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; margin-left: 6px; vertical-align: middle; }
     code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 14px; }
   </style>
@@ -64,18 +63,7 @@
     <p><a href="builder-concept.html">Tour builder concept</a>: a clickable draft of building tours visually, by pointing at elements or drawing boxes, with a storyboard of steps.</p>
   </main>
   <script>
-    // Export a tour on DoorLoop as a video or GIF: the extension offers to record while it's played.
-    const exportLinks = (t, extra = '') => {
-      const box = Object.assign(document.createElement('div'), { className: 'exports' });
-      for (const [kind, label] of [['video', 'Export video'], ['gif', 'Export GIF']]) {
-        box.append(Object.assign(document.createElement('a'), {
-          textContent: label, target: '_blank', rel: 'noopener',
-          href: `https://app.doorloop.com${t.page}?tour=${encodeURIComponent(t.id)}&export=${kind}${extra}`,
-        }));
-      }
-      return box;
-    };
-    function showTours(listId, url, hrefFor, newTab, withExports) {
+    function showTours(listId, url, hrefFor, newTab) {
       const list = document.getElementById(listId);
       fetch(url, { cache: 'no-store' })
         .then((r) => r.json())
@@ -95,16 +83,13 @@
             const desc = document.createElement('span');
             desc.textContent = t.description || '';
             a.append(go, title, desc);
-            if (!withExports) return a;
-            const wrap = document.createElement('div');
-            wrap.append(a, exportLinks(t));
-            return wrap;
+            return a;
           }));
         })
         .catch(() => { list.textContent = `Could not load ${url}.`; });
     }
     showTours('demoTours', 'demo/tours.json', (t) => `demo${t.page}?tour=${encodeURIComponent(t.id)}`, false);
-    showTours('tours', 'tours.json', (t) => `https://app.doorloop.com${t.page}?tour=${encodeURIComponent(t.id)}`, true, true);
+    showTours('tours', 'tours.json', (t) => `https://app.doorloop.com${t.page}?tour=${encodeURIComponent(t.id)}`, true);
     // Drafts: try one on DoorLoop (turns on Show drafts there), or open its file on GitHub to approve it.
     fetch('drafts.json', { cache: 'no-store' })
       .then((r) => r.json())
@@ -121,7 +106,7 @@
             link(`Try on DoorLoop (${t.steps.length} steps) →`, `https://app.doorloop.com${t.page}?tour=${encodeURIComponent(t.id)}&drafts=on`),
             link('Approve on GitHub', `https://github.com/shuang-dl/product-tour-layer/edit/main/tours/${encodeURIComponent(t.id)}.json`)
           );
-          card.append(title, Object.assign(document.createElement('span'), { textContent: t.description || '' }), acts, exportLinks(t, '&drafts=on'));
+          card.append(title, Object.assign(document.createElement('span'), { textContent: t.description || '' }), acts);
           return card;
         }));
       })

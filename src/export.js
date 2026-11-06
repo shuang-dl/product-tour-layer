@@ -1,7 +1,8 @@
-// Export a tour as a video or an animated GIF, recorded while someone plays it on DoorLoop.
-// The tours page links to a tour with ?export=video or ?export=gif. A card offers Start recording (sharing a tab
-// needs a click); then the person plays the tour as usual, and when it ends (Done or ×) the file downloads.
-// A video records the whole run; a GIF gets one frame per step. Nothing is clicked for them.
+// Export a tour as a video or an animated GIF, recorded while its creator plays it on DoorLoop. Only the tour
+// builder offers this (its Export button); people taking tours never see it.
+// TourExport.offer(tour, kind, onDone): a card offers Start recording (sharing a tab needs a click); then the tour
+// runs as a draft, the creator plays it as usual, and when it ends (Done or ×) the file downloads. A video records
+// the whole run; a GIF gets one frame per step. Nothing is clicked for them. onDone runs when it's over or cancelled.
 (function () {
   'use strict';
   if (window.TourExport) return;
@@ -33,8 +34,7 @@
   }
 
   // kind: 'video' or 'gif'
-  function offer(tourId, kind) {
-    const tour = window.TourLayer.tours.find((t) => t.id === tourId);
+  function offer(tour, kind, onDone = () => {}) {
     const card = el('div', { className: 'tour-export-card', role: 'dialog' });
     const style = el('style', {
       textContent: `
@@ -49,15 +49,14 @@
       .tour-export-card button.go { background: #d8f34a; color: #0b1f44; border-color: #d8f34a; font-weight: 600; }`,
     });
     document.head.append(style);
-    const close = () => {
+    const remove = () => {
       card.remove();
       style.remove();
     };
-    if (!tour) {
-      card.append(el('strong', { textContent: 'Tour not found' }), el('p', { textContent: `There's no tour "${tourId}" here.` }),
-        el('div', { className: 'row' }, [el('button', { textContent: 'Close', onclick: close })]));
-      return document.body.append(card);
-    }
+    const close = () => {
+      remove();
+      onDone();
+    };
     if (kind === 'video' && !videoType()) {
       card.append(el('strong', { textContent: "Video recording isn't available" }), el('p', { textContent: "This browser can't record video. Try the GIF export." }),
         el('div', { className: 'row' }, [el('button', { textContent: 'Close', onclick: close })]));
@@ -71,13 +70,13 @@
       note,
       el('div', { className: 'row' }, [
         el('button', { textContent: 'Cancel', onclick: close }),
-        el('button', { className: 'go', textContent: 'Start recording', onclick: () => start(tour, kind, close, note) }),
+        el('button', { className: 'go', textContent: 'Start recording', onclick: () => start(tour, kind, remove, note, onDone) }),
       ])
     );
     document.body.append(card);
   }
 
-  async function start(tour, kind, close, note) {
+  async function start(tour, kind, close, note, onDone) {
     let stream;
     try {
       stream = await navigator.mediaDevices.getDisplayMedia({
@@ -102,14 +101,15 @@
       removeEventListener('tourlayer:end', onEnd);
       const blob = await recording.stop();
       stream.getTracks().forEach((t) => t.stop());
-      if (blob) download(blob, `${tour.id}.${recording.ext}`);
+      if (blob) download(blob, `${tour.id.replace(/^draft-/, '')}.${recording.ext}`);
+      onDone();
     };
     const onStep = (e) => e.detail.tourId === tour.id && recording.step && recording.step(e.detail.index);
     const onEnd = (e) => e.detail.tourId === tour.id && setTimeout(finish, kind === 'video' ? 600 : 0);
     addEventListener('tourlayer:step', onStep);
     addEventListener('tourlayer:end', onEnd);
     stream.getVideoTracks()[0].addEventListener('ended', finish); // "Stop sharing" in Chrome's bar
-    window.TourLayer.start(tour.id);
+    window.TourLayer.run(tour);
   }
 
   // The tab's picture changes size while recording (e.g. Chrome shows its "sharing this tab" bar right after the
