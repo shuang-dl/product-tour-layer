@@ -35,7 +35,10 @@ function render(tab, info) {
   const name = el('input', { type: 'text', placeholder: 'Tour name, e.g. Add a new property' });
   const build = el('button', { textContent: 'Build a new tour here', disabled: true });
   name.oninput = () => (build.disabled = !name.value.trim());
-  name.onkeydown = (e) => e.key === 'Enter' && !build.disabled && build.click();
+  // A block body: an on* handler that returns false cancels the key, so nothing could be typed.
+  name.onkeydown = (e) => {
+    if (e.key === 'Enter' && !build.disabled) build.click();
+  };
   build.onclick = async () => {
     await ask(tab, { type: 'tour-layer:menu-new', name: name.value.trim() });
     window.close();

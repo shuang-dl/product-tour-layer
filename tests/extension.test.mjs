@@ -590,7 +590,9 @@ try {
   const groups = await menu.evaluate(() => [...document.querySelectorAll('optgroup')].map((g) => g.label + ': ' + [...g.children].map((o) => o.textContent).join(', ')));
   check('menu: shows the page and lists live tours and drafts apart', (await menu.textContent('main')).includes('On /menu-test') &&
     groups.some((g) => g.startsWith('Live: ')) && groups.some((g) => g === 'Drafts: Not live yet (/drafty)'), JSON.stringify(groups));
-  await menu.fill('input[type=text]', 'Made from the menu');
+  await menu.click('input[type=text]');
+  await menu.keyboard.type('Made from the menu'); // typed, not filled: a cancelled keypress once threw every key away
+  check('menu: the tour name can be typed', (await menu.inputValue('input[type=text]')) === 'Made from the menu');
   await menu.click('text=Build a new tour here');
   await mt.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 10000 }).catch(() => {});
   check('menu: New tour opens the builder on that page', (await mt.locator('#tour-layer-builder .ws-name').textContent().catch(() => null)) === 'Made from the menu');

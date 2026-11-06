@@ -1461,7 +1461,9 @@
         selBox.onclick = go;
       } else if (s.advanceOn === 'type') {
         const input = Object.assign(document.createElement('input'), { className: 'tb-typed', placeholder: 'Type here, then press Enter' });
-        input.onkeydown = (e) => e.key === 'Enter' && input.value.trim() && go();
+        input.onkeydown = (e) => {
+          if (e.key === 'Enter' && input.value.trim()) go(); // not returned: false from an on* handler cancels the key
+        };
         box.querySelector('.tb-pad').append(input);
       }
       layer.append(pop);
