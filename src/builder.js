@@ -330,7 +330,7 @@
     const dockStyle = live ? Object.assign(document.createElement('style'), { textContent: `
       html.tour-layer-docked { overflow: hidden !important; }
       html.tour-layer-docked > body { width: auto !important; margin-right: ${PANEL_W}px !important; height: 100vh !important;
-        overflow: auto !important; contain: layout !important; }` }) : null;
+        overflow-x: hidden !important; overflow-y: auto !important; contain: layout !important; }` }) : null;
     if (dockStyle) document.head.append(dockStyle);
     const dockWanted = () => { try { return localStorage.getItem(DOCK_KEY) !== 'off'; } catch { return true; } };
     function dock() {
@@ -340,6 +340,12 @@
       document.documentElement.classList.toggle('tour-layer-docked', on);
       window.dispatchEvent(new Event('resize')); // let DoorLoop re-measure its layout and open menus
     }
+    // A drawer sliding in from the right starts past the body's edge; focusing it would scroll the body sideways and
+    // shift the whole page (seen with the Wallet's Transfer funds). While docked, the body never scrolls sideways.
+    const noSidewaysScroll = () => {
+      if (document.documentElement.classList.contains('tour-layer-docked') && document.body.scrollLeft) document.body.scrollLeft = 0;
+    };
+    if (live) document.addEventListener('scroll', noSidewaysScroll, true);
 
     // flow: the storyboard, in order. { type: 'page', path } or { type: 'step', page, draft?, els, target, ... }.
     // active: index of the step being picked or edited; highlighting only works while a step is active.
@@ -1776,6 +1782,7 @@
       hideLauncher?.remove();
       document.documentElement.classList.remove('tour-layer-docked');
       dockStyle?.remove();
+      document.removeEventListener('scroll', noSidewaysScroll, true);
       if (live) window.dispatchEvent(new Event('resize'));
       host.remove();
       if (current && current.host === host) current = null;

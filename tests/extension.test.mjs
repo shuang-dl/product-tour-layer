@@ -382,6 +382,19 @@ try {
   const dk = await docked();
   check('live builder: DoorLoop and its fixed drawers end where the panel starts',
     dk.body === dk.vw - 340 && dk.drawerRight === dk.vw - 340 && dk.builderOutsideBody, JSON.stringify(dk));
+  // A drawer that starts past the right edge and takes focus (like the Wallet's Transfer funds) mustn't shift the page
+  const shifted = await E.evaluate(async () => {
+    const d = document.createElement('div');
+    d.style.cssText = 'position:fixed;top:0;right:-400px;width:400px;height:200px';
+    d.innerHTML = '<input id="drawerField">';
+    document.body.append(d);
+    document.getElementById('drawerField').focus();
+    await new Promise((r) => setTimeout(r, 100));
+    const left = document.body.scrollLeft;
+    d.remove();
+    return left;
+  });
+  check('live builder: a drawer opening past the edge does not scroll DoorLoop sideways', shifted === 0, String(shifted));
   await E.locator('.more-btn').click();
   await E.locator('.dock-opt input').uncheck();
   const undockedByOption = await docked();
