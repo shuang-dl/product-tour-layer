@@ -1,0 +1,77 @@
+{
+  "id": "wallet-wire-transfers",
+  "title": "Wallet wire transfers",
+  "status": "draft",
+  "page": "/home",
+  "style": {
+    "frame": "#0b1f44",
+    "bandText": "#ffffff",
+    "button": "#d8f34a",
+    "buttonText": "#0b1f44",
+    "bodyText": "#1b1d21",
+    "bodyBg": "#ffffff",
+    "headerHeight": 26,
+    "footerHeight": 48,
+    "sideBorder": 3,
+    "corners": 10,
+    "titleSize": "h2",
+    "titleAlign": "left",
+    "textAlign": "left"
+  },
+  "steps": [
+    {
+      "target": {
+        "text": "DoorLoop Wallet",
+        "selector": "a"
+      },
+      "clues": {
+        "tag": "a",
+        "text": "DoorLoop Wallet",
+        "role": "a",
+        "href": "/wallets"
+      },
+      "title": "Click “DoorLoop Wallet”",
+      "text": "Click DoorLoop Wallet.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/wallets",
+      "target": "button[aria-label='Row actions']",
+      "clues": {
+        "tag": "button",
+        "aria": "Row actions",
+        "role": "button"
+      },
+      "title": "Click “Row actions”",
+      "text": "Click Row actions.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/wallets",
+      "target": {
+        "text": "Wire transfer details",
+        "selector": "button"
+      },
+      "clues": {
+        "tag": "button",
+        "text": "Wire transfer details",
+        "role": "menuitem"
+      },
+      "title": "Click “Wire transfer details”",
+      "text": "Click Wire transfer details.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/wallets",
+      "target": "[data-testid='WalletWireDetails-Ready']",
+      "clues": {
+        "tag": "div",
+        "text": "DoorLoop Wallet - KBM2025 LLC",
+        "role": "div"
+      },
+      "title": "Account Information",
+      "text": "Find your Routing and Account number here that you will use with your bank to initiate a wire transfer into your DoorLoop Wallet account.",
+      "showOnly": true
+    }
+  ]
+}
