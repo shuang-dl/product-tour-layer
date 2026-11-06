@@ -1,8 +1,25 @@
 {
   "manifest_version": 3,
   "name": "DoorLoop Product Tours",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Guided product tours on top of DoorLoop. Internal proof of concept.",
+  "icons": {
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
+  "action": {
+    "default_title": "DoorLoop Tours",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon-16.png",
+      "32": "icon-32.png"
+    }
+  },
+  "host_permissions": [
+    "https://*.app.doorloop.com/*"
+  ],
   "content_scripts": [
     {
       "matches": [

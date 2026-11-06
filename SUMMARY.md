@@ -8,7 +8,7 @@ type: note
 
 Where the product tour proof of concept stands, how it got here, and what's still open. For how to use it, see the [README](README.md).
 
-**As of November 6, 2026:** extension 0.12.0, 5 live tours and 1 draft for DoorLoop, 3 for the demo app, 107 automated checks, all passing.
+**As of November 6, 2026:** extension 0.13.0, 5 live tours and 1 draft for DoorLoop, 3 for the demo app, 113 automated checks, all passing.
 
 ## What it is
 
@@ -52,6 +52,7 @@ Links: [tours](https://shuang-dl.github.io/product-tour-layer/), [demo app](http
 - **Finding elements by clues** (November 6, an idea from Mimik): steps keep clues about their element, so a step still finds it when a DoorLoop release renames its label.
 - **Recording a tour by clicking through it** (also from Mimik): every click and filled-in field becomes a step with draft text to edit afterwards.
 - **Exporting a tour as a video or GIF** (also from Mimik), for the tour's creator only: from the live builder, record the tour while playing it on DoorLoop; the tour itself stays a tour.
+- **The extension's menu:** clicking its icon on DoorLoop builds a new tour on that page, opens a live tour or a draft in the builder, or switches Show drafts.
 - **Drafts and approval:** tours can be drafts, seen only by people who turn on Show drafts, and go live once their status is changed to live on GitHub. *Create a request* is the first draft.
 
 ## What real DoorLoop taught us

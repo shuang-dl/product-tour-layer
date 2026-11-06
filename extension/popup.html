@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>DoorLoop Tours</title>
+  <style>
+    :root { --bg: #fff; --card: #f6f8fb; --text: #1b1d21; --muted: #5b6472; --border: #e2e7ef; --navy: #0b1f44; --lime: #d8f34a; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #11151c; --card: #1a2029; --text: #e8ecf2; --muted: #9aa4b2; --border: #2a323e; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; width: 320px; background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, -apple-system, sans-serif; }
+    header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--navy); color: #fff; }
+    header img { width: 20px; height: 20px; }
+    header strong { font-size: 14px; }
+    main { padding: 12px 14px 14px; display: grid; gap: 12px; }
+    section { display: grid; gap: 6px; }
+    h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+    p { margin: 0; color: var(--muted); }
+    code { font-size: 12px; }
+    input[type=text], select { width: 100%; font: inherit; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); }
+    button { font: inherit; font-weight: 600; border: 0; border-radius: 6px; padding: 7px 12px; cursor: pointer; background: var(--navy); color: #fff; }
+    @media (prefers-color-scheme: dark) { button { background: var(--lime); color: var(--navy); } }
+    button:disabled { opacity: .5; cursor: default; }
+    label.switch { display: flex; align-items: center; gap: 8px; color: var(--text); }
+    .note { background: var(--card); border-radius: 6px; padding: 6px 8px; }
+  </style>
+</head>
+<body>
+  <header><img src="icon-32.png" alt=""><strong>DoorLoop Tours</strong></header>
+  <main id="main"><p>Loading…</p></main>
+  <script src="popup.js"></script>
+</body>
+</html>

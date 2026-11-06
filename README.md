@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.12.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.13.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -51,6 +51,7 @@ links page ──click──▶ app.doorloop.com/tenants?tour=tenants-list
 1. Download [doorloop-tours-extension.zip](https://shuang-dl.github.io/product-tour-layer/doorloop-tours-extension.zip) and unzip it (or run `node scripts/build.mjs` and use `dist/extension/`).
 2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and select the folder.
 3. Log in to DoorLoop, then click a tour on the [links page](https://shuang-dl.github.io/product-tour-layer/). Or open any page that has tours and use the **Tours** button in the bottom-right corner.
+4. To build or edit tours, click the extension's icon (pin it in Chrome's toolbar to keep it handy). See "The extension's menu" below.
 
 Tours included:
 
@@ -150,7 +151,16 @@ Add `tours/<id>.json`:
 
 The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html)'s Tour style panel (◐) sets these visually, and "View tour file" writes them in this format.
 
-**Building on live DoorLoop.** In the [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html), choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.8.0 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
+**The extension's menu.** The extension is an internal tool, and its icon (a lime spotlight on navy) opens a menu on any DoorLoop page:
+
+- **New tour:** type a name and click **Build a new tour here**: the builder opens on top of the page you're on.
+- **Edit a tour:** pick a live tour or a draft and click **Open in the builder**: the builder opens with it loaded.
+- **Drafts:** a **Show drafts** switch (reloads the page), the same as the `?drafts=on` / `?drafts=off` links.
+- Not on DoorLoop, it offers to open DoorLoop. If the page was open before the extension was loaded or updated, it asks you to reload the page.
+
+Only the extension's own menu can send these requests to the page; websites can't.
+
+**Building on live DoorLoop.** Use the extension's menu (above), or in the [builder page](https://shuang-dl.github.io/product-tour-layer/builder-concept.html) choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.8.0 or later) opens the same builder on top of it: a top bar, a toolbox on the right and the storyboard along the bottom. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
 
 - The builder is `src/builder.js`, shared by the builder page (demo mode, with the demo app in a frame) and the extension (live mode). It draws inside a shadow root so DoorLoop's CSS and the builder's can't affect each other.
 - Pages change through DoorLoop's own links (an in-app page change). Where there's no link, the page loads normally and the builder comes back with the draft, which is kept in `sessionStorage` for that tab.
@@ -206,7 +216,7 @@ The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-con
 | `demo-tours/*.json` | tours for the demo app (same format) |
 | `site/demo/` | the demo app |
 | `site/index.html` | links page (lists tours from `tours.json`) |
-| `extension/` | Chrome extension manifest and loader (`content.js`) |
+| `extension/` | Chrome extension manifest, loader (`content.js`), the icon's menu (`popup.html`, `popup.js`) and icons |
 | `vendor/driver.js/` | highlight/popover library (MIT), bundled into the extension |
 | `scripts/build.mjs` | validation + build site, extension and demo app into `dist/` |
 | `scripts/serve.mjs` | serves `dist/` locally the way GitHub Pages does |

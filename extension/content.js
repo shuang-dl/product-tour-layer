@@ -5,8 +5,8 @@
   'use strict';
   const TOURS_URL = 'https://shuang-dl.github.io/product-tour-layer/tours.json';
   const DRAFTS_URL = 'https://shuang-dl.github.io/product-tour-layer/drafts.json';
-  // Draft tours only load for people who turned on Show drafts: a ?drafts=on link (from the tours page) turns it on
-  // in this browser, ?drafts=off turns it off.
+  // Draft tours only load for people who turned on Show drafts: the extension's menu has a switch, and a ?drafts=on
+  // link (from the tours page) turns it on in this browser, ?drafts=off turns it off.
   const DRAFTS_KEY = 'tourLayer.showDrafts';
   const params = new URLSearchParams(location.search);
   if (params.has('drafts')) {
@@ -27,6 +27,7 @@
   // localhost:4173 is `npm run serve`, for trying the builder locally.
   const BUILDER_ORIGINS = ['https://shuang-dl.github.io', 'http://localhost:4173'];
 
+  let published = []; // live tours, for the extension's menu
   const ready = (async () => {
     let tours;
     try {
@@ -36,6 +37,7 @@
       console.warn('[TourLayer] could not fetch published tours, using the bundled copy', e);
       tours = window.TOUR_LAYER_BUNDLED.tours;
     }
+    published = tours;
     if (showDrafts) {
       try {
         const res = await fetch(DRAFTS_URL, { cache: 'no-store' });
@@ -49,6 +51,44 @@
     const saved = window.TourBuilder.savedSession();
     if (saved) window.TourBuilder.open({ mode: 'live', restore: saved });
   })();
+
+  // The extension's menu (popup.js) asks what's here, opens the builder, or switches Show drafts. Only the
+  // extension's own pages can send these; web pages can't.
+  async function fetchDrafts() {
+    try {
+      return (await (await fetch(DRAFTS_URL, { cache: 'no-store' })).json()).tours;
+    } catch {
+      return [];
+    }
+  }
+  const forMenu = (t, status) => ({ id: t.id, title: t.title, page: t.page, status });
+  chrome.runtime.onMessage.addListener((msg, sender, reply) => {
+    if (!msg || typeof msg.type !== 'string' || !msg.type.startsWith('tour-layer:menu-')) return;
+    (async () => {
+      await ready;
+      if (msg.type === 'tour-layer:menu-info') {
+        const drafts = await fetchDrafts();
+        return {
+          path: location.pathname, showDrafts, building: !!document.getElementById('tour-layer-builder'),
+          tours: [...published.map((t) => forMenu(t, 'live')), ...drafts.map((t) => forMenu(t, 'draft'))],
+        };
+      }
+      if (msg.type === 'tour-layer:menu-new') {
+        window.TourBuilder.open({ mode: 'live', name: String(msg.name || 'New tour'), startPath: location.pathname, folder: 'tours' });
+      } else if (msg.type === 'tour-layer:menu-edit') {
+        const tour = published.find((t) => t.id === msg.id) || (await fetchDrafts()).find((t) => t.id === msg.id);
+        if (tour) window.TourBuilder.open({ mode: 'live', name: tour.title || tour.id, startPath: location.pathname, tour, folder: 'tours' });
+      } else if (msg.type === 'tour-layer:menu-drafts') {
+        try {
+          if (msg.on) localStorage.setItem(DRAFTS_KEY, '1');
+          else localStorage.removeItem(DRAFTS_KEY);
+        } catch {}
+        setTimeout(() => location.reload(), 50); // drafts load with the page
+      }
+      return { ok: true };
+    })().then(reply);
+    return true; // replying asynchronously
+  });
 
   // The builder page keeps sending until it hears back, so act on each message only once.
   const seen = new Set();

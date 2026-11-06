@@ -569,6 +569,57 @@ try {
     await xp.close();
   }
 
+  // The extension's menu (its icon), opened as a page and pointed at a DoorLoop tab: new tour, edit a tour, Show drafts
+  const mgr = await ctx.newPage();
+  await mgr.goto('chrome://extensions');
+  const extId = await mgr.evaluate(() => document.querySelector('extensions-manager').shadowRoot
+    .querySelector('extensions-item-list').shadowRoot.querySelector('extensions-item').id);
+  await mgr.close();
+  const mt = await ctx.newPage();
+  await mt.goto('https://acme.app.doorloop.com/menu-test');
+  await mt.waitForTimeout(2000);
+  const openMenu = async (path) => {
+    const m = await ctx.newPage();
+    await m.goto(`chrome-extension://${extId}/popup.html`);
+    const id = await m.evaluate(async (p) => (await chrome.tabs.query({ url: `https://acme.app.doorloop.com${p}*` }))[0]?.id, path);
+    await m.goto(`chrome-extension://${extId}/popup.html?tab=${id}`);
+    await m.waitForSelector('main section, main button', { timeout: 10000 }).catch(() => {});
+    return m;
+  };
+  let menu = await openMenu('/menu-test');
+  const groups = await menu.evaluate(() => [...document.querySelectorAll('optgroup')].map((g) => g.label + ': ' + [...g.children].map((o) => o.textContent).join(', ')));
+  check('menu: shows the page and lists live tours and drafts apart', (await menu.textContent('main')).includes('On /menu-test') &&
+    groups.some((g) => g.startsWith('Live: ')) && groups.some((g) => g === 'Drafts: Not live yet (/drafty)'), JSON.stringify(groups));
+  await menu.fill('input[type=text]', 'Made from the menu');
+  await menu.click('text=Build a new tour here');
+  await mt.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 10000 }).catch(() => {});
+  check('menu: New tour opens the builder on that page', (await mt.locator('#tour-layer-builder .ws-name').textContent().catch(() => null)) === 'Made from the menu');
+  if (!menu.isClosed()) await menu.close();
+  menu = await openMenu('/menu-test');
+  check('menu: says when the builder is already open', (await menu.textContent('main')).includes('The builder is open on this page'));
+  await menu.selectOption('select', 'draft-test');
+  await menu.click('text=Open in the builder');
+  await mt.waitForTimeout(1000);
+  check('menu: Edit opens a draft in the builder', (await mt.locator('#tour-layer-builder .ws-name').textContent().catch(() => null)) === 'Not live yet' &&
+    (await mt.locator('#tour-layer-builder .card:not(.page-card)').count()) === 1);
+  if (!menu.isClosed()) await menu.close();
+  await mt.evaluate(() => sessionStorage.removeItem('tourLayer.builder')); // so the builder doesn't come back after the reload
+  menu = await openMenu('/menu-test');
+  const reloaded = mt.waitForEvent('load', { timeout: 10000 }).catch(() => null);
+  await menu.click('input[type=checkbox]').catch(() => {}); // the menu closes itself
+  await reloaded;
+  check('menu: the Show drafts switch turns drafts on (and reloads the page)', (await mt.evaluate(() => localStorage.getItem('tourLayer.showDrafts'))) === '1');
+  if (!menu.isClosed()) await menu.close();
+  const off = await ctx.newPage();
+  await off.goto(`chrome-extension://${extId}/popup.html`);
+  const offId = await off.evaluate(async () => (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id);
+  await off.goto(`chrome-extension://${extId}/popup.html?tab=${offId}`);
+  await off.waitForTimeout(500);
+  check('menu: off DoorLoop it offers to open DoorLoop', (await off.textContent('main')).includes('Open DoorLoop to build or edit tours'));
+  await off.close();
+  await mt.evaluate(() => localStorage.removeItem('tourLayer.showDrafts'));
+  await mt.close();
+
   // autoStart: opens by itself on its page once; after it ends, this browser doesn't start it again
   const ap = await ctx.newPage();
   await ap.goto('https://acme.app.doorloop.com/welcome');

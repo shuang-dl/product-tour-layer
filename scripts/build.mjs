@@ -176,6 +176,12 @@ const ext = join(dist, 'extension');
 await mkdir(ext);
 const extFiles = {
   'manifest.json': 'extension/manifest.json',
+  'popup.html': 'extension/popup.html',
+  'popup.js': 'extension/popup.js',
+  'icon-16.png': 'extension/icon-16.png',
+  'icon-32.png': 'extension/icon-32.png',
+  'icon-48.png': 'extension/icon-48.png',
+  'icon-128.png': 'extension/icon-128.png',
   'content.js': 'extension/content.js',
   'tour-layer.js': 'src/tour-layer.js',
   'builder.js': 'src/builder.js',
