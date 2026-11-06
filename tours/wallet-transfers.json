@@ -1,0 +1,135 @@
+{
+  "id": "wallet-transfers",
+  "title": "Wallet Transfers",
+  "status": "draft",
+  "page": "/home",
+  "style": {
+    "frame": "#0b1f44",
+    "bandText": "#ffffff",
+    "button": "#d8f34a",
+    "buttonText": "#0b1f44",
+    "bodyText": "#1b1d21",
+    "bodyBg": "#ffffff",
+    "headerHeight": 26,
+    "footerHeight": 48,
+    "sideBorder": 3,
+    "corners": 10,
+    "titleSize": "h2",
+    "titleAlign": "left",
+    "textAlign": "left"
+  },
+  "steps": [
+    {
+      "target": {
+        "text": "DoorLoop Wallet",
+        "selector": "a"
+      },
+      "clues": {
+        "tag": "a",
+        "text": "DoorLoop Wallet",
+        "role": "a",
+        "href": "/wallets"
+      },
+      "title": "Click “DoorLoop Wallet”",
+      "text": "Click DoorLoop Wallet.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/wallets",
+      "target": {
+        "text": "Transfer funds",
+        "selector": "button"
+      },
+      "clues": {
+        "tag": "button",
+        "text": "Transfer funds",
+        "role": "button"
+      },
+      "title": "Click “Transfer funds”",
+      "text": "Click Transfer funds.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/wallets",
+      "target": {
+        "text": "",
+        "selector": "input"
+      },
+      "clues": {
+        "tag": "input",
+        "placeholder": "0.00",
+        "role": "input"
+      },
+      "title": "Enter Amount",
+      "text": "Type Amount.",
+      "fill": [
+        {
+          "target": {
+            "text": "",
+            "selector": "input"
+          },
+          "clues": {
+            "tag": "input",
+            "placeholder": "0.00",
+            "role": "input"
+          },
+          "value": "1000"
+        }
+      ]
+    },
+    {
+      "page": "/wallets",
+      "target": {
+        "text": "",
+        "selector": "textarea"
+      },
+      "clues": {
+        "tag": "textarea",
+        "role": "textarea"
+      },
+      "title": "Enter this field",
+      "text": "Type this field.",
+      "fill": [
+        {
+          "target": {
+            "text": "",
+            "selector": "textarea"
+          },
+          "clues": {
+            "tag": "textarea",
+            "role": "textarea"
+          },
+          "value": "Transfer to bank"
+        }
+      ]
+    },
+    {
+      "page": "/wallets",
+      "target": {
+        "text": "",
+        "selector": "button"
+      },
+      "clues": {
+        "tag": "button",
+        "role": "checkbox"
+      },
+      "title": "Tick “button”",
+      "text": "Tick button if it applies."
+    },
+    {
+      "page": "/wallets",
+      "target": {
+        "text": "Withdraw",
+        "selector": "button"
+      },
+      "clues": {
+        "tag": "button",
+        "text": "Withdraw",
+        "role": "button"
+      },
+      "title": "Click Withdraw when ready.",
+      "text": "Withdraw to finish",
+      "showOnly": true
+    }
+  ]
+}
