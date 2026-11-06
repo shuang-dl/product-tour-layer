@@ -25,8 +25,10 @@
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
+  // Let Chrome pick the H.264 profile and level for the size it records: forcing one meant for small videos
+  // (avc1.42E01E, up to about 720x576) made full-window recordings unplayable.
   function videoType() {
-    const types = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+    const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
     return types.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
   }
 
@@ -79,7 +81,8 @@
     let stream;
     try {
       stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { displaySurface: 'browser', frameRate: 30 },
+        // At most 1080p: big enough to read, and keeps files small (a Retina window is close to 3000 px wide).
+        video: { displaySurface: 'browser', frameRate: 30, width: { max: 1920 }, height: { max: 1080 } },
         audio: false,
         preferCurrentTab: true,
         selfBrowserSurface: 'include',

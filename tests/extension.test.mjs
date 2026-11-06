@@ -530,6 +530,18 @@ try {
       check('export gif: offers to record, then downloads a GIF with a frame per step', offered && file?.suggestedFilename() === 'export-test.gif' && bytes.toString('latin1', 0, 6) === 'GIF89a' && frames === 2, `${file?.suggestedFilename()} frames=${frames}`);
     } else {
       check('export video: offers to record, then downloads a video of the run', offered && /^export-test\.(mp4|webm)$/.test(file?.suggestedFilename() || '') && bytes.length > 1000, `${file?.suggestedFilename()} ${bytes.length} bytes`);
+      // ... and the video actually plays: load it into a <video> and decode a frame
+      const vp = await ctx.newPage();
+      await vp.setContent('<!doctype html><video muted></video>');
+      const played = await vp.evaluate(async ({ b64, type }) => {
+        const v = document.querySelector('video');
+        v.src = URL.createObjectURL(new Blob([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], { type }));
+        await v.play().catch(() => {});
+        await new Promise((r) => setTimeout(r, 1500));
+        return { time: v.currentTime, w: v.videoWidth, error: v.error && v.error.message };
+      }, { b64: bytes.toString('base64'), type: file?.suggestedFilename().endsWith('.mp4') ? 'video/mp4' : 'video/webm' });
+      check('export video: the downloaded video plays', !played.error && played.w > 0 && played.time > 0.5, JSON.stringify(played));
+      await vp.close();
     }
     await xp.close();
   }
