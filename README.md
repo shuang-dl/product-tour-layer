@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.11.2. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.11.3. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -126,6 +126,7 @@ Add `tours/<id>.json`:
 - The tour engine announces each step and its end as window events (`tourlayer:step`, `tourlayer:end`); the export listens for them.
 - A full page reload in the middle of the tour stops the recording (the page that was recording goes away). DoorLoop's own page changes don't reload, so this is rare.
 - **Stop sharing** in Chrome's bar ends the recording early and downloads what was recorded.
+- The tab's picture changes size while recording (Chrome shows its "sharing this tab" bar right after the share starts), and a video whose frame size changes mid-file won't play. So the export draws the tab onto one fixed size, taken once that bar is up, and records that; GIF frames work the same way.
 
 **Step box style.** Each step shows as a box with a coloured header band (step count and close), a body (image, title, text) and a coloured footer band (Back and Next). One `style` per tour keeps every step consistent; any field left out uses the default.
 

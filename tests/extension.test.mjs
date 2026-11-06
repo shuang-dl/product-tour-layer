@@ -519,6 +519,8 @@ try {
     if (why) { check(`export ${kind}: recording starts`, false, why); await xp.close(); continue; }
     await title(xp);
     await xp.waitForTimeout(1500);
+    // Like Chrome's "sharing this tab" bar appearing: the recorded picture changes size mid-recording
+    await xp.setViewportSize({ width: 1100, height: 600 });
     await xp.click('.driver-popover-next-btn');
     await xp.waitForTimeout(1500);
     const dl = xp.waitForEvent('download', { timeout: 20000 }).catch(() => null);
@@ -540,7 +542,7 @@ try {
         await new Promise((r) => setTimeout(r, 1500));
         return { time: v.currentTime, w: v.videoWidth, error: v.error && v.error.message };
       }, { b64: bytes.toString('base64'), type: file?.suggestedFilename().endsWith('.mp4') ? 'video/mp4' : 'video/webm' });
-      check('export video: the downloaded video plays', !played.error && played.w > 0 && played.time > 0.5, JSON.stringify(played));
+      check('export video: the downloaded video plays, even though the page changed size while recording', !played.error && played.w > 0 && played.time > 0.5, JSON.stringify(played));
       await vp.close();
     }
     await xp.close();

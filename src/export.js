@@ -112,18 +112,53 @@
     window.TourLayer.start(tour.id);
   }
 
+  // The tab's picture changes size while recording (e.g. Chrome shows its "sharing this tab" bar right after the
+  // share starts). A recorder fed the tab directly then switches frame size mid-file, which players reject as bad
+  // data. So draw the tab onto a canvas of one fixed size (taken once that bar is up) and record the canvas.
+  const SETTLE_MS = 700;
   function videoRecorder(stream) {
     const type = videoType();
-    const recorder = new MediaRecorder(stream, { mimeType: type });
+    const video = el('video', { muted: true, playsInline: true });
+    video.srcObject = stream;
+    video.play();
     const chunks = [];
-    recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-    recorder.start(1000);
+    let recorder = null;
+    let drawing = 0;
+    const started = new Promise((resolve) => setTimeout(() => {
+      const even = (n) => Math.max(2, Math.round(n / 2) * 2);
+      const canvas = el('canvas', { width: even(video.videoWidth || 1280), height: even(video.videoHeight || 720) });
+      const ctx = canvas.getContext('2d');
+      const draw = () => {
+        const w = video.videoWidth, h = video.videoHeight;
+        if (w && h) {
+          // Fit the current frame inside the fixed size, centred on white.
+          const scale = Math.min(canvas.width / w, canvas.height / h);
+          const dw = w * scale, dh = h * scale;
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(video, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
+        }
+        drawing = requestAnimationFrame(draw);
+      };
+      draw();
+      recorder = new MediaRecorder(canvas.captureStream(30), { mimeType: type });
+      recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+      recorder.start(1000);
+      resolve();
+    }, SETTLE_MS));
     return {
       ext: type.startsWith('video/mp4') ? 'mp4' : 'webm',
-      stop: () => new Promise((resolve) => {
-        recorder.onstop = () => resolve(new Blob(chunks, { type: type.split(';')[0] }));
-        recorder.stop();
-      }),
+      stop: async () => {
+        await started;
+        return new Promise((resolve) => {
+          recorder.onstop = () => {
+            cancelAnimationFrame(drawing);
+            video.pause();
+            resolve(new Blob(chunks, { type: type.split(';')[0] }));
+          };
+          recorder.stop();
+        });
+      },
     };
   }
 
@@ -133,12 +168,19 @@
     video.play();
     const frames = [];
     let pending = null;
+    let canvas = null; // every frame is drawn at the first frame's size, since the tab can change size meanwhile
     const grab = () => {
-      if (!video.videoWidth) return;
-      const scale = Math.min(1, GIF_WIDTH / video.videoWidth);
-      const canvas = el('canvas', { width: Math.round(video.videoWidth * scale), height: Math.round(video.videoHeight * scale) });
+      const w = video.videoWidth, h = video.videoHeight;
+      if (!w || !h) return;
+      if (!canvas) {
+        const first = Math.min(1, GIF_WIDTH / w);
+        canvas = el('canvas', { width: Math.round(w * first), height: Math.round(h * first) });
+      }
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const scale = Math.min(canvas.width / w, canvas.height / h);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, (canvas.width - w * scale) / 2, (canvas.height - h * scale) / 2, w * scale, h * scale);
       frames.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
     };
     return {
@@ -151,10 +193,7 @@
         clearTimeout(pending);
         video.pause();
         if (!frames.length) return null;
-        // Frames can differ in size if the window was resized; use the first frame's size for all.
-        const { width, height } = frames[0];
-        const same = frames.filter((f) => f.width === width && f.height === height);
-        return new Blob([window.TourGif.encode(same, { delayMs: GIF_DELAY_MS })], { type: 'image/gif' });
+        return new Blob([window.TourGif.encode(frames, { delayMs: GIF_DELAY_MS })], { type: 'image/gif' });
       },
     };
   }
