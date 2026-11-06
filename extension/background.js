@@ -6,7 +6,7 @@
 'use strict';
 
 // The GitHub App's Client ID (not a secret). Empty until the app is registered; the menu then says so.
-const CLIENT_ID = '';
+const CLIENT_ID = 'Iv23li4Bifpd7B7DLSbl'; // the "DoorLoop Tours" GitHub App (public, not a secret)
 const REPO = 'shuang-dl/product-tour-layer';
 const BRANCH = 'main';
 

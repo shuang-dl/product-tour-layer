@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.16.1. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.17.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -175,7 +175,7 @@ Only the extension's own menu can send these requests to the page; websites can'
 **Saving a tour.** In the live builder, **💾 Save tour** in the panel commits the tour file to `tours/<id>.json` on GitHub, as you, with nothing else to do. Sign in first from the extension's menu (**Sign in with GitHub**). Saving again updates the same file; a new tour whose file name already exists asks before replacing it. Once committed, CI checks the file and publishes it to GitHub Pages; the extension picks it up when DoorLoop next loads (Pages can take a few minutes). New tours are drafts until their status is changed to live.
 
 - **How the sign-in works:** a GitHub App ("DoorLoop Tours") with permission to change files, installed only on this repo, and GitHub's device sign-in (a code entered at github.com/login/device). A sign-in can never do more than the person's own GitHub access, so only contributors with write access can save. The extension's background keeps the login in its own storage and does the saving; it's never handed to DoorLoop's page. Signing out removes it. Anyone using the same Chrome profile while you're signed in can save tours, so sign out on shared computers.
-- **Setting it up (once):** register the GitHub App (Contents: read and write; device flow on; token expiry off; webhook off; installed only on this repo) and put its Client ID in `extension/background.js` (`CLIENT_ID`). Until then, the menu says sign-in isn't set up.
+- **Setting it up (once):** register the GitHub App (Contents: read and write; device flow on; token expiry off; webhook off; installed only on this repo) and put its Client ID in `extension/background.js` (`CLIENT_ID`). Done: the app is registered and installed on this repo. To let someone save tours, give them write access to the repo.
 - **On the demo builder** (no extension there), **⋯ More → View tour file → Save to GitHub** still opens GitHub's own page instead: a new tour opens the "new file" page (filled in when short, otherwise paste the copied file), an edited tour opens its file's edit page, and you commit there.
 - What the tour format can't hold yet is simplified first ("type text" steps use a Next button, text formatting is left out); the builder says which applied. Uploaded images aren't saved with it: put the image online and set the step's `image` to its `https://` address.
 

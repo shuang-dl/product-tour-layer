@@ -8,7 +8,7 @@ type: note
 
 Where the product tour proof of concept stands, how it got here, and what's still open. For how to use it, see the [README](README.md).
 
-**As of November 6, 2026:** extension 0.16.1, 5 live tours and 2 drafts for DoorLoop, 3 for the demo app, 129 automated checks, all passing.
+**As of November 6, 2026:** extension 0.17.0, 5 live tours and 2 drafts for DoorLoop, 3 for the demo app, 129 automated checks, all passing.
 
 ## What it is
 
@@ -91,7 +91,6 @@ Each of these was found by running a tour on DoorLoop. The engine and builder pr
 
 ## Still open
 
-- **The GitHub App isn't registered yet.** Save tour needs its Client ID in `extension/background.js`; until then the menu says sign-in isn't set up.
 - **Approval is a file edit, not a sign-off.** Anyone who can commit to the repo can make a draft live. For a real review step, protect `main` on GitHub so changes need an approved pull request.
 - **Editing a live tour publishes the edits immediately** unless it's switched to Draft first (which hides it until approved again). A separate draft copy of a live tour would avoid that.
 - **driver.js: replace it or keep it.** Most of the fixes above work around it. Replacing it with our own spotlight (the same box-with-a-shadow approach the NPS tour uses) would remove the last outside code. That would settle the "in-house" question, and it's next to discuss.
