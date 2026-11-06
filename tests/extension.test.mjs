@@ -363,8 +363,18 @@ try {
   check('save: an edited tour opens its file on GitHub', ghEdit.url() === 'https://github.com/shuang-dl/product-tour-layer/edit/main/tours/edit-me.json', ghEdit.url());
   await ghEdit.close();
   await E.locator('.file-close').click();
+  const side = await E.evaluate(() => {
+    const r = document.getElementById('tour-layer-builder').shadowRoot.querySelector('.ws').getBoundingClientRect();
+    return { right: r.right, width: r.width, top: r.top, height: r.height, vw: innerWidth, vh: innerHeight };
+  });
+  check('live builder: controls, tools and storyboard are one panel on the right, full height',
+    Math.round(side.right) === side.vw && side.width === 340 && side.top === 0 && Math.round(side.height) === side.vh, JSON.stringify(side));
   await E.locator('.story-btn').click();
-  check('edit: the storyboard can be collapsed', !(await E.locator('.story').isVisible()));
+  await E.locator('.panel-tab').waitFor({ timeout: 2000 }).catch(() => {});
+  check('edit: the panel slides away, leaving a tab to bring it back', !(await E.locator('.story').isVisible()) && (await E.locator('.panel-tab').isVisible()));
+  await E.locator('.panel-tab').click();
+  await E.locator('.story').waitFor({ timeout: 2000 }).catch(() => {});
+  check('edit: the tab brings the panel back', (await E.locator('.story').isVisible()) && !(await E.locator('.panel-tab').isVisible()));
 
   // Sample data: Fill example types and picks, the Finish step can't be used, and ending the tour clicks Cancel.
   const sampleTour = {

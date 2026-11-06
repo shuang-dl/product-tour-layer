@@ -30,6 +30,7 @@
       --bg: #f6f8fb; --card: #fff; --text: #1a1a1a; --muted: #5b6472; --accent: #1665d8; --border: #e2e7ef;
       --tour-frame: #0b1f44; --tour-band-text: #ffffff; --tour-button: #d8f34a; --tour-button-text: #0b1f44; --tour-body-text: #1b1d21; --tour-body-bg: #ffffff;
       --tour-header-h: 26px; --tour-footer-h: 48px; --tour-side: 3px; --tour-radius: 10px; --tour-title-align: left; --tour-text-align: left;
+      --panel-w: 340px;
       position: fixed; inset: 0; z-index: 2147483000; pointer-events: none;
       font: 14px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; color: var(--text);
     }
@@ -61,10 +62,29 @@
     .frame { display: block; width: 100%; height: 100%; border: 0; border-radius: 8px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
     .story { grid-column: 1 / -1; border-top: 1px solid var(--border); padding: 10px 14px; display: flex; gap: 8px; align-items: stretch; overflow-x: auto; min-height: 112px; background: var(--card); }
 
-    .live .ws-top { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); width: min(980px, calc(100vw - 140px)); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.18); pointer-events: auto; z-index: 7; }
-    .live .ws-top .badge { font-size: 11px; font-weight: 600; background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 8px; white-space: nowrap; }
-    .live .tools { position: fixed; right: 10px; top: 50%; transform: translateY(-50%); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.18); pointer-events: auto; z-index: 3; }
-    .live .story { position: fixed; left: 0; right: 0; bottom: 0; box-shadow: 0 -6px 24px rgba(0,0,0,.12); pointer-events: auto; z-index: 3; }
+    /* live: one panel on the right with the controls, tools and storyboard; it slides away to show the page */
+    .live .ws { position: fixed; top: 0; right: 0; bottom: 0; width: var(--panel-w); display: flex; flex-direction: column; background: var(--card); border-left: 1px solid var(--border); box-shadow: -6px 0 24px rgba(0,0,0,.14); pointer-events: auto; z-index: 3; transition: right .2s, visibility 0s; }
+    .live.story-collapsed .ws { right: calc(-1 * var(--panel-w) - 30px); visibility: hidden; transition: right .2s, visibility 0s .2s; }
+    .live .ws-top { flex-wrap: wrap; gap: 8px; padding: 12px 14px; }
+    .live .ws-top .badge { order: 0; font-size: 11px; font-weight: 600; background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 8px; white-space: nowrap; }
+    .live .ws-top .story-btn { order: 1; margin-left: auto; }
+    .live .ws-top .close-btn { order: 2; }
+    .live .ws-top .ws-name { order: 3; flex: 1 0 100%; max-width: none; font-size: 15px; }
+    .live .ws-top .url { order: 4; flex: 1 0 100%; }
+    .live .ws-top .record-btn, .live .ws-top .preview-btn, .live .ws-top .save-btn, .live .ws-top .more-wrap { order: 5; }
+    .live .ws-top .record-btn { flex: 1 0 100%; }
+    .live .tools { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--border); padding: 6px 10px; position: relative; z-index: 4; }
+    .live .tools hr { width: 1px; height: auto; align-self: stretch; margin: 4px 2px; border: 0; border-left: 1px solid var(--border); }
+    .live .tool[data-tip]:hover::after { left: 0; right: auto; top: 44px; }
+    .live .story { flex: 1; min-height: 0; flex-direction: column; align-items: stretch; overflow-x: hidden; overflow-y: auto; border-top: 0; padding: 12px 14px; }
+    .live .story .card { flex: 0 0 auto; }
+    .live .story .ins { align-self: center; }
+    .live .story .arrow { align-self: center; transform: rotate(90deg); }
+    .live .story .card.drop-here { box-shadow: 0 -4px 0 var(--accent); }
+    .live .story .adders { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; }
+    .live .story .add-page input { width: 100%; }
+    .panel-tab { display: none; position: fixed; right: 0; top: 50%; transform: translateY(-50%); writing-mode: vertical-rl; background: var(--accent); color: #fff; border: 0; border-radius: 8px 0 0 8px; padding: 12px 6px; font-weight: 600; pointer-events: auto; z-index: 3; box-shadow: -4px 0 14px rgba(0,0,0,.2); }
+    .live.story-collapsed .panel-tab { display: block; }
 
     /* highlight layer: the draw surface sits under the layer so the step editor stays clickable */
     .layer, .draw-surface { position: absolute; inset: 0; }
@@ -162,7 +182,7 @@
 
     /* panels and overlays */
     .panel { position: absolute; left: 64px; top: 56px; max-height: calc(100% - 190px); overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.2); z-index: 6; width: 270px; font-size: 13px; pointer-events: auto; }
-    .live .panel { position: fixed; left: auto; right: 70px; top: 70px; max-height: calc(100vh - 220px); }
+    .live .panel { position: fixed; left: auto; right: calc(var(--panel-w) + 12px); top: 12px; max-height: calc(100vh - 24px); }
     .panel[hidden] { display: none; }
     .panel h3 { margin: 0 0 8px; font-size: 13px; }
     .panel h3 small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
@@ -232,14 +252,14 @@
     shadow.innerHTML = `
       <style>${CSS}</style>
       <div class="root ${live ? 'live' : 'demo'}">
-        ${live ? '' : '<div class="backdrop"></div>'}
+        ${live ? LAYERS + '<button class="panel-tab" title="Show the builder">Show builder</button>' : '<div class="backdrop"></div>'}
         <div class="ws">
           <div class="ws-top">
             ${live ? '<span class="badge">Building on live DoorLoop</span>' : ''}
             <strong class="ws-name"></strong>
             <span class="url"></span>
             ${live ? '' : '<span class="test-on">Test on <span class="seg test-seg"><button data-v="demo" class="on">Demo</button><button data-v="live">Live DoorLoop</button></span></span>'}
-            <button class="ghost story-btn" title="Show or hide the storyboard">Storyboard ▾</button>
+            <button class="ghost story-btn" title="${live ? 'Slide the builder away to see the whole page' : 'Show or hide the storyboard'}">${live ? 'Hide ▸' : 'Storyboard ▾'}</button>
             <button class="ghost record-btn" title="Click through the workflow; each click or typed value becomes a step">● Record tour</button>
             <button class="ghost preview-btn">▶ Preview</button>
             <button class="ghost save-btn" title="Save this tour to GitHub (sign in from the extension's menu first)">💾 Save tour</button>
@@ -263,7 +283,7 @@
             <hr>
             <button class="tool undo-tool" data-tip="Remove last storyboard item">↶</button>
           </div>
-          ${live ? LAYERS : `<div class="stage"><div class="stage-inner"><iframe class="frame" title="Demo app"></iframe>${LAYERS}</div></div>`}
+          ${live ? '' : `<div class="stage"><div class="stage-inner"><iframe class="frame" title="Demo app"></iframe>${LAYERS}</div></div>`}
           <div class="story"></div>
           <div class="panel style-panel" hidden>${STYLE_PANEL}</div>
           <div class="panel exit-panel" hidden>
@@ -913,9 +933,10 @@
       }
       const r = unionRect(shown);
       const w = layer.clientWidth;
-      const top0 = live ? $('.ws-top').getBoundingClientRect().bottom + 8 : 8;
-      const bottom = layer.clientHeight - (live && !rootEl.classList.contains('story-collapsed') ? $('.story').offsetHeight : 0) - 8;
-      const right = live ? w - 70 : w; // keep clear of the toolbox on the right in live mode
+      const top0 = 8;
+      const bottom = layer.clientHeight - 8;
+      // keep clear of the builder's panel on the right in live mode
+      const right = live && !rootEl.classList.contains('story-collapsed') ? $('.ws').getBoundingClientRect().left - 10 : w;
       const beside = r.left + r.width + 340 < right;
       const left = beside ? r.left + r.width + 14 : Math.max(8, Math.min(r.left, right - 328));
       const top = beside ? r.top : r.top + r.height + 14;
@@ -1361,9 +1382,10 @@
     let scrollStoryToEnd = false;
     $('.story-btn').onclick = () => {
       const hidden = rootEl.classList.toggle('story-collapsed');
-      $('.story-btn').textContent = hidden ? 'Storyboard ▴' : 'Storyboard ▾';
+      if (!live) $('.story-btn').textContent = hidden ? 'Storyboard ▴' : 'Storyboard ▾';
       if (shown && pop) placePop();
     };
+    if (live) $('.panel-tab').onclick = () => $('.story-btn').click();
     function renderStory() {
       const story = $('.story');
       story.replaceChildren();
