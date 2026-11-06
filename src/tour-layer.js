@@ -81,21 +81,76 @@
 
   // A target is a CSS selector string, or { text, selector? } to match a visible element by its label.
   // A list of targets is a group: found only when every item is, highlighted as one area (see groupBox).
-  function findTarget(target) {
+  // clues (optional, one per group item): what the element looked like when the step was made. When the target no
+  // longer matches anything (e.g. a DoorLoop release renamed a data-cy), the element that best fits them is used.
+  function findTarget(target, clues) {
     if (Array.isArray(target)) {
-      const els = target.map(findTarget);
+      const els = target.map((t, i) => findTarget(t, Array.isArray(clues) ? clues[i] : null));
       return els.every(Boolean) ? els : null;
     }
+    return findByTarget(target) || (clues && !Array.isArray(clues) ? findByClues(clues) : null);
+  }
+  function findByTarget(target) {
     if (typeof target === 'string') return bestOf([...document.querySelectorAll(target)]);
     const want = target.text.trim().toLowerCase();
     const candidates = document.querySelectorAll(target.selector || 'button, a, [role="button"]');
     return bestOf([...candidates].filter((el) => el.innerText.trim().split('\n')[0].trim().toLowerCase() === want));
   }
 
-  async function waitForTarget(target, token, timeout) {
-    const deadline = Date.now() + timeout;
+  // Scoring by clues, after Mimik's Guide Me finder: each clue that's present counts for its share of the weights,
+  // text most. Role alone can't identify anything, so at least one identifying clue has to match.
+  const CLUE_WEIGHTS = { text: 0.35, aria: 0.2, name: 0.15, placeholder: 0.1, href: 0.1, role: 0.1 };
+  const CLUE_THRESHOLD = 0.6;
+  const tidy = (t) => (t || '').replace(/\s+/g, ' ').trim();
+  const firstLine = (el) => tidy((el.innerText || '').split('\n').find((l) => l.trim()) || '').slice(0, 80);
+  const clueOf = {
+    text: firstLine,
+    aria: (el) => el.getAttribute('aria-label'),
+    name: (el) => el.getAttribute('name'),
+    placeholder: (el) => el.getAttribute('placeholder'),
+    role: (el) => el.getAttribute('role') || el.tagName.toLowerCase(),
+    href: (el) => (el instanceof HTMLAnchorElement ? el.pathname : null),
+  };
+  function compareClue(want, got) {
+    if (!got) return 0;
+    if (want === got) return 1;
+    const a = tidy(want).toLowerCase();
+    const b = tidy(got).toLowerCase();
+    if (a === b) return 0.8;
+    // One starts with the other, and the shorter is most of it ("Save" vs "Save changes", not "A" vs "Archive").
+    const [short, long] = a.length < b.length ? [a, b] : [b, a];
+    return short.length >= 3 && short.length / long.length >= 0.6 && long.startsWith(short) ? 0.6 : 0;
+  }
+  function findByClues(clues) {
+    const present = Object.keys(CLUE_WEIGHTS).filter((k) => clues[k]);
+    const total = present.reduce((sum, k) => sum + CLUE_WEIGHTS[k], 0);
+    if (!present.some((k) => k !== 'role')) return null;
+    let best = [];
+    let bestScore = 0;
+    for (const el of document.querySelectorAll(clues.tag || '*')) {
+      if (el.closest('.driver-popover, #tour-layer-builder') || !isVisible(el)) continue;
+      let score = 0;
+      let identified = false;
+      for (const k of present) {
+        const s = compareClue(clues[k], clueOf[k](el));
+        if (s && k !== 'role') identified = true;
+        score += (s * CLUE_WEIGHTS[k]) / total;
+      }
+      if (!identified || score < CLUE_THRESHOLD || score < bestScore) continue;
+      if (score > bestScore) best = [];
+      best.push(el);
+      bestScore = score;
+    }
+    return bestOf(best);
+  }
+
+  // Clues only after the target has had a moment to appear, so a lookalike isn't picked while the page still loads.
+  const CLUES_AFTER_MS = 1500;
+  async function waitForTarget(target, token, timeout, clues) {
+    const start = Date.now();
+    const deadline = start + timeout;
     while (Date.now() < deadline && token === runToken) {
-      const el = findTarget(target);
+      const el = findTarget(target, Date.now() - start >= Math.min(CLUES_AFTER_MS, timeout / 2) ? clues : null);
       if (el) return el;
       await sleep(POLL_MS);
     }
@@ -141,6 +196,7 @@
   };
   const isTarget = (t) => typeof t === 'string' || (t && typeof t.text === 'string');
   const isFill = (f) => f && isTarget(f.target) && (f.click === true || typeof f.value === 'string');
+  const isClues = (c) => c && typeof c === 'object' && !Array.isArray(c);
   // Draft tours come straight from the builder rather than from the checked tour files, so check the basics.
   const isTour = (t) =>
     t && typeof t.id === 'string' && typeof t.page === 'string' && Array.isArray(t.steps) && t.steps.length > 0 &&
@@ -148,7 +204,8 @@
       s && typeof s.title === 'string' && typeof s.text === 'string' &&
       (s.target === undefined || isTarget(s.target) || (Array.isArray(s.target) && s.target.length > 0 && s.target.every(isTarget))) &&
       (s.image === undefined || /^(https:|data:image\/)/.test(s.image)) &&
-      (s.fill === undefined || (Array.isArray(s.fill) && s.fill.every(isFill)))) &&
+      (s.fill === undefined || (Array.isArray(s.fill) && s.fill.every(isFill))) &&
+      (s.clues === undefined || isClues(s.clues) || (Array.isArray(s.clues) && s.clues.every((c) => c === null || isClues(c))))) &&
     (t.exitClicks === undefined || (Array.isArray(t.exitClicks) && t.exitClicks.every(isTarget)));
 
   // ---------- tour flow ----------
@@ -156,11 +213,11 @@
   // driver.js highlights one element, so a group gets an invisible box over the area around all its items,
   // kept in place while the page scrolls, resizes or shifts its layout (e.g. a form adds an error line).
   let group = null;
-  function groupBox(els, target) {
+  function groupBox(els, target, clues) {
     const box = el('div', { className: 'tour-layer-group' });
     const fit = () => {
       // The app may re-render an item as a new element; measure the new one, not the detached original.
-      if (!els.every((e) => e.isConnected)) els = findTarget(target) || els;
+      if (!els.every((e) => e.isConnected)) els = findTarget(target, clues) || els;
       const rs = els.map((e) => e.getBoundingClientRect());
       const left = Math.min(...rs.map((r) => r.left));
       const top = Math.min(...rs.map((r) => r.top));
@@ -341,9 +398,12 @@
       return;
     }
     const timeout = step.optional ? OPTIONAL_TIMEOUT_MS : TARGET_TIMEOUT_MS;
-    const el = step.target ? await waitForTarget(step.target, token, timeout) : null;
+    const el = step.target ? await waitForTarget(step.target, token, timeout, step.clues) : null;
     if (token !== runToken) return;
     if (step.target && !el && step.optional) return goTo(tour, index + direction, direction);
+    if (el && step.clues && !findTarget(step.target)) {
+      console.warn(`[TourLayer] ${tour.id} step ${index + 1}: target no longer matches; found the element by its clues instead. Update the step's target.`, step.target);
+    }
     if (step.target && !el) {
       console.warn(`[TourLayer] ${tour.id} step ${index + 1}: target not found, showing it unanchored`, step.target);
     }
@@ -375,7 +435,7 @@
 
     destroyDriver();
     if (Array.isArray(el)) el[0].scrollIntoView({ block: 'center' });
-    const anchor = Array.isArray(el) ? groupBox(el, step.target) : el;
+    const anchor = Array.isArray(el) ? groupBox(el, step.target, step.clues) : el;
     driverObj = window.driver.js.driver({
       // Only the × ends a tour (onCloseClick below). Escape and clicks on the dimmed page are too easy to do by
       // accident in the middle of a form, e.g. Escape to close an address dropdown.
@@ -411,7 +471,7 @@
     if (el) stepDialog = (Array.isArray(el) ? el[0] : el).closest('[role=dialog]') || stepDialog;
     if (anchor) ringOver(anchor, el);
     screenTimer = setInterval(keepOnScreen, 200);
-    if (step.showOnly && el && !canSave) stopBlocking = blockClicks(step.target);
+    if (step.showOnly && el && !canSave) stopBlocking = blockClicks(step.target, step.clues);
     if (canSave) {
       // Saving ends the tour, leaving the form as it is (no exit clicks); the click itself goes on to the app.
       const token = runToken;
@@ -436,10 +496,10 @@
   // A "show only" step points at something (e.g. Finish) without letting it be used. The overlay already blocks the
   // rest of the page; this blocks presses and Enter/Space on the highlighted element itself.
   let stopBlocking = null;
-  function blockClicks(target) {
+  function blockClicks(target, clues) {
     const block = (e) => {
       if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
-      const found = findTarget(target);
+      const found = findTarget(target, clues);
       if (!found || !(Array.isArray(found) ? found : [found]).some((t) => t.contains(e.target))) return;
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -469,7 +529,7 @@
 
   // Types a value the way a person would, so frameworks like React see the change, then picks a suggestion if asked.
   async function fillItem(item) {
-    const target = await waitFor(() => findTarget(item.target), 3000);
+    const target = await waitFor(() => findTarget(item.target, item.clues), 3000);
     if (!target) return false;
     if (item.click) {
       // A wrapper around a checkbox or radio (e.g. a labelled field): the click has to reach the control itself.
@@ -497,7 +557,7 @@
   let stepDialog = null; // the app dialog the latest step's target is in, if any
   async function fillSample(tour, step, button) {
     const token = runToken;
-    const first = findTarget(step.fill[0].target);
+    const first = findTarget(step.fill[0].target, step.fill[0].clues);
     sampleDialog = (Array.isArray(first) ? first[0] : first)?.closest('[role=dialog]') || sampleDialog;
     const prev = loadState();
     saveState({ ...prev, sampleUsed: true });

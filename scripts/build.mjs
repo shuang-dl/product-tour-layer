@@ -9,7 +9,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 
 const TOUR_KEYS = ['id', 'title', 'description', 'status', 'page', 'style', 'autoStart', 'exitClicks', 'steps'];
-const STEP_KEYS = ['target', 'title', 'text', 'page', 'advanceOn', 'optional', 'showOnly', 'image', 'fill'];
+const STEP_KEYS = ['target', 'clues', 'title', 'text', 'page', 'advanceOn', 'optional', 'showOnly', 'image', 'fill'];
 // The step box style (one per tour). Colours are #rrggbb, sizes are whole pixels in a range, the rest are choices.
 const STYLE_RULES = {
   frame: 'color', bandText: 'color', button: 'color', buttonText: 'color', bodyText: 'color', bodyBg: 'color',
@@ -32,6 +32,7 @@ function validateStyle(style, err) {
 }
 const isText = (v) => typeof v === 'string' && v.trim().length > 0;
 
+const CLUE_KEYS = ['tag', 'text', 'aria', 'name', 'placeholder', 'role', 'href'];
 function validateTour(tour, file) {
   const errors = [];
   const err = (msg) => errors.push(`${file}: ${msg}`);
@@ -53,6 +54,13 @@ function validateTour(tour, file) {
     }
     if (typeof t === 'object') {
       for (const key of Object.keys(t)) if (!['text', 'selector'].includes(key)) err(`${where}: unknown target field "${key}"`);
+    }
+  };
+  const checkClues = (c, where) => {
+    if (!c || typeof c !== 'object' || Array.isArray(c)) return err(`${where}: "clues" must be an object`);
+    for (const [k, v] of Object.entries(c)) {
+      if (!CLUE_KEYS.includes(k)) err(`${where}: unknown clue "${k}"`);
+      else if (!isText(v)) err(`${where}: clue "${k}" must be text`);
     }
   };
   // Clicks that leave without saving (e.g. Cancel), made when the tour ends after it filled in sample data.
@@ -90,7 +98,8 @@ function validateTour(tour, file) {
         step.fill.forEach((f, k) => {
           const where = `${at}, fill item ${k + 1}`;
           if (!f || typeof f !== 'object' || Array.isArray(f)) return err(`${where}: must be an object`);
-          for (const key of Object.keys(f)) if (!['target', 'value', 'pick', 'click'].includes(key)) err(`${where}: unknown field "${key}"`);
+          for (const key of Object.keys(f)) if (!['target', 'clues', 'value', 'pick', 'click'].includes(key)) err(`${where}: unknown field "${key}"`);
+          if (f.clues !== undefined) checkClues(f.clues, where);
           if (Array.isArray(f.target)) err(`${where}: "target" must be one element, not a group`);
           else checkTarget(f.target, where);
           if (f.click !== undefined && f.click !== true) err(`${where}: "click" must be true`);
@@ -99,6 +108,15 @@ function validateTour(tour, file) {
           if (f.pick !== undefined && !isText(f.pick)) err(`${where}: "pick" must be the text of the suggestion to choose`);
         });
       }
+    }
+    // Clues: what the target element looked like, so the engine can still find it if the target stops matching.
+    // One object, or for a group a list with one per item (null for an item without clues).
+    if (step.clues !== undefined) {
+      if (step.target === undefined) err(`${at}: "clues" needs a "target"`);
+      else if (Array.isArray(step.target)) {
+        if (!Array.isArray(step.clues) || step.clues.length !== step.target.length) err(`${at}: a group's "clues" must be a list with one entry per target`);
+        else step.clues.forEach((c, k) => c !== null && checkClues(c, `${at}, clues ${k + 1}`));
+      } else checkClues(step.clues, at);
     }
     const t = step.target;
     if (Array.isArray(t)) {

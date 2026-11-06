@@ -540,10 +540,62 @@
       }
       return { text: el.innerText.trim().split('\n')[0], selector: el.tagName.toLowerCase() };
     }
+    // Clues about an element, saved with its target so the tour engine can still find it if the target stops matching
+    // (e.g. a DoorLoop release renames a data-cy): its tag, first line of text, aria-label, name, placeholder, role
+    // and link path. Only the ones it has.
+    const tidy = (t) => (t || '').replace(/\s+/g, ' ').trim();
+    const firstLine = (el) => tidy((el.innerText || '').split('\n').find((l) => l.trim()) || '').slice(0, 80);
+    const CLUE_OF = {
+      text: firstLine,
+      aria: (el) => el.getAttribute('aria-label'),
+      name: (el) => el.getAttribute('name'),
+      placeholder: (el) => el.getAttribute('placeholder'),
+      role: (el) => el.getAttribute('role') || el.tagName.toLowerCase(),
+      href: (el) => (el.tagName === 'A' && el.getAttribute('href') ? new URL(el.href).pathname : null),
+    };
+    function cluesFor(el) {
+      // A field's labelled wrapper usually has nothing identifying of its own: describe the field inside instead
+      // (its name, placeholder, aria-label), so the engine can find the field if the wrapper's label changes.
+      const fields = el.matches('input, textarea, select') ? [] : el.querySelectorAll('input:not([type=hidden]), textarea, select');
+      if (fields.length === 1 && !['text', 'aria', 'name', 'placeholder', 'href'].some((k) => CLUE_OF[k](el))) el = fields[0];
+      const clues = { tag: el.tagName.toLowerCase() };
+      for (const [k, get] of Object.entries(CLUE_OF)) {
+        const v = get(el);
+        if (v) clues[k] = v;
+      }
+      return clues;
+    }
+    // The same scoring as the tour engine (src/tour-layer.js, findByClues), to find a step's element again here.
+    const CLUE_WEIGHTS = { text: 0.35, aria: 0.2, name: 0.15, placeholder: 0.1, href: 0.1, role: 0.1 };
+    function compareClue(want, got) {
+      if (!got) return 0;
+      if (want === got) return 1;
+      const a = tidy(want).toLowerCase(), b = tidy(got).toLowerCase();
+      if (a === b) return 0.8;
+      const [short, long] = a.length < b.length ? [a, b] : [b, a];
+      return short.length >= 3 && short.length / long.length >= 0.6 && long.startsWith(short) ? 0.6 : 0;
+    }
+    function byClues(clues) {
+      const present = Object.keys(CLUE_WEIGHTS).filter((k) => clues[k]);
+      const total = present.reduce((sum, k) => sum + CLUE_WEIGHTS[k], 0);
+      if (!present.some((k) => k !== 'role')) return null;
+      let best = null, bestScore = 0;
+      for (const el of app.doc().querySelectorAll(clues.tag || '*')) {
+        if (host.contains(el) || !isShown(el)) continue;
+        let score = 0, identified = false;
+        for (const k of present) {
+          const v = compareClue(clues[k], CLUE_OF[k](el));
+          if (v && k !== 'role') identified = true;
+          score += (v * CLUE_WEIGHTS[k]) / total;
+        }
+        if (identified && score >= 0.6 && score > bestScore) { best = el; bestScore = score; }
+      }
+      return best;
+    }
     // A short label for a saved target (storyboard chips), e.g. "SideMenu-People-Tenants" or "3 items".
     const describe = (t) => Array.isArray(t) ? `${t.length} items` : typeof t === 'string' ? (t.match(/=['"]([^'"]+)['"]/) || [, t])[1] : t.text;
     // Find a saved target again (after moving pages or reloading), the way the tour engine would.
-    function resolve(target) {
+    function resolve(target, clues) {
       const doc = app.doc();
       const one = (t) => {
         const sized = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && !host.contains(el); };
@@ -551,7 +603,8 @@
         const want = t.text.trim().toLowerCase();
         return [...doc.querySelectorAll(t.selector || 'button, a, [role="button"]')].find((el) => sized(el) && el.innerText.trim().split('\n')[0].trim().toLowerCase() === want);
       };
-      const list = (Array.isArray(target) ? target : [target]).map(one);
+      const clueList = Array.isArray(target) ? (Array.isArray(clues) ? clues : []) : [clues];
+      const list = (Array.isArray(target) ? target : [target]).map((t, i) => one(t) || (clueList[i] ? byClues(clueList[i]) : null));
       return list.every(Boolean) ? list : null;
     }
     async function elsFor(step) {
@@ -561,7 +614,7 @@
       } else await app.navigate(step.page);
       if (step.els && step.els.every((e) => e.isConnected)) return step.els;
       for (let i = 0; i < 30; i++) {
-        const els = resolve(step.target);
+        const els = resolve(step.target, step.clues);
         if (els) return els;
         await sleep(100);
       }
@@ -918,6 +971,7 @@
       advance.onchange = showAdvance;
       showAdvance();
       const target = !els.length ? undefined : single ? targetFor(els[0]) : els.map(targetFor);
+      const clues = !els.length ? undefined : single ? cluesFor(els[0]) : els.map(cluesFor);
       const show = (t) => (typeof t === 'string' ? t : `text “${t.text}”`);
       meta.querySelector('code').textContent = !els.length ? 'nothing (shows centred)' : single ? show(target) : `${els.length} items: ${target.map(show).join(', ')}`;
 
@@ -957,7 +1011,7 @@
         if (fill.length && !state.exitClicks.length) setTimeout(() => suggestExit(els), 3300);
         const page = state.flow[state.active].page;
         state.flow[state.active] = {
-          type: 'step', page, els, target, label: !els.length ? 'centred' : single ? labelFor(els[0]) : `${els.length} items`,
+          type: 'step', page, els, target, clues, label: !els.length ? 'centred' : single ? labelFor(els[0]) : `${els.length} items`,
           titleHtml: title().innerHTML, textHtml: text.innerHTML, image, advanceOn: advance.value,
           optional: meta.querySelector('[data-optional]').checked,
           showOnly: meta.querySelector('[data-showonly]').checked,
@@ -998,7 +1052,7 @@
       if (!field.matches || !field.matches('input:not([type=checkbox]):not([type=radio]), textarea') || !inHighlight(field)) return;
       const target = targetFor(pickable(field) || field);
       let item = editing.fill.find((f) => key(f.target) === key(target));
-      if (!item) editing.fill.push((item = { target, value: '' }));
+      if (!item) editing.fill.push((item = { target, clues: cluesFor(pickable(field) || field), value: '' }));
       delete item.click;
       delete item.pick; // typed again: any suggestion picked before no longer applies
       item.value = field.value;
@@ -1020,7 +1074,7 @@
       const el = pickable(e.target);
       if (!el) return;
       const target = targetFor(el);
-      if (!editing.fill.some((f) => key(f.target) === key(target))) editing.fill.push({ target, click: true });
+      if (!editing.fill.some((f) => key(f.target) === key(target))) editing.fill.push({ target, clues: cluesFor(el), click: true });
       renderSample();
     }
     function renderSample() {
@@ -1318,6 +1372,7 @@
           return {
             ...(s.page !== start ? { page: general(s.page) } : {}),
             target,
+            ...(s.clues ? { clues: s.clues } : {}),
             title: plain(s.titleHtml),
             text: plain(s.textHtml),
             ...(advanceOn !== 'next' ? { advanceOn } : {}),
@@ -1430,7 +1485,7 @@
       for (const step of tour.steps) {
         if (step.page && step.page !== currentPage()) state.flow.push({ type: 'page', path: step.page });
         state.flow.push({
-          type: 'step', page: currentPage(), target: step.target, label: describe(step.target || 'centred'),
+          type: 'step', page: currentPage(), target: step.target, clues: step.clues, label: describe(step.target || 'centred'),
           titleHtml: esc(step.title), textHtml: esc(step.text), image: step.image || null,
           advanceOn: step.advanceOn || 'next', optional: !!step.optional, showOnly: !!step.showOnly,
           fill: step.fill ? step.fill.map((f) => ({ ...f })) : [],

@@ -1,8 +1,14 @@
+---
+permalink: ai-main/projects/product-tour-layer/summary
+title: SUMMARY
+type: note
+---
+
 # Summary
 
 Where the product tour proof of concept stands, how it got here, and what's still open. For how to use it, see the [README](README.md).
 
-**As of October 27, 2026:** extension 0.8.0, 5 live tours and 1 draft for DoorLoop, 3 for the demo app, 94 automated checks, all passing.
+**As of November 6, 2026:** extension 0.9.0, 5 live tours and 1 draft for DoorLoop, 3 for the demo app, 98 automated checks, all passing.
 
 ## What it is
 
@@ -43,6 +49,7 @@ Links: [tours](https://shuang-dl.github.io/product-tour-layer/), [demo app](http
   - a progress bar;
   - "reduce motion" support.
 - **Done on the last step always leaves the form.** A show-only last step now says what Done does, and lets people save their own data.
+- **Finding elements by clues** (November 6, an idea from Mimik): steps keep clues about their element, so a step still finds it when a DoorLoop release renames its label.
 - **Drafts and approval:** tours can be drafts, seen only by people who turn on Show drafts, and go live once their status is changed to live on GitHub. *Create a request* is the first draft.
 
 ## What real DoorLoop taught us

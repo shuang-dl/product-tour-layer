@@ -97,6 +97,27 @@ try {
   await page3.click('.driver-popover-close-btn');
   await page3.waitForTimeout(300);
   check('close button ends the tour', (await page3.locator('.driver-popover').count()) === 0);
+  await page3.close();
+
+  // Clues: when a step's target stops matching (e.g. a renamed data-cy), the element that fits its clues is used;
+  // clues that fit nothing leave the step centred rather than pointing at the wrong thing.
+  await ctx.unroute(TOURS_URL);
+  await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [
+    { id: 'clue-test', title: 'Clues', page: '/tenants', steps: [{ target: "[data-cy='Filter-renamed']", clues: { tag: 'button', text: 'Filter', aria: 'Filter', role: 'button' }, title: 'Filter', text: 'x' }] },
+    { id: 'clue-miss', title: 'Clues miss', page: '/tenants', steps: [{ target: "[data-cy='nothing']", clues: { tag: 'button', text: 'Archive everything', role: 'button' }, title: 'Miss', text: 'x' }] },
+  ] }) }));
+  const cp = await ctx.newPage();
+  const warnings = [];
+  cp.on('console', (m) => m.type() === 'warning' && warnings.push(m.text()));
+  await cp.goto('https://acme.app.doorloop.com/tenants?tour=clue-test');
+  await title(cp);
+  check('clues: a renamed target is found by its clues', (await cp.evaluate(() => document.querySelector('.driver-active-element')?.getAttribute('aria-label'))) === 'Filter');
+  check('clues: the tour warns that the target needs updating', warnings.some((w) => w.includes('found the element by its clues')));
+  await cp.goto('https://acme.app.doorloop.com/tenants?tour=clue-miss');
+  await cp.waitForSelector('.driver-popover', { timeout: 15000 }).catch(() => {});
+  const miss = { title: await title(cp), active: await cp.evaluate(() => { const a = document.querySelector('.driver-active-element'); return a ? a.outerHTML.slice(0, 80) : null; }) };
+  check("clues: clues that fit nothing don't point at the wrong element", miss.title === 'Miss' && (!miss.active || miss.active.includes('driver-dummy-element')), JSON.stringify(miss));
+  await cp.close();
 
   // "Test on: Live DoorLoop": a page opens DoorLoop and sends it a draft tour. Only the builder's site is accepted.
   const sender = (title) => `<!doctype html><script>
@@ -287,7 +308,7 @@ try {
   const existing = {
     id: 'edit-me', title: 'Edit me', page: '/tenants', style: { frame: '#0f6e56' },
     steps: [
-      { target: "input[aria-label='Search']", title: 'First', text: 'one' },
+      { target: "input[aria-label='Search-renamed']", clues: { tag: 'input', aria: 'Search' }, title: 'First', text: 'one' },
       { target: "button[aria-label='Filter']", title: 'Second', text: 'two', advanceOn: 'click' },
     ],
   };
@@ -306,6 +327,10 @@ try {
   const cards = () => E.locator('.card:not(.page-card) .t').allInnerTexts();
   check('edit: the tour loads into the storyboard', JSON.stringify(await cards()) === JSON.stringify(['First', 'Second']) && (await E.locator('.ws-name').textContent()) === 'Edit me');
   check("edit: the tour's style loads", (await E.locator('.style-panel input[data-var="--tour-frame"]').inputValue()) === '#0f6e56');
+  await E.locator('.card:has-text("First")').click();
+  await ed.waitForTimeout(1500);
+  check("edit: a step whose target was renamed is found by its clues, and gets a working target", (await E.locator('.pop code').textContent().catch(() => '')) === "input[aria-label='Search']");
+  await E.locator('.pop [data-cancel]').click();
   // Insert a missing step between First and Second (the "+" before the Second card)
   await E.locator('.ins').nth(1).click();
   await ed.locator('[data-cy=choiceWrap]').nth(1).click({ position: { x: 3, y: 3 } }); // the wrapper itself, not its button
@@ -582,7 +607,8 @@ try {
   check('builder: a new tour is saved as a draft', JSON.parse(await R.locator('.file-out').textContent()).status === 'draft');
   const recorded = JSON.parse((await R.locator('.file-out').textContent()).split('\n\n//')[0]);
   check('record: the tour file has the sample data and exit clicks',
-    JSON.stringify(recorded.steps[0].fill) === JSON.stringify([{ target: "[data-cy='mockStreet']", value: '1100 Congress Ave', pick: '1100 Congress Ave Austin, TX, 78701' }]) &&
+    JSON.stringify(recorded.steps[0].fill.map(({ clues, ...f }) => f)) === JSON.stringify([{ target: "[data-cy='mockStreet']", value: '1100 Congress Ave', pick: '1100 Congress Ave Austin, TX, 78701' }]) &&
+    recorded.steps[0].clues?.tag === 'input' && recorded.steps[0].clues?.aria === 'Street' && recorded.steps[0].fill[0].clues?.aria === 'Street' &&
     JSON.stringify(recorded.exitClicks) === JSON.stringify(["[data-cy='mockCancel']"]), JSON.stringify(recorded));
   // Save to GitHub on a new tour: GitHub's new file page, named after the tour and filled in with the file
   const ghNewP = ctx.waitForEvent('page');

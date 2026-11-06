@@ -1,10 +1,16 @@
+---
+permalink: ai-main/projects/product-tour-layer/readme
+title: README
+type: note
+---
+
 # product-tour-layer
 
 Proof of concept: guided product tours that run **on top of DoorLoop** without changing DoorLoop's code.
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.8.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.9.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -89,6 +95,7 @@ Add `tours/<id>.json`:
 |---|---|
 | `title`, `text` | popover content (plain text) |
 | `target` | optional. A CSS selector, or `{ "text": "Button label", "selector": "button" }` to match by visible label, or a list of those: a group, highlighted as one area. No target = centred popover |
+| `clues` | optional, set by the builder. What the target element looked like: `{ "tag", "text", "aria", "name", "placeholder", "role", "href" }` (only the ones it has), or for a group a list with one per item. If the `target` stops matching (e.g. a DoorLoop release renames a `data-cy`), the tour uses the element that best fits the clues (see "Picking targets") |
 | `page` | optional. The path this step belongs to (`*` matches one segment, e.g. `/tenants/*`). The tour waits until the user is on it |
 | `advanceOn` | `"next"` (default) or `"click"`: the user clicks the highlighted element to continue |
 | `optional` | `true` = skip this step if its target isn't on screen (e.g. "open the People menu" when it's already open) |
@@ -170,6 +177,8 @@ The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-con
 - The draft is kept for that tab until it finishes, so multi-page drafts keep going after a page loads.
 - Demo record pages like `/tenants/t1` become `/tenants/*`, so a step works on any record.
 - For the live test, features the engine doesn't support yet are simplified: "type text" steps use a Next button, and text formatting is left out. The builder says which applied.
+
+**When a target stops matching.** Steps the builder saves carry `clues` as well as a `target`. If the target finds nothing for 1.5 seconds, the tour scores every visible element of the same tag against the clues (text counts most, then aria-label, name, placeholder, link and role; the idea comes from Mimik's Guide Me replay) and uses the best one above 60%. A partial text match only counts when the shorter text is most of the longer one, and role alone never counts, so a poor fit leaves the step centred rather than pointing at the wrong thing. The tour logs a warning in the console when it falls back, and opening that step in the builder finds the element the same way: saving it writes a working target. Tours written by hand, or saved before clues existed, don't have them; re-saving each step in the builder adds them.
 
 **Picking targets.** Prefer, in order: `data-cy` (DoorLoop's test ids, e.g. `[data-cy='SideMenu-People-Tenants']`), `data-intercom-target`, `aria-label`, then `{ "text": ... }`. Avoid class names; they change with every DoorLoop release. In DevTools, `document.querySelectorAll('[data-cy]')` lists what's available on a page.
 
