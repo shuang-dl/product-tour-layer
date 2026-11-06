@@ -30,7 +30,7 @@
     // like DoorLoop's Receive payment: a full-screen dialog above the tour overlay, whose lease list opens on <body>
     // above the dialog and closes when the field loses focus
     if (location.pathname === '/payment') {
-      main.innerHTML = '<div role="dialog" id="takeover" style="position:fixed;inset:0;z-index:1000000;background:#fff;padding:20px;pointer-events:auto">' +
+      main.innerHTML = '<div role="dialog" id="takeover" style="position:fixed;inset:0;z-index:1000000;background:#fff;padding:90px 20px 20px;pointer-events:auto">' +
         '<button aria-label="Close" data-slot="takeover-dialog-close" style="position:absolute;right:20px;top:20px">×</button>' +
         '<div data-cy="mockLease" style="width:260px"><input aria-label="Lease" role="combobox" style="width:100%"></div>' +
         '<div data-cy="mockAmount" style="width:260px;margin-top:20px"><input aria-label="Amount" style="width:100%"></div></div>';

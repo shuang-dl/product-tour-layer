@@ -128,6 +128,7 @@
     .card.drop-here { box-shadow: -4px 0 0 var(--accent); }
     .story-collapsed .story { display: none; }
     .pop .meta .opt { display: flex; align-items: center; gap: 6px; }
+    .record-btn.on { color: #c62828; border-color: #c62828; font-weight: 600; }
     .tour-status { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; }
     .tour-status select { font: inherit; font-size: 12px; padding: 2px; border-radius: 6px; }
     .auto-start { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; }
@@ -232,6 +233,7 @@
             <label class="tour-status" title="Drafts only show for people with Show drafts on; Live tours show for everyone">Status <select><option value="draft">Draft</option><option value="live">Live</option></select></label>
             <label class="auto-start" title="Open this tour by itself the first time someone visits its start page (once per browser)"><input type="checkbox"> Start by itself once</label>
             <button class="ghost story-btn" title="Show or hide the storyboard">Storyboard ▾</button>
+            <button class="ghost record-btn" title="Click through the workflow; each click or typed value becomes a step">● Record tour</button>
             <button class="ghost preview-btn">▶ Preview</button>
             <button class="ghost file-btn">View tour file</button>
             <button class="ghost close-btn">Close</button>
@@ -428,6 +430,7 @@
       // With a step active, clicks pick; otherwise you can use the app normally.
       on('click', (e) => {
         if (inBuilder(e) || navigating) return;
+        if (state.recordingTour) return recordTourClick(e);
         if (state.recording) return recordClick(e);
         if (state.pickingExit) {
           e.preventDefault();
@@ -446,6 +449,7 @@
       }, true);
       on('scroll', refreshOverlay, true);
       on('input', recordInput, true);
+      on('input', recordTourInput, true);
       // Apps open menus and dialogs as the mouse button goes down, before the click, so block the whole press.
       for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'touchstart']) {
         on(type, (e) => {
@@ -749,7 +753,7 @@
       applyStyle();
     }));
 
-    const canPick = () => (state.active !== null || state.pickingExit) && !state.previewing && !state.recording;
+    const canPick = () => (state.active !== null || state.pickingExit) && !state.previewing && !state.recording && !state.recordingTour;
 
     let hoverBox = null;
     function clearHover() {
@@ -1150,6 +1154,111 @@
       });
     }
 
+    // ---------- recording a tour by clicking through it ----------
+    // Each click becomes a step that continues when that element is clicked; typing into a field becomes one step
+    // with what was typed as its sample data (a suggestion picked right after is attached to it). Picking from a
+    // list without typing points the step at the whole list, so it works whatever the list holds. Afterwards every
+    // step is a normal card: click it to edit what it says.
+    const escHtml = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    const CLICKABLE = "button, a[href], [role=button], [role=tab], [role=menuitem], [role=checkbox], [role=radio], [role=switch], input[type=checkbox], input[type=radio], [data-item-id], [data-section-value]";
+    const TEXT_FIELD = 'input:not([type=checkbox]):not([type=radio]):not([type=hidden]), textarea';
+    let lastTyped = null; // the step a just-typed value went into, for a suggestion picked next
+    let lastClick = { key: null, at: 0 };
+    let pendingOpen = null; // a click into a field that offers a list: a step only if a pick follows without typing
+    function fieldLabel(field) {
+      const wrap = pickable(field);
+      return field.getAttribute('aria-label') || field.labels?.[0]?.innerText.trim() ||
+        wrap?.querySelector('label, legend')?.innerText.replace(/\*/g, '').trim() ||
+        field.getAttribute('placeholder') || field.getAttribute('name') || 'this field';
+    }
+    function recordStep(el, { title, text, advanceOn, fill }) {
+      const here = app.path();
+      if (here) pageCard(here);
+      const step = {
+        type: 'step', page: currentPage(), target: targetFor(el), clues: cluesFor(el), label: labelFor(el),
+        titleHtml: escHtml(title), textHtml: escHtml(text), image: null, advanceOn, optional: false, showOnly: false, fill: fill || [],
+      };
+      state.flow.push(step);
+      scrollStoryToEnd = true;
+      renderStory();
+      return step;
+    }
+    function recordTourClick(e) {
+      if (!e.isTrusted || inBuilder(e)) return;
+      const option = e.target.closest && e.target.closest('[role=option]');
+      if (option) {
+        const text = option.textContent.replace(/\s+/g, ' ').trim();
+        if (lastTyped && Date.now() - lastTyped.at < 15000) {
+          lastTyped.step.fill[0].pick = text; // the suggestion picked after typing
+          return save();
+        }
+        const list = option.closest('[role=listbox], [role=menu]') || option.parentElement;
+        if (pendingOpen) recordStep(pendingOpen.el, { title: `Open “${pendingOpen.label}”`, text: `Click ${pendingOpen.label} to see the options.`, advanceOn: 'click' });
+        pendingOpen = null;
+        recordStep(pickable(list) || list, { title: 'Pick from the list', text: `Choose one, for example “${text}”.`, advanceOn: 'click' });
+        return;
+      }
+      const field = e.target.closest(TEXT_FIELD);
+      pendingOpen = null;
+      // Clicking into a text field is part of typing. One that offers a list only becomes a step if a pick follows.
+      if (field) {
+        if (field.matches('[role=combobox], [aria-autocomplete], [aria-haspopup]')) pendingOpen = { el: pickable(field) || field, label: fieldLabel(field) };
+        return;
+      }
+      const hit = e.target.closest(CLICKABLE);
+      const el = hit ? pickable(hit) || hit : null;
+      if (!el) return; // a click on nothing in particular
+      const key = JSON.stringify(targetFor(el));
+      if (key === lastClick.key && Date.now() - lastClick.at < 1000) return; // a double click
+      lastClick = { key, at: Date.now() };
+      lastTyped = null;
+      const label = labelFor(el);
+      const tick = el.matches('input[type=checkbox], [role=checkbox], [role=switch]') || !!el.querySelector('input[type=checkbox]');
+      recordStep(el, tick
+        ? { title: `Tick “${label}”`, text: `Tick ${label} if it applies.`, advanceOn: 'next' }
+        : { title: `Click “${label}”`, text: `Click ${label}.`, advanceOn: 'click' });
+    }
+    function recordTourInput(e) {
+      if (!state.recordingTour || !e.isTrusted || inBuilder(e)) return;
+      const field = e.target;
+      if (!field.matches || !field.matches(TEXT_FIELD)) return;
+      pendingOpen = null;
+      const el = pickable(field) || field;
+      const target = targetFor(el);
+      const last = state.flow[state.flow.length - 1];
+      if (lastTyped && last === lastTyped.step && JSON.stringify(last.target) === JSON.stringify(target)) {
+        last.fill[0].value = field.value;
+        delete last.fill[0].pick;
+        lastTyped.at = Date.now();
+        return save();
+      }
+      const label = fieldLabel(field);
+      const step = recordStep(el, { title: `Enter ${label}`, text: `Type ${label}.`, advanceOn: 'next', fill: [{ target, clues: cluesFor(el), value: field.value }] });
+      lastTyped = { step, at: Date.now() };
+    }
+    function setRecordingTour(on) {
+      clearSelection();
+      state.flow = state.flow.filter((i) => !i.draft);
+      state.active = null;
+      state.recordingTour = on;
+      lastTyped = null;
+      $('.record-btn').classList.toggle('on', on);
+      $('.record-btn').textContent = on ? '■ Stop recording' : '● Record tour';
+      renderStory();
+    }
+    $('.record-btn').onclick = () => {
+      const before = steps().length;
+      setRecordingTour(!state.recordingTour);
+      if (state.recordingTour) {
+        recordStart = before;
+        toast('Recording. Do the workflow the way people should: each click and each field you fill in becomes a step. Click Stop recording when done.', 8000);
+      } else {
+        const n = steps().length - recordStart;
+        toast(`Recorded ${n} step${n === 1 ? '' : 's'}. Click a card to edit what it says. What you typed is kept as each step's sample data: check it before saving, it ends up in the tour file.`, 10000);
+      }
+    };
+    let recordStart = 0;
+
     // ---------- storyboard ----------
     let dragFrom = null;
     let scrollStoryToEnd = false;
@@ -1455,7 +1564,7 @@
       const flow = state.flow.map(({ els, ...rest }) => rest); // elements can't be saved; targets find them again
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({
         name: state.name, id: state.id, folder: options.folder, flow, style, active: state.active, exitClicks: state.exitClicks,
-        autoStart: $('.auto-start input').checked, status: $('.tour-status select').value,
+        autoStart: $('.auto-start input').checked, status: $('.tour-status select').value, recordingTour: state.recordingTour,
         inputs: Object.fromEntries([...$$('.style-panel input')].map((i) => [i.dataset.var, i.value])),
       }));
     }
@@ -1465,6 +1574,7 @@
       state.flow = saved.flow;
       state.active = saved.active ?? null;
       state.exitClicks = saved.exitClicks || [];
+      state.recordingTour = !!saved.recordingTour;
       options.folder = saved.folder;
       $('.auto-start input').checked = !!saved.autoStart;
       $('.tour-status select').value = saved.status || 'draft';
@@ -1522,6 +1632,7 @@
     else if (options.tour) loadTour(options.tour);
     $('.ws-name').textContent = state.name;
     applyStyle();
+    if (state.recordingTour) setRecordingTour(true); // still recording after a page load
     renderStory();
     renderExit();
     showPage(live ? app.path() : currentPage());

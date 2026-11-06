@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.9.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.10.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -148,6 +148,7 @@ The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-con
 - Pages change through DoorLoop's own links (an in-app page change). Where there's no link, the page loads normally and the builder comes back with the draft, which is kept in `sessionStorage` for that tab.
 - The tour launcher is hidden while building. Closing the builder discards the draft, so copy the tour file first.
 - A new tour needs a name, and starts on `/home` unless you enter another page. Each step needs a title and some text before it saves.
+- **● Record tour** in the top bar records a tour by clicking through it: do the workflow the way people should, then click **Stop recording**. Each click becomes a step that continues when that element is clicked ("Click "Receive payment""); a checkbox becomes a "Tick" step; typing into a field becomes one "Enter …" step with what you typed as its sample data, and a suggestion picked right after goes with it. Picking from a list without typing records a step to open the field and one pointing at the whole list (so it works whatever the list holds). Changing pages adds page cards, and a full page load keeps recording. Clicks on nothing in particular and double clicks are skipped. Afterwards every step is a normal card: click it to rewrite its title and text, add show-only, and so on. What you typed ends up in the tour file, so use made-up data.
 - **Status** in the top bar sets the tour's `status` (new tours start as Draft), and **Start by itself once** sets its `autoStart`.
 - In **View tour file**, the box holds only the tour file (notes sit below it), and select-all inside the box selects just the file. Copying the whole page instead brings the builder's screen text along, which the build rejects.
 - The builder's **Preview** is a quick stand-in: it doesn't block show-only steps, run exit clicks, or behave exactly like the tour engine. To check those, publish the tour (or use **Test on: Live DoorLoop** from the demo builder) and run it from DoorLoop.

@@ -644,8 +644,50 @@ try {
   await D.locator('.pop [data-save]').click();
   await dlg.waitForTimeout(3600);
   const suggested = await D.locator('.exit-list li:not(.empty)').allInnerTexts();
+  // Recording a tour by clicking through it: each click and each filled-in field becomes a step, page changes add
+  // page cards, and a suggestion picked after typing goes into that field's sample data
+  const site5 = await ctx.newPage();
+  await site5.goto('https://shuang-dl.github.io/product-tour-layer/builder-concept.html');
+  await site5.click('#create');
+  await site5.fill('#tourName', 'Recorded by clicking');
+  await site5.fill('#tourUrl', '/properties/new');
+  await site5.check('input[value=live]');
+  const rtP = ctx.waitForEvent('page');
+  await site5.click('#openBtn');
+  const rt = await rtP;
+  await rt.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
+  const T = rt.locator('#tour-layer-builder');
+  await T.locator('.record-btn').click();
+  await rt.click('[data-cy=mockChoice]');
+  await rt.click('[aria-label=Street]');
+  await rt.keyboard.type('1100 Congress Ave');
+  await rt.click('#streetPopper li:has-text("Austin")');
+  await rt.click('[aria-label=Federal]');
+  await rt.click('[data-cy=mockCancel]'); // the stand-in goes to /home
+  await rt.waitForTimeout(500);
+  await rt.locator('#menuList [data-item-id=dupItem]').first().click(); // a menu item on /home
+  await T.locator('.record-btn').click(); // stop
+  const recCards = await T.locator('.card .t').allInnerTexts();
+  check('record tour: clicks, typing and page changes become steps and page cards',
+    JSON.stringify(recCards) === JSON.stringify(['/properties/new', 'Click “Single-Family”', 'Enter Street', 'Tick “Federal”', 'Click “Cancel”', '/home', 'Click “Dup A”']), JSON.stringify(recCards));
+  await T.locator('.file-btn').click();
+  const recTour = JSON.parse(await T.locator('.file-out').textContent());
+  const street = recTour.steps.find((x) => x.title === 'Enter Street');
+  check('record tour: typing is the sample data, with the suggestion picked after it',
+    street && street.fill[0].value === '1100 Congress Ave' && street.fill[0].pick === '1100 Congress Ave Austin, TX, 78701' &&
+    recTour.steps[0].advanceOn === 'click' && recTour.steps.find((x) => x.title === 'Click “Dup A”')?.page === '/home', JSON.stringify(street));
+  await T.locator('.file-close').click();
+
   check("record: sample data in a dialog suggests the dialog's × as the exit click",
     suggested.length === 1 && suggested[0].includes('Close') && (await D.locator('.exit-panel').isVisible()), JSON.stringify(suggested));
+  // Recording a pick from a list without typing: a step to open the field, then one pointing at the whole list
+  await D.locator('.record-btn').click();
+  await dlg.click('[aria-label=Lease]');
+  await dlg.click('#leasePopper li:has-text("Lease 2")');
+  await D.locator('.record-btn').click();
+  const pickCards = (await D.locator('.card:not(.page-card) .t').allInnerTexts()).slice(-2);
+  check('record tour: a pick from a list without typing opens the field, then points at the whole list',
+    JSON.stringify(pickCards) === JSON.stringify(['Open “Lease”', 'Pick from the list']), JSON.stringify(pickCards));
 } finally {
   await ctx.close();
 }
