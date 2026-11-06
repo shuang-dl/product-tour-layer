@@ -179,6 +179,8 @@ const extFiles = {
   'content.js': 'extension/content.js',
   'tour-layer.js': 'src/tour-layer.js',
   'builder.js': 'src/builder.js',
+  'gif.js': 'src/gif.js',
+  'export.js': 'src/export.js',
   'driver.js.iife.js': 'vendor/driver.js/driver.js.iife.js',
   'DRIVER_LICENSE': 'vendor/driver.js/LICENSE',
 };

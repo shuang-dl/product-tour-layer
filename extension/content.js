@@ -18,6 +18,15 @@
     const qs = params.toString();
     history.replaceState(history.state, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
   }
+  // ?tour=<id>&export=video|gif (from the tours page): don't start the tour yet; offer to record it first.
+  const exportKind = ['video', 'gif'].includes(params.get('export')) && params.get('tour') ? params.get('export') : null;
+  const exportTour = exportKind ? params.get('tour') : null;
+  if (params.has('export')) {
+    if (exportKind) params.delete('tour');
+    params.delete('export');
+    const qs = params.toString();
+    history.replaceState(history.state, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
+  }
   let showDrafts = false;
   try {
     showDrafts = localStorage.getItem(DRAFTS_KEY) === '1';
@@ -45,6 +54,7 @@
       }
     }
     window.TourLayer.init({ tours });
+    if (exportKind) window.TourExport.offer(exportTour, exportKind);
     // A builder was open in this tab before the page reloaded: bring it back with the draft.
     const saved = window.TourBuilder.savedSession();
     if (saved) window.TourBuilder.open({ mode: 'live', restore: saved });

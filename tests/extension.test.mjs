@@ -16,7 +16,8 @@ const ctx = await chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), 't
   channel: 'chromium', // full Chromium: the headless shell can't load extensions
   executablePath: process.env.CHROME_PATH,
   headless: true,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+  // auto-accept-this-tab-capture: answers the "share this tab" prompt that exporting a tour opens
+  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, '--auto-accept-this-tab-capture'],
 });
 await ctx.route('https://acme.app.doorloop.com/**', (r) => r.fulfill({ contentType: 'text/html', body: MOCK }));
 // Published tours are unreachable unless a test says otherwise, so results don't depend on the live site.
@@ -473,6 +474,65 @@ try {
   check('drafts: ?drafts=off turns Show drafts off', (await dr.locator('.tour-layer-launcher').count()) === 0 &&
     (await dr.evaluate(() => localStorage.getItem('tourLayer.showDrafts'))) === null);
   await dr.close();
+
+  // The GIF encoder (src/gif.js): Chromium must decode what it writes, colours intact, including a noisy frame
+  // big enough to fill the compression table and reset it
+  const gp = await ctx.newPage();
+  await gp.setContent('<!doctype html><body></body>');
+  await gp.addScriptTag({ content: readFileSync(join(EXT, 'gif.js'), 'utf8') });
+  const gif = await gp.evaluate(async () => {
+    const flat = new ImageData(300, 200);
+    for (let y = 0; y < 200; y++) for (let x = 0; x < 300; x++) {
+      const i = (y * 300 + x) * 4;
+      flat.data.set(x < 150 ? [220, 30, 30, 255] : [30, 60, 220, 255], i);
+    }
+    const noisy = new ImageData(300, 200);
+    for (let i = 0; i < noisy.data.length; i += 4) noisy.data.set([Math.random() * 255, Math.random() * 255, Math.random() * 255, 255], i);
+    const bytes = TourGif.encode([flat, noisy], { delayMs: 500 });
+    const img = new Image();
+    img.src = URL.createObjectURL(new Blob([bytes], { type: 'image/gif' }));
+    const loaded = await new Promise((r) => { img.onload = () => r(true); img.onerror = () => r(false); });
+    const c = document.createElement('canvas');
+    c.width = 300; c.height = 200;
+    const ctx2 = c.getContext('2d');
+    ctx2.drawImage(img, 0, 0);
+    const px = (x, y) => [...ctx2.getImageData(x, y, 1, 1).data.slice(0, 3)];
+    return { loaded, w: img.naturalWidth, head: String.fromCharCode(...bytes.slice(0, 6)), left: px(20, 20), right: px(280, 20) };
+  });
+  const near = (a, b) => a.every((v, i) => Math.abs(v - b[i]) <= 8);
+  check('gif: encodes a GIF that Chromium decodes, with the right colours', gif.loaded && gif.w === 300 && gif.head === 'GIF89a' && near(gif.left, [220, 30, 30]) && near(gif.right, [30, 60, 220]), JSON.stringify(gif));
+  await gp.close();
+
+  // Exporting a tour: ?export= offers to record; after Start and playing the tour, the file downloads
+  const exportTour = { id: 'export-test', title: 'Export me', page: '/home', steps: [
+    { title: 'First', text: 'x' }, { target: "[data-cy='Widget-dashboards.thingsToDo']", title: 'Second', text: 'y' }] };
+  await ctx.unroute(TOURS_URL);
+  await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [dropTour, dupTour, leaveTour, leaveTour2, autoTour, doneTour, exportTour] }) }));
+  for (const kind of ['gif', 'video']) {
+    const xp = await ctx.newPage();
+    await xp.goto(`https://acme.app.doorloop.com/home?tour=export-test&export=${kind}`);
+    await xp.waitForSelector('.tour-export-card', { timeout: 15000 }).catch(() => {});
+    const offered = (await xp.locator('.tour-export-card').count()) === 1 && (await xp.locator('.driver-popover').count()) === 0;
+    await xp.click('.tour-export-card .go');
+    await xp.waitForTimeout(1500);
+    const why = await xp.evaluate(() => document.querySelector('.tour-export-card .note')?.textContent || '');
+    if (why) { check(`export ${kind}: recording starts`, false, why); await xp.close(); continue; }
+    await title(xp);
+    await xp.waitForTimeout(1500);
+    await xp.click('.driver-popover-next-btn');
+    await xp.waitForTimeout(1500);
+    const dl = xp.waitForEvent('download', { timeout: 20000 }).catch(() => null);
+    await xp.click('.driver-popover-next-btn'); // Done
+    const file = await dl;
+    const bytes = file ? readFileSync(await file.path()) : Buffer.alloc(0);
+    if (kind === 'gif') {
+      const frames = bytes.length ? bytes.toString('latin1').split('\x21\xf9\x04').length - 1 : 0;
+      check('export gif: offers to record, then downloads a GIF with a frame per step', offered && file?.suggestedFilename() === 'export-test.gif' && bytes.toString('latin1', 0, 6) === 'GIF89a' && frames === 2, `${file?.suggestedFilename()} frames=${frames}`);
+    } else {
+      check('export video: offers to record, then downloads a video of the run', offered && /^export-test\.(mp4|webm)$/.test(file?.suggestedFilename() || '') && bytes.length > 1000, `${file?.suggestedFilename()} ${bytes.length} bytes`);
+    }
+    await xp.close();
+  }
 
   // autoStart: opens by itself on its page once; after it ends, this browser doesn't start it again
   const ap = await ctx.newPage();

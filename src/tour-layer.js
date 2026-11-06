@@ -359,10 +359,15 @@
   }
 
   // finished: ended with Done on the last step, rather than × or Stop tour.
+  // The tour announces each step and its end as window events (tourlayer:step, tourlayer:end), for exporting a
+  // recording (src/export.js) and, later, reporting.
+  const announce = (type, detail) => dispatchEvent(new CustomEvent(`tourlayer:${type}`, { detail }));
+
   function endTour(finished = false) {
     runToken++;
     const state = loadState();
     const tour = state && findTour(state.tourId);
+    if (tour) announce('end', { tourId: tour.id, step: state.step, finished });
     if (tour) markSeen(tour.id);
     // Leave the form the tour went through, without saving, once the highlight is gone: always after Done, and after
     // × only if the tour typed sample data (closing early must not throw away what someone typed themselves).
@@ -469,6 +474,7 @@
     });
 
     if (el) stepDialog = (Array.isArray(el) ? el[0] : el).closest('[role=dialog]') || stepDialog;
+    announce('step', { tourId: tour.id, index, total });
     if (anchor) ringOver(anchor, el);
     screenTimer = setInterval(keepOnScreen, 200);
     if (step.showOnly && el && !canSave) stopBlocking = blockClicks(step.target, step.clues);
