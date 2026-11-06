@@ -1025,6 +1025,7 @@ try {
       { target: "[data-cy='Widget-dashboards.thingsToDo']", title: 'Wide', text: 'A wide widget: the box goes below it' },
       { target: "[data-cy='SideMenu-CreateNewMenu-Button']", title: 'Auto', text: 'A small button: the box goes beside it' },
       { target: "[data-cy='SideMenu-CreateNewMenu-Button']", placement: 'bottom', title: 'Below', text: 'Chosen: below it' },
+      { target: "[data-cy='Widget-dashboards.thingsToDo']", showOnly: true, title: 'Panel', text: 'A show-only panel, not a button' },
     ],
   }] }) }));
   const pl = await ctx.newPage();
@@ -1048,6 +1049,9 @@ try {
   await pl.click('.driver-popover-next-btn');
   const chosen = await boxVsTarget("[data-cy='SideMenu-CreateNewMenu-Button']");
   check("placement: a step's chosen side is used when the box fits there", !chosen.overlap && chosen.inside && chosen.below, JSON.stringify(chosen));
+  await pl.click('.driver-popover-next-btn');
+  check('a show-only last step on a panel (not a button) has no "click … to save it" note',
+    (await title(pl)) === 'Panel' && (await pl.locator('.tl-note').count()) === 0);
   await pl.close();
 } finally {
   await ctx.close();
