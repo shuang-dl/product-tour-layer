@@ -958,6 +958,18 @@
       place(selBox, unionRect(shown));
       if (pop) placePop();
     }
+    // Follow the highlighted area when it moves without a scroll, e.g. a drawer still sliding in when the step
+    // shows (like the tour engine's 150 ms check).
+    let shownAt = '';
+    const followTimer = setInterval(() => {
+      if (!shown || !selBox || !shown.length || !shown.every((e) => e.isConnected)) return;
+      const r = unionRect(shown);
+      const at = [r.left, r.top, r.width, r.height].map(Math.round).join();
+      if (at === shownAt) return;
+      shownAt = at;
+      place(selBox, r);
+      if (pop) placePop();
+    }, 150);
     // Highlight els (one element, or a box-tool group) for the active step and open its editor.
     // Picking again while the editor is open repoints the step: what was typed in the editor is kept.
     function select(els) {
@@ -1825,6 +1837,7 @@
       if (!silent && steps().length && !window.confirm('Close the builder? Copy the tour file first if you want to keep this tour.')) return;
       closed = true;
       clearInterval(pathTimer);
+      clearInterval(followTimer);
       listeners.forEach((off) => off());
       window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('focusout', keepFocus, true);

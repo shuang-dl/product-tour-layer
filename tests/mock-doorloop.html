@@ -78,6 +78,7 @@
         menu.style.cssText = 'position:fixed;left:60px;top:400px;background:#fff;border:1px solid #ccc;padding:8px';
         menu.innerHTML = '<div role="menuitem">Wire transfer details</div>';
         document.body.append(menu);
+        setTimeout(() => (menu.style.left = '300px'), 600); // still moving into place after it appears
         dots.setAttribute('aria-expanded', 'true');
         setTimeout(() => document.addEventListener('pointerdown', function away(e) {
           if (menu.contains(e.target)) return;

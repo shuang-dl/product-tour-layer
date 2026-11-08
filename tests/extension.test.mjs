@@ -804,6 +804,13 @@ try {
   await pv.waitForTimeout(1200);
   check('preview: clicking a "click the highlighted item" step opens the app\'s menu and moves on',
     (await pv.locator('#rowMenu').count()) === 1 && (await PV.locator('.pop .tb-title').innerText().catch(() => '')) === 'The menu');
+  await pv.waitForTimeout(600);
+  const follow = await pv.evaluate(() => {
+    const m = document.getElementById('rowMenu').getBoundingClientRect();
+    const b = document.getElementById('tour-layer-builder').shadowRoot.querySelector('.sel-box').getBoundingClientRect();
+    return { menu: Math.round(m.left), box: Math.round(b.left) };
+  });
+  check('preview: the highlight follows an element that moves after the step shows (a sliding drawer)', Math.abs(follow.box + 4 - follow.menu) <= 1, JSON.stringify(follow));
   await PV.locator('.pop .close').click();
   await pv.evaluate(() => sessionStorage.removeItem('tourLayer.builder'));
   await pv.close();
