@@ -108,6 +108,8 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     'tour-layer:github-signin': startSignin,
     'tour-layer:github-signout': () => chrome.storage.local.remove([STORE, SIGNIN]).then(() => ({ ok: true })),
     'tour-layer:github-save': () => save(msg),
+    // The builder's step screenshots: a picture of the tab as it is now (the builder hides itself first).
+    'tour-layer:capture': async () => ({ dataUrl: await chrome.tabs.captureVisibleTab(sender.tab.windowId, { format: 'png' }) }),
   }[msg && msg.type];
   if (!run) return;
   run().then(reply, (e) => reply({ error: e.message }));

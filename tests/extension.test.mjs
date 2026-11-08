@@ -1,14 +1,20 @@
 // Loads the built extension (dist/extension) into Chromium and runs the tours against a mock DoorLoop page.
 // Run: npm test   (after node scripts/build.mjs). Set CHROME_PATH to use a specific Chromium binary.
 import { chromium } from 'playwright';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const EXT = join(root, 'dist/extension');
+// A copy of the built extension. Step screenshots need activeTab, which Chrome grants when someone clicks the
+// extension's icon; a test can't click it, so the copy may screenshot DoorLoop pages without that click.
+const EXT = mkdtempSync(join(tmpdir(), 'tour-layer-ext-'));
+cpSync(join(root, 'dist/extension'), EXT, { recursive: true });
+const manifest = JSON.parse(readFileSync(join(EXT, 'manifest.json'), 'utf8'));
+manifest.host_permissions.push('<all_urls>');
+writeFileSync(join(EXT, 'manifest.json'), JSON.stringify(manifest));
 const MOCK = readFileSync(join(root, 'tests/mock-doorloop.html'), 'utf8');
 const TOURS_URL = 'https://shuang-dl.github.io/product-tour-layer/tours.json';
 const DRAFTS_URL = 'https://shuang-dl.github.io/product-tour-layer/drafts.json';
@@ -291,6 +297,36 @@ try {
   const centreChips = await B2.locator('.card:not(.page-card)').last().locator('.chip').allInnerTexts();
   check('builder: + Step, then "Or center it", saves a step shown in the middle with a Next button',
     centreCode === 'nothing (shows centred)' && JSON.stringify(centreChips) === JSON.stringify(['centred', 'Next button']), JSON.stringify({ centreCode, centreChips }));
+  // Each step gets a screenshot under its card: a JPG of DoorLoop only (no builder), at most 1000 px wide, with a
+  // pink (#ff4998) dashed outline around what the step highlights (none on a centred step)
+  await live.waitForFunction(() => document.getElementById('tour-layer-builder').shadowRoot.querySelectorAll('.card .shot-thumb').length >= 2, null, { timeout: 5000 }).catch(() => {});
+  const shots = await B2.evaluate(async (host) => {
+    const view = { w: innerWidth - 340, h: innerHeight };
+    return Promise.all([...host.shadowRoot.querySelectorAll('.card:not(.page-card)')].map(async (card) => {
+      const img = card.querySelector('.shot-thumb');
+      if (!img) return null;
+      await img.decode();
+      const c = Object.assign(document.createElement('canvas'), { width: img.naturalWidth, height: img.naturalHeight });
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const d = ctx.getImageData(0, 0, c.width, c.height).data;
+      let pink = 0;
+      for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 255) < 40 && Math.abs(d[i + 1] - 73) < 40 && Math.abs(d[i + 2] - 152) < 40) pink++;
+      return { jpg: img.src.startsWith('data:image/jpeg'), w: img.naturalWidth, ratio: +(img.naturalWidth / img.naturalHeight).toFixed(2), want: +(view.w / view.h).toFixed(2), pink };
+    }));
+  });
+  const [, boxShot, centreShot] = shots;
+  check('builder: each step gets a JPG screenshot under its card, at most 1000 px wide, DoorLoop only',
+    shots.every((s) => s && s.jpg && s.w <= 1000) && Math.abs(boxShot.ratio - boxShot.want) < 0.02, JSON.stringify(shots));
+  check('builder: the screenshot outlines the step\'s element in pink, and a centred step has no outline',
+    boxShot && boxShot.pink > 200 && centreShot && centreShot.pink < 20, JSON.stringify(shots));
+  // Click a picture: shown large, with Download JPG
+  await B2.locator('.card:not(.page-card) .shot-thumb').first().click();
+  const viewOpen = await B2.locator('.shot-view').isVisible();
+  const [shotDownload] = await Promise.all([live.waitForEvent('download', { timeout: 5000 }).catch(() => null), B2.locator('.shot-dl').click()]);
+  await B2.locator('.shot-close').click();
+  check('builder: clicking a screenshot shows it large, and Download JPG saves it',
+    viewOpen && !!shotDownload && /-step-01\.jpg$/.test(shotDownload.suggestedFilename()), shotDownload && shotDownload.suggestedFilename());
   // Preview step 1 goes to /tenants through the app's own link (no reload)
   await B2.locator('.preview-btn').click();
   await live.waitForTimeout(1500);
@@ -369,8 +405,13 @@ try {
   await E.locator('.pop [data-save]').click();
   check('edit: inserted step lands in place', JSON.stringify(await cards()) === JSON.stringify(['First', 'Inserted', 'Second']));
   // Drag "Second" onto "First": it moves before it
+  // Step screenshots make the cards taller: let them arrive, and make room so the storyboard doesn't scroll mid-drag
+  await ed.waitForTimeout(1500);
+  const edSize = ed.viewportSize();
+  await ed.setViewportSize({ width: edSize.width, height: 1400 });
   await E.locator('.card:has-text("Second")').dragTo(E.locator('.card:has-text("First")'));
-  check('edit: dragging reorders steps', JSON.stringify(await cards()) === JSON.stringify(['Second', 'First', 'Inserted']));
+  await ed.setViewportSize(edSize);
+  check('edit: dragging reorders steps', JSON.stringify(await cards()) === JSON.stringify(['Second', 'First', 'Inserted']), JSON.stringify(await cards()));
   await E.locator('.more-btn').click();
   await E.locator('.file-btn').click();
   await ed.keyboard.press('ControlOrMeta+a');
@@ -1024,6 +1065,10 @@ try {
   const recCards = await T.locator('.card .t').allInnerTexts();
   check('record tour: clicks, typing and page changes become steps and page cards',
     JSON.stringify(recCards) === JSON.stringify(['/properties/new', 'Click “Single-Family”', 'Enter Street', 'Tick “Federal”', 'Click “Cancel”', '/home', 'Click “Dup A”']), JSON.stringify(recCards));
+  // Each recorded step gets its screenshot, taken as the mouse went down (or for typing, on the field)
+  await rt.waitForFunction(() => document.getElementById('tour-layer-builder').shadowRoot.querySelectorAll('.card .shot-thumb').length >= 5, null, { timeout: 8000 }).catch(() => {});
+  const recShots = await T.locator('.card:not(.page-card)').evaluateAll((cards) => cards.map((c) => !!c.querySelector('.shot-thumb')));
+  check('record tour: every recorded step gets a screenshot', recShots.length === 5 && recShots.every(Boolean), JSON.stringify(recShots));
   await T.locator('.more-btn').click();
   await T.locator('.file-btn').click();
   const recTour = JSON.parse(await T.locator('.file-out').textContent());

@@ -187,6 +187,13 @@
     .card.page-card { flex-basis: 140px; border-style: dashed; border-color: var(--border); }
     .card.draft { border-style: dashed; border-color: var(--accent); }
     .card.draft .t { color: var(--muted); font-weight: 500; font-style: italic; }
+    .card .shot-thumb { display: block; max-width: 100%; max-height: 96px; margin-top: 6px; border-radius: 6px; border: 1px solid var(--border); cursor: zoom-in; }
+    .shot-view { position: fixed; inset: 0; z-index: 21; display: flex; align-items: center; justify-content: center; padding: 30px; background: rgba(0,0,0,.55); pointer-events: auto; }
+    .shot-view[hidden] { display: none; }
+    .shot-box { background: var(--card); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+    .shot-box img { max-width: min(1000px, 100%); max-height: calc(100vh - 140px); object-fit: contain; border-radius: 6px; border: 1px solid var(--border); }
+    .shot-box .row { display: flex; gap: 8px; align-items: center; }
+    .shot-box .row strong { flex: 1; font-size: 13px; }
     .card .centre-btn { border: 1px dashed var(--accent); background: transparent; color: var(--accent); cursor: pointer; font: inherit; font-size: 11px; }
     .adders { flex: 0 0 auto; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
     .add { border: 2px dashed var(--border); background: transparent; color: var(--accent); border-radius: 10px; padding: 7px 14px; font-weight: 600; white-space: nowrap; }
@@ -281,6 +288,7 @@
                 <label class="auto-start" title="Open this tour by itself the first time someone visits its start page (once per browser)"><input type="checkbox"> Start by itself once</label>
                 <hr>
                 <button class="file-btn">View tour file</button>
+                <button class="shots-btn" title="Download the screenshot of each step as a JPG">Download all screenshots</button>
                 <span class="export-menu"><button data-kind="video">Export video</button><button data-kind="gif">Export GIF (a frame per step)</button></span>
               </span>
             </span>
@@ -307,6 +315,9 @@
           <header><strong>Tour file</strong><button class="ghost copy-btn">Copy</button><button class="ghost gh-btn">Save to GitHub</button><button class="ghost file-close">Close</button></header>
           <pre class="file-out" tabindex="0"></pre>
           <p class="file-notes"></p>
+        </div>
+        <div class="shot-view" hidden>
+          <div class="shot-box"><div class="row"><strong></strong><button class="ghost shot-dl">Download JPG</button><button class="ghost shot-retake">Retake</button><button class="ghost shot-close">Close</button></div><img alt=""></div>
         </div>
         <div class="toast" role="status" hidden></div>
       </div>`;
@@ -508,6 +519,7 @@
       for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'touchstart']) {
         on(type, (e) => {
           if (inBuilder(e) || navigating || previewClickHit(e)) return;
+          if (type === 'pointerdown' && state.recordingTour && e.isTrusted) lastFrame = { at: Date.now(), frame: grabFrame() };
           if (state.previewing || (canPick() && state.tool === 'pointer')) {
             e.preventDefault();
             e.stopPropagation();
@@ -699,6 +711,155 @@
       return null;
     }
 
+    // ---------- step screenshots ----------
+    // Each step gets a JPG of DoorLoop (at most 1000 px wide) with a pink dashed outline around what it highlights,
+    // to see what the step does without previewing, or to use elsewhere. The builder and tour boxes hide while the
+    // picture is taken; with DoorLoop docked, the picture stops where the panel starts. The extension's background
+    // takes it (chrome.tabs.captureVisibleTab). Pictures stay in this browser's extension storage, by tour.
+    const SHOT_MAX_W = 1000;
+    const SHOT_COLOR = '#ff4998';
+    let lastFrame = null; // while recording: the picture taken as the mouse last went down on DoorLoop
+    let retaking = false; // the next step opened takes a new picture even if it has one
+    let hiding = 0;
+    let shotWarned = 0;
+    async function grabFrame() {
+      const area = document.documentElement.classList.contains('tour-layer-docked') ? innerWidth - PANEL_W : innerWidth;
+      const vw = innerWidth;
+      hiding++;
+      host.style.opacity = '0';
+      try {
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); // let the hiding paint
+        let res;
+        // Chrome takes at most 2 pictures a second: wait and try again
+        for (let i = 0; i < 4; i++) {
+          res = await chrome.runtime.sendMessage({ type: 'tour-layer:capture' });
+          if (!res || !/MAX_CAPTURE/.test(res.error || '')) break;
+          await sleep(550);
+        }
+        if (!res || !res.dataUrl) throw new Error((res && res.error) || 'no picture came back');
+        return { dataUrl: res.dataUrl, area, vw };
+      } catch (e) {
+        console.warn('[TourBuilder] screenshot failed', e);
+        if (Date.now() - shotWarned > 30000) {
+          shotWarned = Date.now();
+          toast(`Couldn't take the step's screenshot (${e.message}). Click the extension's icon in Chrome's toolbar once, then use Retake.`, 8000);
+        }
+        return null;
+      } finally {
+        if (!--hiding) host.style.opacity = '';
+      }
+    }
+    const recentFrame = () => (lastFrame && Date.now() - lastFrame.at < 2000 ? lastFrame.frame : grabFrame());
+    // Where els are now; the outline goes there once the picture is in. No els: a centred step, no outline.
+    function shotFrom(frame, els) {
+      const rect = els.length ? unionRect(els) : null;
+      return frame.then((f) => f && drawShot(f, rect)).catch(() => null);
+    }
+    const takeShot = (els) => shotFrom(grabFrame(), els);
+    async function drawShot(frame, rect) {
+      const img = new Image();
+      img.src = frame.dataUrl;
+      await img.decode();
+      const k = img.width / frame.vw; // device pixels per CSS pixel
+      const srcW = Math.min(img.width, Math.round(frame.area * k));
+      const outW = Math.min(SHOT_MAX_W, srcW);
+      const s = outW / srcW;
+      const canvas = document.createElement('canvas');
+      canvas.width = outW;
+      canvas.height = Math.round(img.height * s);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, srcW, img.height, 0, 0, canvas.width, canvas.height);
+      if (rect) {
+        const f = k * s;
+        const pad = 6;
+        ctx.strokeStyle = SHOT_COLOR;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 5]);
+        ctx.beginPath();
+        ctx.roundRect(rect.left * f - pad, rect.top * f - pad, rect.width * f + pad * 2, rect.height * f + pad * 2, 6);
+        ctx.stroke();
+      }
+      return canvas.toDataURL('image/jpeg', 0.8);
+    }
+    function attachShot(step, shot) {
+      if (!shot) return;
+      shot.then((jpg) => {
+        if (!jpg) return;
+        step.shot = jpg;
+        if (dragFrom === null) renderStory(); // redrawing the cards mid-drag would drop the drag
+        save();
+      });
+    }
+    // Stored by tour, each step by its page, target and how many steps before it share them, so the pictures come
+    // back when the tour is opened again (even after its text changed).
+    const shotsKey = () => 'tourLayer.shots:' + (state.id || state.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+    function shotKeys() {
+      const seen = {};
+      return steps().map((item) => {
+        const base = `${item.page}|${JSON.stringify(item.target === undefined ? null : item.target)}`;
+        seen[base] = (seen[base] || 0) + 1;
+        return [`${base}|${seen[base]}`, item];
+      });
+    }
+    let shotsSaved = '';
+    let shotsLoaded = false; // until the stored pictures are back, saving would overwrite them with none
+    function saveShots() {
+      if (!chrome.storage || !shotsLoaded) return;
+      const map = Object.fromEntries(shotKeys().filter(([, item]) => item.shot).map(([key, item]) => [key, item.shot]));
+      const sig = shotsKey() + Object.entries(map).map(([key, jpg]) => key + jpg.length).join();
+      if (sig === shotsSaved) return;
+      shotsSaved = sig;
+      chrome.storage.local.set({ [shotsKey()]: map }).catch((e) => console.warn('[TourBuilder] could not store the screenshots', e));
+    }
+    async function loadShots() {
+      try {
+        const map = (await chrome.storage.local.get(shotsKey()))[shotsKey()] || {};
+        let found = 0;
+        for (const [key, item] of shotKeys()) if (!item.shot && map[key]) { item.shot = map[key]; found++; }
+        if (found) renderStory();
+      } catch (e) {
+        console.warn('[TourBuilder] could not load the screenshots', e);
+      }
+      shotsLoaded = true;
+      saveShots();
+    }
+    const stepNoAt = (i) => state.flow.slice(0, i + 1).filter((x) => x.type === 'step' && !x.draft).length;
+    const shotFile = (n) => `${shotsKey().slice('tourLayer.shots:'.length) || 'tour'}-step-${String(n).padStart(2, '0')}.jpg`;
+    function downloadShot(jpg, name) {
+      const a = Object.assign(document.createElement('a'), { href: jpg, download: name });
+      document.body.append(a);
+      a.click();
+      a.remove();
+    }
+    let viewing = null;
+    function viewShot(i) {
+      viewing = i;
+      const n = stepNoAt(i);
+      $('.shot-box strong').textContent = `Step ${n}: ${shotFile(n)}`;
+      $('.shot-box img').src = state.flow[i].shot;
+      $('.shot-view').hidden = false;
+    }
+    $('.shot-close').onclick = () => ($('.shot-view').hidden = true);
+    $('.shot-view').onclick = (e) => { if (e.target === $('.shot-view')) $('.shot-view').hidden = true; };
+    $('.shot-dl').onclick = () => downloadShot(state.flow[viewing].shot, shotFile(stepNoAt(viewing)));
+    $('.shot-retake').onclick = () => {
+      $('.shot-view').hidden = true;
+      retaking = true;
+      activate(viewing);
+    };
+    $('.shots-btn').onclick = async () => {
+      $('.more-menu').hidden = true;
+      const all = shotKeys().map(([, item]) => item);
+      const withShot = all.filter((item) => item.shot);
+      if (!withShot.length) return toast('No screenshots yet. Each step gets one when you pick what it highlights or record it.');
+      for (const item of withShot) {
+        downloadShot(item.shot, shotFile(all.indexOf(item) + 1));
+        await sleep(300);
+      }
+      const missing = all.length - withShot.length;
+      toast(`Downloaded ${withShot.length} screenshot${withShot.length === 1 ? '' : 's'}.${missing ? ` ${missing} step${missing === 1 ? ' has' : 's have'} none yet: open ${missing === 1 ? 'it' : 'them'} to take one.` : ''}`, 6000);
+    };
+
     // ---------- storyboard actions ----------
     function addStep() {
       const draft = state.flow.findIndex((i) => i.draft);
@@ -734,7 +895,9 @@
       if (!item.target) {
         // Not pinned to anything (shows centred): edit its text where it is.
         await goToPage(item.page);
-        openEditor([], item);
+        const shot = !item.shot || retaking ? takeShot([]) : null;
+        retaking = false;
+        openEditor([], item, shot);
         return renderStory();
       }
       const els = await elsFor(item);
@@ -972,9 +1135,13 @@
     function select(els) {
       clearHover();
       const kept = editing && editing.snapshot ? editing.snapshot() : null;
-      highlight(els);
       const item = state.flow[state.active];
-      openEditor(els, kept || (item.draft ? null : item));
+      // A picture of the page with the picked element outlined: for a new step, a repointed one, or one without
+      // a picture yet (a step from a tour file). Taken before the highlight and the editor show.
+      const shot = item.draft || kept || !item.shot || retaking ? takeShot(els) : null;
+      retaking = false;
+      highlight(els);
+      openEditor(els, kept || (item.draft ? null : item), shot);
       if (kept) toast('Repointed. Your text and settings are kept; Save step to keep the new spot.');
       renderStory();
     }
@@ -1051,7 +1218,8 @@
       }
     }
 
-    function openEditor(els, step) {
+    function openEditor(els, step, shot) {
+      if (shot && step && state.flow.includes(step)) attachShot(step, shot);
       const all = state.flow.filter((i) => i.type === 'step');
       const n = all.indexOf(state.flow[state.active]) + 1;
       pop = document.createElement('div');
@@ -1163,7 +1331,8 @@
         if (!text.innerText.trim()) return toast('Add some text for the step: what should people know or do here?');
         if (fill.length && !state.exitClicks.length) setTimeout(() => suggestExit(els), 3300);
         const page = state.flow[state.active].page;
-        state.flow[state.active] = {
+        const savedStep = state.flow[state.active] = {
+          shot: (step && step.shot) || null,
           type: 'step', page, els, target, clues, label: !els.length ? 'centred' : single ? labelFor(els[0]) : `${els.length} items`,
           titleHtml: title().innerHTML, textHtml: text.innerHTML, image, advanceOn: advance.value,
           optional: meta.querySelector('[data-optional]').checked,
@@ -1171,6 +1340,7 @@
           placement: placement.value,
           fill: fill.filter((f) => f.click || f.value !== ''),
         };
+        if (shot) attachShot(savedStep, shot);
         // A centred step has nothing to click, type in or keep from saving: it continues with Next.
         if (!els.length) Object.assign(state.flow[state.active], { advanceOn: 'next', optional: false, showOnly: false, fill: [] });
         if (state.flow[state.active].showOnly && advance.value === 'click') {
@@ -1334,7 +1504,9 @@
     }
     // A required field's label ends with "*"; leave it out of the step's words.
     const plain = (label) => label.replace(/\s*\*\s*$/, '');
-    function recordStep(el, { title, text, advanceOn, fill, target }) {
+    function recordStep(el, { title, text, advanceOn, fill, target, shot }) {
+      // The picture taken as the mouse went down on it (or, for typing, on the field), before the app reacted
+      shot = shot || shotFrom(recentFrame(), [el]);
       const here = app.path();
       if (here) pageCard(here);
       const step = {
@@ -1342,13 +1514,14 @@
         titleHtml: escHtml(title), textHtml: escHtml(text), image: null, advanceOn, optional: false, showOnly: false, fill: fill || [],
       };
       state.flow.push(step);
+      attachShot(step, shot);
       scrollStoryToEnd = true;
       renderStory();
       return step;
     }
     function recordTourClick(e) {
       if (!e.isTrusted || inBuilder(e)) return;
-      const openStep = () => pendingOpen && recordStep(pendingOpen.el, { title: `Open “${plain(pendingOpen.label)}”`, text: `Click ${plain(pendingOpen.label)} to see the options.`, advanceOn: 'click' });
+      const openStep = () => pendingOpen && recordStep(pendingOpen.el, { title: `Open “${plain(pendingOpen.label)}”`, text: `Click ${plain(pendingOpen.label)} to see the options.`, advanceOn: 'click', shot: pendingOpen.shot });
       // A day in a date picker's calendar (a grid named like "November 2026"; DoorLoop's has data-slot=calendar). The
       // day's own label is one date, gone next month, so the step points at the whole calendar instead.
       const grid = e.target.closest && e.target.closest('[role=grid]');
@@ -1379,7 +1552,10 @@
       pendingOpen = null;
       // Clicking into a text field is part of typing. One that offers a list only becomes a step if a pick follows.
       if (field) {
-        if (field.matches('[role=combobox], [aria-autocomplete], [aria-haspopup]')) pendingOpen = { el: pickable(field) || field, label: fieldLabel(field) };
+        if (field.matches('[role=combobox], [aria-autocomplete], [aria-haspopup]')) {
+          const el = pickable(field) || field;
+          pendingOpen = { el, label: fieldLabel(field), shot: shotFrom(recentFrame(), [el]) };
+        }
         return;
       }
       const hit = e.target.closest(CLICKABLE);
@@ -1541,7 +1717,7 @@
             card.querySelector('.t').textContent = 'Pick something to highlight…';
             // Or highlight nothing: the step shows in the middle of the screen, e.g. an introduction to the tour.
             const centre = Object.assign(document.createElement('button'), { className: 'chip centre-btn', textContent: 'Or center it', title: 'Show this step in the middle of the screen, with nothing highlighted (good for an introduction)' });
-            centre.onclick = (e) => { e.stopPropagation(); state.active = i; clearSelection(); openEditor([], null); renderStory(); };
+            centre.onclick = (e) => { e.stopPropagation(); state.active = i; clearSelection(); openEditor([], null, takeShot([])); renderStory(); };
             card.querySelector('.chips').append(centre);
           } else {
             const tmp = document.createElement('div');
@@ -1551,6 +1727,11 @@
               Object.assign(document.createElement('span'), { className: 'chip', textContent: item.label }),
               Object.assign(document.createElement('span'), { className: 'chip', textContent: ADVANCE[item.advanceOn] })
             );
+            if (item.shot) {
+              const img = Object.assign(document.createElement('img'), { className: 'shot-thumb', src: item.shot, alt: `Screenshot of step ${stepNo}`, title: 'View the screenshot', draggable: false }); // dragging moves the card
+              img.onclick = (e) => { e.stopPropagation(); viewShot(i); };
+              card.append(img);
+            }
           }
           card.onclick = () => activate(i);
         }
@@ -1788,7 +1969,8 @@
     // ---------- keep the draft across page reloads ----------
     function save() {
       if (closed) return;
-      const flow = state.flow.map(({ els, ...rest }) => rest); // elements can't be saved; targets find them again
+      const flow = state.flow.map(({ els, shot, ...rest }) => rest); // elements can't be saved; targets find them again
+      saveShots(); // pictures are too big for sessionStorage: they go in the extension's storage
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({
         name: state.name, id: state.id, flow, style, active: state.active, exitClicks: state.exitClicks,
         autoStart: $('.auto-start input').checked, status: $('.tour-status select').value, recordingTour: state.recordingTour,
@@ -1865,6 +2047,7 @@
     applyStyle();
     if (state.recordingTour) setRecordingTour(true); // still recording after a page load
     renderStory();
+    loadShots();
     renderExit();
     dock();
     showPage(app.path());
