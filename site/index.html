@@ -57,11 +57,11 @@
     </section>
 
     <h2>Live tours</h2>
-    <p>Everyone with the extension sees these.</p>
+    <p>Everyone with the extension sees these. <strong>Edit</strong> opens a tour in the builder on DoorLoop; saving it there updates the live tour for everyone.</p>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Name</th><th>Description</th><th class="num">Steps</th><th>URL <small>(app.doorloop.com…)</small></th></tr></thead>
-        <tbody id="tours"><tr class="empty"><td colspan="4">Loading tours…</td></tr></tbody>
+        <thead><tr><th>Name</th><th>Description</th><th class="num">Steps</th><th>URL <small>(app.doorloop.com…)</small></th><th>Edit</th></tr></thead>
+        <tbody id="tours"><tr class="empty"><td colspan="5">Loading tours…</td></tr></tbody>
       </table>
     </div>
 
@@ -117,13 +117,14 @@
         .then(({ tours }) => (tours.length ? body.replaceChildren(...tours.map((t) => row(t, extra(t)))) : message(none)))
         .catch(() => message(`Could not load ${url}.`));
     }
-    show('tours', 'tours.json', 4, () => [], 'No live tours yet.');
-    // Drafts: preview on DoorLoop (turns on Show drafts there), approve the file on GitHub, or open it in the builder
-    // on DoorLoop (the extension sees ?edit-tour= and opens the builder with it).
+    // Edit opens the tour in the builder on DoorLoop (the extension sees ?edit-tour= and opens the builder with it)
+    const editCell = (t) => cell('act', link('Edit', `${DOORLOOP}${t.page}?edit-tour=${encodeURIComponent(t.id)}`, 'btn'));
+    show('tours', 'tours.json', 5, (t) => [editCell(t)], 'No live tours yet.');
+    // Drafts: preview on DoorLoop (turns on Show drafts there), approve the file on GitHub, or edit it.
     show('drafts', 'drafts.json', 7, (t) => [
       cell('act', link('Preview →', `${DOORLOOP}${t.page}?tour=${encodeURIComponent(t.id)}&drafts=on`)),
       cell('act', link('Approve', `https://github.com/shuang-dl/product-tour-layer/edit/main/tours/${encodeURIComponent(t.id)}.json`)),
-      cell('act', link('Edit', `${DOORLOOP}${t.page}?edit-tour=${encodeURIComponent(t.id)}`, 'btn')),
+      editCell(t),
     ], 'No drafts right now.');
   </script>
 </body>
