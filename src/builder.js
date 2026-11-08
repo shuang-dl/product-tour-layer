@@ -71,7 +71,7 @@
     .live .ws-top .badge { order: 0; font-size: 11px; font-weight: 600; background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 8px; white-space: nowrap; }
     .live .ws-top .story-btn { order: 1; margin-left: auto; }
     .live .ws-top .close-btn { order: 2; }
-    .live .ws-top .ws-name { order: 3; flex: 1 1 0; min-width: 0; max-width: none; font-size: 15px; }
+    .live .ws-top .ws-name { order: 3; flex: 1 1 calc(100% - 90px); min-width: 0; max-width: none; font-size: 15px; } /* wide enough to start its own line, with All tours beside it */
     .live .ws-top .all-tours { order: 3; }
     .live .ws-top .url { order: 4; flex: 1 0 100%; }
     .live .ws-top .record-btn, .live .ws-top .preview-btn, .live .ws-top .save-btn, .live .ws-top .more-wrap { order: 5; }

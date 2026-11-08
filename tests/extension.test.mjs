@@ -329,6 +329,12 @@ try {
   const cards = () => E.locator('.card:not(.page-card) .t').allInnerTexts();
   check('builder: an All tours link opens the tours page in a new tab',
     (await E.locator('.all-tours').getAttribute('href')) === 'https://shuang-dl.github.io/product-tour-layer/' && (await E.locator('.all-tours').getAttribute('target')) === '_blank' && (await E.locator('.all-tours').isVisible()));
+  const nameRow = await E.evaluate((host) => {
+    const r = host.shadowRoot, n = r.querySelector('.ws-name').getBoundingClientRect(), a = r.querySelector('.all-tours').getBoundingClientRect();
+    const close = r.querySelector('.close-btn').getBoundingClientRect();
+    return { nameW: n.width, sameLine: Math.abs(n.top + n.height / 2 - (a.top + a.height / 2)) < 6, belowClose: n.top >= close.bottom };
+  });
+  check('builder: the tour name keeps its own line, with All tours beside it', nameRow.nameW > 150 && nameRow.sameLine && nameRow.belowClose, JSON.stringify(nameRow));
   check('edit: the tour loads into the storyboard', JSON.stringify(await cards()) === JSON.stringify(['First', 'Second']) && (await E.locator('.ws-name').textContent()) === 'Edit me');
   check("edit: the tour's style loads", (await E.locator('.style-panel input[data-var="--tour-frame"]').inputValue()) === '#0f6e56');
   await E.locator('.card:has-text("First")').click();
