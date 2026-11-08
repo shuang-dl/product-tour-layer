@@ -74,6 +74,8 @@
     .live .ws-top .url { order: 4; flex: 1 0 100%; }
     .live .ws-top .record-btn, .live .ws-top .preview-btn, .live .ws-top .save-btn, .live .ws-top .more-wrap { order: 5; }
     .live .ws-top .record-btn { flex: 1 0 100%; }
+    .live .ws-top .preview-btn, .live .ws-top .save-btn, .live .ws-top .more-wrap { flex: 1 1 0; } /* the row spans the panel */
+    .live .ws-top .more-btn { width: 100%; }
     .live .tools { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--border); padding: 6px 10px; position: relative; z-index: 4; }
     .live .tools hr { width: 1px; height: auto; align-self: stretch; margin: 4px 2px; border: 0; border-left: 1px solid var(--border); }
     .live .tool[data-tip]:hover::after { left: 0; right: auto; top: 44px; }
@@ -161,7 +163,9 @@
     .more-menu .export-menu { display: grid; }
     .more-menu button { background: none; border: 0; text-align: left; padding: 6px 8px; border-radius: 6px; font: inherit; color: var(--text); }
     .more-menu button:hover { background: var(--bg); }
-    .record-btn.on { color: #c62828; border-color: #c62828; font-weight: 600; }
+    .record-btn { background: #d32f2f; color: #fff; border-color: #d32f2f; font-weight: 600; }
+    .record-btn:hover { background: #b71c1c; border-color: #b71c1c; }
+    .record-btn.on { background: transparent; color: #c62828; border-color: #c62828; } /* recording: outlined, with Stop */
     .tour-status { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; }
     .tour-status select { font: inherit; font-size: 12px; padding: 2px; border-radius: 6px; }
     .dock-opt { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; }
