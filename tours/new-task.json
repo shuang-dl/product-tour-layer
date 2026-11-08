@@ -1,0 +1,147 @@
+{
+  "id": "new-task",
+  "title": "New Task",
+  "status": "draft",
+  "page": "/home",
+  "style": {
+    "frame": "#0b1f44",
+    "bandText": "#ffffff",
+    "button": "#d8f34a",
+    "buttonText": "#0b1f44",
+    "bodyText": "#1b1d21",
+    "bodyBg": "#ffffff",
+    "footerHeight": 56,
+    "titleSize": "h2",
+    "titleAlign": "left",
+    "textAlign": "left"
+  },
+  "steps": [
+    {
+      "target": "[data-cy='SideMenu-CreateNewMenu-Button']",
+      "clues": {
+        "tag": "button",
+        "text": "Create new",
+        "role": "button"
+      },
+      "title": "Click “Create new”",
+      "text": "Click Create new.",
+      "advanceOn": "click"
+    },
+    {
+      "target": "button[data-section-value='tasks-and-maintenance']",
+      "clues": {
+        "tag": "button",
+        "text": "Tasks & maintenance",
+        "role": "button"
+      },
+      "title": "Click “Tasks & maintenance”",
+      "text": "Click Tasks & maintenance.",
+      "advanceOn": "click"
+    },
+    {
+      "target": "[data-item-id='task']",
+      "clues": {
+        "tag": "div",
+        "text": "Task",
+        "role": "button"
+      },
+      "title": "Click “Task”",
+      "text": "Click Task.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/home/global-new/internal-task/new",
+      "target": "button[aria-label='Friday, November 13th, 2026']",
+      "clues": {
+        "tag": "button",
+        "text": "13",
+        "aria": "Friday, November 13th, 2026",
+        "role": "button"
+      },
+      "title": "Click “Friday, November 13th, 2026”",
+      "text": "Click Friday, November 13th, 2026.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/home/global-new/internal-task/new",
+      "target": "[data-cy='subject']",
+      "clues": {
+        "tag": "div",
+        "text": "Subject *",
+        "role": "div"
+      },
+      "title": "Enter Subject",
+      "text": "Type Subject.",
+      "fill": [
+        {
+          "target": "[data-cy='subject']",
+          "clues": {
+            "tag": "div",
+            "text": "Subject *",
+            "role": "div"
+          },
+          "value": "Check the walls on Unit 5"
+        }
+      ]
+    },
+    {
+      "page": "/home/global-new/internal-task/new",
+      "target": "[data-cy='description']",
+      "clues": {
+        "tag": "div",
+        "text": "Description",
+        "role": "div"
+      },
+      "title": "Enter Description",
+      "text": "Type Description.",
+      "fill": [
+        {
+          "target": "[data-cy='description']",
+          "clues": {
+            "tag": "div",
+            "text": "Description",
+            "role": "div"
+          },
+          "value": "Unit 5 seems to have issues with their wall paint.",
+          "pick": "Samuel H."
+        }
+      ]
+    },
+    {
+      "page": "/home/global-new/internal-task/new",
+      "target": "[data-cy='property'] > div > div > div > div > button:nth-of-type(2)",
+      "clues": {
+        "tag": "button",
+        "aria": "Open",
+        "role": "button"
+      },
+      "title": "Click “Open”",
+      "text": "Click Open.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/home/global-new/internal-task/new",
+      "target": "ul#AsyncAutoCompleteproperty-popup",
+      "clues": {
+        "tag": "ul",
+        "text": "0000 Business Property",
+        "role": "listbox"
+      },
+      "title": "Pick from the list",
+      "text": "Choose one, for example “215 Vine St”.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/home/global-new/internal-task/new",
+      "target": "[data-cy='Action-Button-Save']",
+      "clues": {
+        "tag": "button",
+        "text": "Save",
+        "role": "button"
+      },
+      "title": "Save",
+      "text": "Click Save to finish.",
+      "showOnly": true
+    }
+  ]
+}
