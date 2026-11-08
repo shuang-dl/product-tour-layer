@@ -332,6 +332,20 @@ try {
   await E.locator('.card:has-text("First")').click();
   await ed.waitForTimeout(1500);
   check("edit: a step whose target was renamed is found by its clues, and gets a working target", (await E.locator('.pop code').textContent().catch(() => '')) === "input[aria-label='Search']");
+  // Repoint: with the editor open, an unsaved title edit, then Repoint and click something else
+  await E.locator('.pop .tb-title').click();
+  await ed.keyboard.press('End');
+  await ed.keyboard.type(' (moved)');
+  await E.locator('.pop [data-repoint]').click();
+  const repointHint = await E.locator('.toast').textContent().catch(() => '');
+  const hiddenWhileRepointing = await E.locator('.pop').evaluate((p) => p.style.visibility === 'hidden');
+  await ed.click("button[aria-label='Filter']");
+  await ed.waitForTimeout(300);
+  check('repoint: Repoint explains what to do and moves the editor out of the way', hiddenWhileRepointing && repointHint.startsWith('Click what this step should point at'), repointHint);
+  check('repoint: a new editor opens for the new spot', (await E.locator('.pop').count()) === 1 && (await E.locator('.pop').evaluate((p) => p.style.visibility)) === '');
+  check('repoint: clicking something else repoints the step and keeps the unsaved edits',
+    (await E.locator('.pop code').textContent()) === "button[aria-label='Filter']" && (await E.locator('.pop .tb-title').innerText()) === 'First (moved)' &&
+    (await E.locator('.pop .tb-text').innerText()) === 'one');
   await E.locator('.pop [data-cancel]').click();
   // Insert a missing step between First and Second (the "+" before the Second card)
   await E.locator('.ins').nth(1).click();

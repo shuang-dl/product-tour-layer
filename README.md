@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.18.1. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.19.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -183,6 +183,7 @@ Only the extension's own menu can send these requests to the page; websites can'
 **Editing a tour.** In the builder's start popup choose **Edit existing tour**, then pick a published tour (DoorLoop or demo) or paste a tour file, and build on the demo or live DoorLoop. The storyboard fills in with the tour's pages and steps, and its style loads into the Tour style panel.
 
 - Click a card to edit that step (the builder goes to its page and finds its element again). For a page pattern like `/tenants/*`, open a matching page first.
+- **Repointing a step** that highlights the wrong thing (or that couldn't be found): open its card, click **⌖ Repoint** next to "Anchored to" (the editor steps aside; Esc brings it back), then click the right element or draw around it with the box tool. The title, text and settings you had in the editor are kept, including unsaved changes; **Save step** keeps the new spot, **Cancel** leaves the step as it was. Clicking another element while the editor is open does the same.
 - **+** between cards inserts a step there; drag cards to reorder (a step dragged past a page card moves to that page); × removes one.
 - The step editor's **Skip this step if it isn't on screen** sets `optional`, and **Show only** sets `showOnly`.
 - **Sample data** in the step editor: click **Record**, then fill in the highlighted area the way people should (type, pick a suggestion, click a choice) and click **Stop**. Only what happens inside the highlight is recorded; a picked suggestion attaches to the field typed into just before it. The list shows what was recorded: edit a value or remove a row before saving the step. Everything in it ends up in the published tour file, so use made-up data.

@@ -110,6 +110,9 @@
     .pop .meta code { font-size: 11px; word-break: break-all; }
     .pop .meta select { font: inherit; font-size: 12px; padding: 3px; border-radius: 6px; }
     .pop .meta .row { display: flex; justify-content: space-between; align-items: center; }
+    .pop .meta .anchor { gap: 8px; }
+    .pop .meta .anchor span { min-width: 0; }
+    .pop .meta .anchor .link { white-space: nowrap; }
     .pop .meta .save { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 5px 12px; font-weight: 600; }
     .pop .meta .link { background: none; border: 0; color: var(--muted); padding: 4px; }
     .pop [contenteditable]:empty::before { content: attr(data-placeholder); opacity: .45; }
@@ -752,7 +755,7 @@
       }
       const els = await elsFor(item);
       if (state.active !== i) return;
-      if (!els) return missingPage || toast(`Couldn't find “${item.label}” on ${item.page}.`);
+      if (!els) return missingPage || toast(`Couldn't find “${item.label}” on ${item.page}. Click what it should point at to repoint it.`, 6000);
       select(els);
     }
     // Insert an empty step before flow[at], on the page in effect there.
@@ -947,11 +950,14 @@
       if (pop) placePop();
     }
     // Highlight els (one element, or a box-tool group) for the active step and open its editor.
+    // Picking again while the editor is open repoints the step: what was typed in the editor is kept.
     function select(els) {
       clearHover();
+      const kept = editing && editing.snapshot ? editing.snapshot() : null;
       highlight(els);
       const item = state.flow[state.active];
-      openEditor(els, item.draft ? null : item);
+      openEditor(els, kept || (item.draft ? null : item));
+      if (kept) toast('Repointed. Your text and settings are kept; Save step to keep the new spot.');
       renderStory();
     }
     // Put the step box beside the highlight, never over it, like the tour engine does (tour-layer.js placeBox):
@@ -1053,7 +1059,7 @@
           <div class="row"><strong>Sample data</strong><button class="link rec" data-record>● Record</button></div>
           <ul class="sample-list"></ul>
         </div>
-        <span>Anchored to <code></code></span>
+        <div class="row anchor"><span>Anchored to <code></code></span><button class="link" data-repoint title="Point this step at something else">⌖ Repoint</button></div>
         <div class="row"><button class="link" data-cancel>Cancel</button><button class="save" data-save>Save step</button></div>`;
       pop.append(meta);
       layer.append(pop);
@@ -1084,7 +1090,26 @@
 
       // Sample data: recorded from what you type and choose in the highlighted area, then reviewed here.
       const fill = step && step.fill ? step.fill.map((f) => ({ ...f })) : [];
-      editing = { target, fill, list: meta.querySelector('.sample-list') };
+      editing = {
+        target, fill, list: meta.querySelector('.sample-list'),
+        // The editor as it is now, for repointing without losing unsaved edits
+        snapshot: () => ({ titleHtml: title().innerHTML, textHtml: text.innerHTML, image, advanceOn: advance.value,
+          optional: meta.querySelector('[data-optional]').checked, showOnly: meta.querySelector('[data-showonly]').checked,
+          placement: placement.value, fill }),
+      };
+      // Repoint: the editor steps out of the way (it may cover the right spot) until something is picked; Esc brings it back.
+      meta.querySelector('[data-repoint]').onclick = () => {
+        const editor = pop;
+        editor.style.visibility = 'hidden';
+        const docs = [...new Set([document, app.doc()].filter(Boolean))];
+        const onKey = (e) => {
+          if (e.key !== 'Escape') return;
+          docs.forEach((d) => d.removeEventListener('keydown', onKey, true));
+          if (editor.isConnected) editor.style.visibility = '';
+        };
+        docs.forEach((d) => d.addEventListener('keydown', onKey, true));
+        toast(`Click what this step should point at ${live ? 'on the page' : 'in the demo'}, or draw around it with the box tool. Your edits are kept. Esc to keep it where it is.`, 6000);
+      };
       renderSample();
       const recBtn = meta.querySelector('[data-record]');
       recBtn.onclick = () => {
