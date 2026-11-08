@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.24.4. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.24.5. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -163,7 +163,7 @@ Only the extension's own menu can send these requests to the page; websites can'
 - **All tours ↗** next to the tour's name opens the page listing all tours in a new tab (the draft stays where it is).
 - The panel has **● Record tour**, **▶ Preview**, **💾 Save tour**, **Hide ▸** and **Close**; **⋯ More** holds **Status** (the tour's `status`; new tours start as Draft), **Start by itself once** (`autoStart`), **View tour file** and **Export video / GIF**.
 - In **View tour file**, the box holds only the tour file (notes sit below it), and select-all inside the box selects just the file. Copying the whole page instead brings the builder's screen text along, which the build rejects.
-- The builder's **Preview** is a quick stand-in. A "Click the highlighted item" step passes the click to DoorLoop, so a row's ⋮ menu or a dialog opens and the next step can point into it. Preview doesn't block show-only steps, run exit clicks, or behave exactly like the tour engine. To check those, publish the tour (as a draft) and run it from DoorLoop.
+- The builder's **Preview** is a quick stand-in. A "Click the highlighted item" step passes the click to DoorLoop, so a row's ⋮ menu or a dialog opens and the next step can point into it. Preview shows the last show-only step's note but doesn't block show-only steps, run exit clicks, or behave exactly like the tour engine. To check those, publish the tour (as a draft) and run it from DoorLoop.
 
 **Saving a tour.** In the live builder, **💾 Save tour** in the panel commits the tour file to `tours/<id>.json` on GitHub, as you, with nothing else to do. Sign in first from the extension's menu (**Sign in with GitHub**). Saving again updates the same file; a new tour whose file name already exists asks before replacing it. Once committed, CI checks the file and publishes it to GitHub Pages; the extension picks it up when DoorLoop next loads (Pages can take a few minutes). New tours are drafts until their status is changed to live.
 

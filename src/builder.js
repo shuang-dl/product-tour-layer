@@ -1588,8 +1588,10 @@
 
     // ---------- preview ----------
     let previewRun = 0;
+    let previewFilled = false; // Fill example was used in this run (the last show-only step's note says so)
     $('.preview-btn').onclick = () => {
       if (!steps().length) return toast('Add a step first: click + Step in the storyboard, pick something, and save it.');
+      previewFilled = false;
       clearSelection();
       state.active = null;
       state.previewing = true;
@@ -1636,6 +1638,7 @@
           const engine = window.TourLayer;
           if (!engine || !engine.fill) return toast("The tour engine isn't loaded here, so Fill example can't run.");
           fillBtn.disabled = true;
+          previewFilled = true;
           fillBtn.textContent = 'Filling…';
           fillBtn.textContent = (await engine.fill(s.fill)) ? 'Filled' : 'Partly filled';
         };
@@ -1643,6 +1646,14 @@
         // Like the tour engine: a strip under the text says how to fill it in
         const last = i === all.length - 1;
         if (s.advanceOn === 'next') box.querySelector('.tb-pad').after(Object.assign(document.createElement('div'), { className: 'tb-hint', textContent: `Enter your own details in the highlighted area, or click Fill example. Then click ${last ? 'Done' : 'Next'}.` }));
+      }
+      // Like the tour engine: the last show-only step on a button says what Done does, in the strip under the text
+      const ACTION = 'button, a[href], [role=button], [role=menuitem], input[type=submit], input[type=button]';
+      if (s.showOnly && i === all.length - 1 && els.length && (previewFilled || (els.length === 1 && (els[0].matches(ACTION) || els[0].querySelectorAll(ACTION).length === 1)))) {
+        box.querySelector('.tb-hint')?.remove();
+        box.querySelector('.tb-pad').after(Object.assign(document.createElement('div'), { className: 'tb-hint', textContent: previewFilled
+          ? 'Click Done to discard the sample data and finish.'
+          : 'Click Done to discard and finish, or the highlighted item to save what you entered.' }));
       }
       // A "click the highlighted item" step: the click goes to the app (opening its menu, say), then on to the next step
       if (s.advanceOn === 'click' && els.length) previewClick = { els, go };

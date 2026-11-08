@@ -817,6 +817,24 @@ try {
   await pv.evaluate(() => sessionStorage.removeItem('tourLayer.builder'));
   await pv.close();
 
+  // Builder Preview: the last show-only step on a button says what Done does, like the tour does
+  const pl2 = await ctx.newPage();
+  await pl2.goto('https://acme.app.doorloop.com/properties/new');
+  await pl2.evaluate(() => sessionStorage.setItem('tourLayer.builder', JSON.stringify({
+    name: 'Last step', id: null, style: {}, inputs: {}, active: null, exitClicks: [], autoStart: false, status: 'draft', recordingTour: false,
+    flow: [{ type: 'page', path: '/properties/new' },
+      { type: 'step', page: '/properties/new', target: "[data-cy='mockFinish']", label: 'Finish', titleHtml: 'Save', textHtml: 'Click Save to finish.', image: null, advanceOn: 'next', optional: false, showOnly: true, placement: 'auto', fill: [] }],
+  })));
+  await pl2.reload();
+  await pl2.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 10000 }).catch(() => {});
+  const PL = pl2.locator('#tour-layer-builder');
+  await PL.locator('.preview-btn').click();
+  await pl2.waitForTimeout(1000);
+  check('preview: the last show-only step says Done discards, or the highlighted item saves',
+    (await PL.locator('.pop .tb-body .tb-hint').textContent().catch(() => '')) === 'Click Done to discard and finish, or the highlighted item to save what you entered.');
+  await pl2.evaluate(() => sessionStorage.removeItem('tourLayer.builder'));
+  await pl2.close();
+
   // autoStart: opens by itself on its page once; after it ends, this browser doesn't start it again
   const ap = await ctx.newPage();
   await ap.goto('https://acme.app.doorloop.com/welcome');
