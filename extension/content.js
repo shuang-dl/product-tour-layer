@@ -18,6 +18,14 @@
     const qs = params.toString();
     history.replaceState(history.state, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
   }
+  // ?edit-tour=<id> (the tours page's Edit button) opens that tour in the builder. The link only opens the builder:
+  // nothing is saved unless you click Save tour in it.
+  const editId = params.get('edit-tour');
+  if (editId) {
+    params.delete('edit-tour');
+    const qs = params.toString();
+    history.replaceState(history.state, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
+  }
   let showDrafts = false;
   try {
     showDrafts = localStorage.getItem(DRAFTS_KEY) === '1';
@@ -45,6 +53,12 @@
     // A builder was open in this tab before the page reloaded: bring it back with the draft.
     const saved = window.TourBuilder.savedSession();
     if (saved) window.TourBuilder.open({ restore: saved });
+    if (editId) {
+      const tour = published.find((t) => t.id === editId) || (await fetchDrafts()).find((t) => t.id === editId);
+      if (!tour) alert(`DoorLoop Tours: there's no tour "${editId}" to edit.`);
+      else if (saved) alert(`DoorLoop Tours: the builder is already open with "${saved.name}". Close it, then click Edit on the tours page again.`);
+      else window.TourBuilder.open({ name: tour.title || tour.id, startPath: location.pathname, tour });
+    }
   })();
 
   // The extension's menu (popup.js) asks what's here, opens the builder, or switches Show drafts. Only the

@@ -341,6 +341,13 @@ try {
   check('live: no page errors', errors.length === 0, errors.join('; '));
 
   // Editing an existing tour on live DoorLoop: open it from the menu, insert a missing step, reorder, export.
+  // The tours page's Edit button: a ?edit-tour= link opens that tour in the builder, and the link loses the parameter
+  const el = await ctx.newPage();
+  await el.goto('https://acme.app.doorloop.com/tenants?edit-tour=edit-me');
+  await el.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
+  const elName = await el.locator('#tour-layer-builder .ws-name').textContent().catch(() => null);
+  check('tours page Edit: an ?edit-tour= link opens that tour in the builder', elName === 'Edit me' && el.url() === 'https://acme.app.doorloop.com/tenants', JSON.stringify({ elName, url: el.url() }));
+  await el.close();
   const ed = await openBuilder('/tenants', { type: 'tour-layer:menu-edit', id: 'edit-me' });
   const E = ed.locator('#tour-layer-builder');
   const cards = () => E.locator('.card:not(.page-card) .t').allInnerTexts();

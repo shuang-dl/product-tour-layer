@@ -5,107 +5,126 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DoorLoop Product Tours</title>
   <style>
-    :root { --bg: #f6f8fb; --card: #fff; --text: #1a1a1a; --muted: #5b6472; --accent: #1665d8; --border: #e2e7ef; }
+    :root { --bg: #f6f8fb; --card: #fff; --text: #1a1a1a; --muted: #5b6472; --accent: #1665d8; --border: #e2e7ef; --head: #f0f3f8; }
     @media (prefers-color-scheme: dark) {
-      :root { --bg: #11151c; --card: #1a2029; --text: #e8ecf2; --muted: #9aa4b2; --accent: #5b9bff; --border: #2a323e; }
+      :root { --bg: #11151c; --card: #1a2029; --text: #e8ecf2; --muted: #9aa4b2; --accent: #5b9bff; --border: #2a323e; --head: #202733; }
     }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, sans-serif; }
-    main { max-width: 760px; margin: 0 auto; padding: 48px 16px; }
+    main { max-width: 1180px; margin: 0 auto; padding: 48px 16px; }
     h1 { margin: 0 0 8px; font-size: 28px; }
-    h2 { margin: 40px 0 12px; font-size: 18px; }
-    h3 { margin: 28px 0 8px; font-size: 15px; }
+    h2 { margin: 40px 0 8px; font-size: 18px; }
     p { color: var(--muted); margin: 0 0 16px; }
-    ol { color: var(--muted); padding-left: 20px; }
+    ol { color: var(--muted); padding-left: 20px; margin: 0 0 12px; }
     a { color: var(--accent); }
-    .tours { display: grid; gap: 12px; }
-    .tour { display: block; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; text-decoration: none; color: inherit; }
-    .tour:hover { border-color: var(--accent); }
-    .tour strong { display: block; color: var(--text); }
-    .tour span { color: var(--muted); font-size: 14px; }
-    .tour em { float: right; font-style: normal; color: var(--accent); font-size: 14px; }
-    .draft { background: var(--card); border: 1px dashed var(--border); border-radius: 10px; padding: 16px 20px; }
-    .draft strong { display: block; }
-    .draft span { color: var(--muted); font-size: 14px; display: block; }
-    .draft .acts { margin-top: 8px; font-size: 14px; display: flex; gap: 16px; }
-    .badge { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; margin-left: 6px; vertical-align: middle; }
     code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 14px; }
+    .setup { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; }
+    .setup h2 { margin-top: 0; }
+    .setup p:last-child { margin: 0; }
+    .table-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--border); border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th small { font-weight: 400; }
+    th { text-align: left; font-weight: 600; font-size: 12px; color: var(--muted); background: var(--head); padding: 10px 14px; white-space: nowrap; }
+    td { padding: 12px 14px; border-top: 1px solid var(--border); vertical-align: top; }
+    td.name { font-weight: 600; min-width: 160px; }
+    td.desc { color: var(--muted); min-width: 220px; }
+    td.num { text-align: right; white-space: nowrap; }
+    th.num { text-align: right; }
+    td.url { min-width: 220px; }
+    td.url a { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; overflow-wrap: anywhere; }
+    td.act { white-space: nowrap; }
+    .copy { margin-left: 6px; font: inherit; font-size: 12px; color: var(--muted); background: none; border: 1px solid var(--border); border-radius: 4px; padding: 0 6px; cursor: pointer; }
+    .copy:hover { color: var(--text); border-color: var(--muted); }
+    .btn { display: inline-block; font-size: 13px; font-weight: 600; text-decoration: none; border: 1px solid var(--accent); border-radius: 6px; padding: 3px 10px; }
+    .btn:hover { background: var(--accent); color: #fff; }
+    .empty td { color: var(--muted); text-align: center; }
   </style>
 </head>
 <body>
   <main>
     <h1>DoorLoop Product Tours</h1>
-    <p>Proof of concept: guided tours that run on top of DoorLoop without changing its code. Pick a tour and it opens the right page and starts.</p>
+    <p>Proof of concept: guided tours that run on top of DoorLoop without changing its code. Open a tour's link and it goes to the right page and starts.</p>
 
-    <h2>On real DoorLoop</h2>
-    <p>These run on your own DoorLoop account through the DoorLoop Tours Chrome extension.</p>
-    <div class="tours" id="tours"><p>Loading tours…</p></div>
+    <section class="setup">
+      <h2>One-time setup</h2>
+      <ol>
+        <li>Download the <a href="doorloop-tours-extension.zip">DoorLoop Tours extension</a> and unzip it.</li>
+        <li>In Chrome, open <code>chrome://extensions</code> and turn on <strong>Developer mode</strong> (top right).</li>
+        <li>Click <strong>Load unpacked</strong> and select the unzipped folder.</li>
+        <li>Log in to DoorLoop in the same browser, then open a tour below.</li>
+      </ol>
+      <p>On any DoorLoop page that has tours, a <strong>Tours</strong> button appears in the bottom-right corner. New and edited tours show up automatically; you only reinstall when the extension itself changes. To build a new tour, click the extension's icon on any DoorLoop page, then <strong>Build a new tour here</strong>.</p>
+    </section>
 
-    <h3>One-time setup</h3>
-    <ol>
-      <li>Download the <a href="doorloop-tours-extension.zip">DoorLoop Tours extension</a> and unzip it.</li>
-      <li>In Chrome, open <code>chrome://extensions</code> and turn on <strong>Developer mode</strong> (top right).</li>
-      <li>Click <strong>Load unpacked</strong> and select the unzipped folder.</li>
-      <li>Log in to DoorLoop in the same browser, then click a tour above.</li>
-    </ol>
-    <p>On any DoorLoop page that has tours, a <strong>Tours</strong> button appears in the bottom-right corner. New and edited tours show up automatically; you only reinstall when the extension itself changes.</p>
+    <h2>Live tours</h2>
+    <p>Everyone with the extension sees these.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Description</th><th class="num">Steps</th><th>URL <small>(app.doorloop.com…)</small></th></tr></thead>
+        <tbody id="tours"><tr class="empty"><td colspan="4">Loading tours…</td></tr></tbody>
+      </table>
+    </div>
 
     <h2>Drafts</h2>
-    <p>Tours that aren't live yet. Only people who turn on <strong>Show drafts</strong> see them on DoorLoop, in that browser: <a href="https://app.doorloop.com/home?drafts=on" target="_blank" rel="noopener">turn on</a> · <a href="https://app.doorloop.com/home?drafts=off" target="_blank" rel="noopener">turn off</a>. Trying a draft below turns it on too.</p>
-    <p>To make a draft live, open it with <strong>Approve on GitHub</strong>, change <code>"status": "draft"</code> to <code>"status": "live"</code>, and commit. It goes live for everyone once published.</p>
-    <div class="tours" id="drafts"><p>Loading drafts…</p></div>
-
-    <h2>Build or edit a tour</h2>
-    <p>On any DoorLoop page, click the DoorLoop Tours extension icon, then <strong>Build a new tour here</strong>, or pick a tour and <strong>Open in the builder</strong>. The builder opens on top of DoorLoop.</p>
+    <p>Tours that aren't live yet. Only people who turn on <strong>Show drafts</strong> see them on DoorLoop, in that browser: <a href="https://app.doorloop.com/home?drafts=on" target="_blank" rel="noopener">turn on</a> · <a href="https://app.doorloop.com/home?drafts=off" target="_blank" rel="noopener">turn off</a>. <strong>Preview</strong> turns it on too.</p>
+    <p>To make a draft live, click <strong>Approve</strong> (it opens the tour's file on GitHub), change <code>"status": "draft"</code> to <code>"status": "live"</code>, and commit; or click <strong>Edit</strong> and set Status to Live under ⋯ More before saving. It goes live for everyone once published.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Description</th><th class="num">Steps</th><th>URL <small>(app.doorloop.com…)</small></th><th>Preview</th><th>GitHub approval</th><th>Edit</th></tr></thead>
+        <tbody id="drafts"><tr class="empty"><td colspan="7">Loading drafts…</td></tr></tbody>
+      </table>
+    </div>
   </main>
   <script>
-    function showTours(listId, url, hrefFor, newTab) {
-      const list = document.getElementById(listId);
+    const DOORLOOP = 'https://app.doorloop.com';
+    function cell(className, ...children) {
+      const td = Object.assign(document.createElement('td'), { className });
+      td.append(...children);
+      return td;
+    }
+    const link = (text, href, className) => Object.assign(document.createElement('a'), { textContent: text, href, target: '_blank', rel: 'noopener', className: className || '' });
+    // The tour's link: opening it on DoorLoop starts the tour. Shown as its page and tour (every link is on
+    // app.doorloop.com, as the column header says); clicking or copying uses the whole link.
+    function urlCell(t) {
+      const url = `${DOORLOOP}${t.page}?tour=${encodeURIComponent(t.id)}`;
+      const copy = Object.assign(document.createElement('button'), { className: 'copy', textContent: 'Copy', title: 'Copy the link' });
+      copy.onclick = () => navigator.clipboard.writeText(url).then(() => {
+        copy.textContent = 'Copied';
+        setTimeout(() => (copy.textContent = 'Copy'), 1500);
+      });
+      return cell('url', Object.assign(link(url.slice(DOORLOOP.length), url), { title: url }), copy);
+    }
+    function row(t, extra) {
+      const tr = document.createElement('tr');
+      tr.append(
+        cell('name', t.title),
+        cell('desc', t.description || ''),
+        cell('num', String(t.steps.length)),
+        urlCell(t),
+        ...extra
+      );
+      return tr;
+    }
+    function show(id, url, cols, extra, none) {
+      const body = document.getElementById(id);
+      const message = (text) => {
+        const tr = Object.assign(document.createElement('tr'), { className: 'empty' });
+        tr.append(Object.assign(cell(''), { colSpan: cols, textContent: text }));
+        body.replaceChildren(tr);
+      };
       fetch(url, { cache: 'no-store' })
         .then((r) => r.json())
-        .then(({ tours }) => {
-          list.replaceChildren(...tours.map((t) => {
-            const a = document.createElement('a');
-            a.className = 'tour';
-            a.href = hrefFor(t);
-            if (newTab) {
-              a.target = '_blank';
-              a.rel = 'noopener';
-            }
-            const go = document.createElement('em');
-            go.textContent = `${t.steps.length} steps →`;
-            const title = document.createElement('strong');
-            title.textContent = t.title;
-            const desc = document.createElement('span');
-            desc.textContent = t.description || '';
-            a.append(go, title, desc);
-            return a;
-          }));
-        })
-        .catch(() => { list.textContent = `Could not load ${url}.`; });
+        .then(({ tours }) => (tours.length ? body.replaceChildren(...tours.map((t) => row(t, extra(t)))) : message(none)))
+        .catch(() => message(`Could not load ${url}.`));
     }
-    showTours('tours', 'tours.json', (t) => `https://app.doorloop.com${t.page}?tour=${encodeURIComponent(t.id)}`, true);
-    // Drafts: try one on DoorLoop (turns on Show drafts there), or open its file on GitHub to approve it.
-    fetch('drafts.json', { cache: 'no-store' })
-      .then((r) => r.json())
-      .then(({ tours }) => {
-        const list = document.getElementById('drafts');
-        if (!tours.length) return (list.innerHTML = '<p>No drafts right now.</p>');
-        list.replaceChildren(...tours.map((t) => {
-          const card = Object.assign(document.createElement('div'), { className: 'draft' });
-          const title = Object.assign(document.createElement('strong'), { textContent: t.title });
-          title.append(Object.assign(document.createElement('span'), { className: 'badge', textContent: 'Draft' }));
-          const link = (text, href) => Object.assign(document.createElement('a'), { textContent: text, href, target: '_blank', rel: 'noopener' });
-          const acts = Object.assign(document.createElement('div'), { className: 'acts' });
-          acts.append(
-            link(`Try on DoorLoop (${t.steps.length} steps) →`, `https://app.doorloop.com${t.page}?tour=${encodeURIComponent(t.id)}&drafts=on`),
-            link('Approve on GitHub', `https://github.com/shuang-dl/product-tour-layer/edit/main/tours/${encodeURIComponent(t.id)}.json`)
-          );
-          card.append(title, Object.assign(document.createElement('span'), { textContent: t.description || '' }), acts);
-          return card;
-        }));
-      })
-      .catch(() => { document.getElementById('drafts').textContent = 'Could not load drafts.json.'; });
+    show('tours', 'tours.json', 4, () => [], 'No live tours yet.');
+    // Drafts: preview on DoorLoop (turns on Show drafts there), approve the file on GitHub, or open it in the builder
+    // on DoorLoop (the extension sees ?edit-tour= and opens the builder with it).
+    show('drafts', 'drafts.json', 7, (t) => [
+      cell('act', link('Preview →', `${DOORLOOP}${t.page}?tour=${encodeURIComponent(t.id)}&drafts=on`)),
+      cell('act', link('Approve', `https://github.com/shuang-dl/product-tour-layer/edit/main/tours/${encodeURIComponent(t.id)}.json`)),
+      cell('act', link('Edit', `${DOORLOOP}${t.page}?edit-tour=${encodeURIComponent(t.id)}`, 'btn')),
+    ], 'No drafts right now.');
   </script>
 </body>
 </html>

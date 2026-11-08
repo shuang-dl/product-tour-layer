@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.26.1. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.26.2. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -108,8 +108,8 @@ Add `tours/<id>.json`:
 
 **Drafts and approval.** A tour with `"status": "draft"` isn't live. The build publishes it to `drafts.json` instead of `tours.json`, and never bundles it into the extension.
 
-- **Seeing drafts:** on DoorLoop, drafts only load for people who turned on **Show drafts** in that browser, with a `?drafts=on` link (`?drafts=off` turns it off). The tours page has both links, and a **Drafts** section where **Try on DoorLoop** runs a draft (and turns Show drafts on). Draft tours say "Draft" in the step box, and the Tours launcher lists them under their own heading.
-- **Approving:** **Approve on GitHub** on the tours page opens the draft's file. Change `"status": "draft"` to `"status": "live"` and commit; once published, everyone with the extension sees it.
+- **Seeing drafts:** on DoorLoop, drafts only load for people who turned on **Show drafts** in that browser, with a `?drafts=on` link (`?drafts=off` turns it off). The tours page has both links. It starts with the one-time setup, then a table of live tours (name, description, number of steps, link with a Copy button) and a table of drafts with the same columns plus **Preview** (runs the draft and turns Show drafts on), **Approve** and **Edit** (opens the draft in the builder on DoorLoop, through a `?edit-tour=<id>` link the extension picks up; if a builder is already open in that tab, it asks you to close it first). Draft tours say "Draft" in the step box, and the Tours launcher lists them under their own heading.
+- **Approving:** **Approve** on the tours page opens the draft's file on GitHub. Change `"status": "draft"` to `"status": "live"` and commit; once published, everyone with the extension sees it.
 - **The builder** saves new tours as drafts. Its **Status** setting (under **⋯ More**) switches between Draft and Live. Editing a live tour keeps it live, so saving those edits publishes them right away; switch it to Draft first to review changes before they're live (it stops being shown to everyone until approved again).
 
 **Exporting a tour as a video or GIF** (for the tour's creator only). Tours stay tours; an export is a recording of one being played, e.g. for a help article or a message. People taking tours never see it: there's no export link on the tours page and the extension ignores `?export=` links. In the live builder, go to the tour's start page and use **⋯ More → Export video** or **Export GIF**. The builder steps aside and a card appears: click **Start recording**, choose this tab when Chrome asks, then play the tour as usual. When it ends (Done or ×), the file downloads (named after the tour): a video of the whole run (MP4 where Chrome can record it, otherwise WebM, at most 1920×1080), or an animated GIF with one frame per step, 2.5 seconds each, up to 1000 px wide. The card isn't recorded and nothing is clicked for you. Afterwards, or if you cancel, the builder comes back with your draft.
@@ -202,7 +202,7 @@ Only the extension's own menu can send these requests to the page; websites can'
 | `src/builder.js` | the tour builder, opened by the extension on DoorLoop |
 | `src/export.js`, `src/gif.js` | exporting a tour as a video or GIF, and the GIF encoder (extension only) |
 | `tours/*.json` | one file per tour on real DoorLoop |
-| `site/index.html` | links page (lists tours from `tours.json`) |
+| `site/index.html` | tours page: setup, then live tours and drafts as tables (from `tours.json` and `drafts.json`) |
 | `extension/` | Chrome extension manifest, loader (`content.js`), the icon's menu (`popup.html`, `popup.js`), icons, and the background worker (`background.js`: GitHub sign-in and saving) |
 | `vendor/driver.js/` | highlight/popover library (MIT), bundled into the extension |
 | `scripts/build.mjs` | validation + build site and extension into `dist/` |
