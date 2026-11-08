@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.24.5. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.25.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -157,6 +157,7 @@ Only the extension's own menu can send these requests to the page; websites can'
 - Pages change through DoorLoop's own links (an in-app page change). Where there's no link, the page loads normally and the builder comes back with the draft, which is kept in `sessionStorage` for that tab.
 - The tour launcher is hidden while building. Closing the builder discards the draft, so copy the tour file first.
 - A new tour needs a name, and starts on the page you open it from. Each step needs a title and some text before it saves.
+- For a step with nothing highlighted, shown in the middle of the screen (an introduction to the tour, say), click **+ Step**, then **Or center it** on the new card. A centred step continues with Next.
 - Record pages like `/tenants/t1` become `/tenants/*` in the tour file, so a step works on any record.
 - **● Record tour** in the panel records a tour by clicking through it: do the workflow the way people should, then click **Stop recording**. Each click becomes a step that continues when that element is clicked ("Click "Receive payment""); a checkbox becomes a "Tick" step; typing into a field becomes one "Enter …" step with what you typed as its sample data, and a suggestion picked right after goes with it. Picking from a list without typing records a step to open the field and one pointing at the whole list (so it works whatever the list holds). Picking a day in a date picker works the same way: a step to open the field, then one pointing at the whole calendar, so the tour doesn't depend on one date. Changing pages adds page cards, and a full page load keeps recording. Clicks on nothing in particular and double clicks are skipped. Elements are named by `data-cy`, `data-testid`, a hand-written id, a placeholder or their `<label>`; one with none of these gets a short path from the nearest named element, so a recorded step never has an empty target. Afterwards every step is a normal card: click it to rewrite its title and text, add show-only, and so on. What you typed ends up in the tour file, so use made-up data.
 - The builder is always light, even when the computer is in dark mode.

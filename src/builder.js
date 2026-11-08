@@ -187,6 +187,7 @@
     .card.page-card { flex-basis: 140px; border-style: dashed; border-color: var(--border); }
     .card.draft { border-style: dashed; border-color: var(--accent); }
     .card.draft .t { color: var(--muted); font-weight: 500; font-style: italic; }
+    .card .centre-btn { border: 1px dashed var(--accent); background: transparent; color: var(--accent); cursor: pointer; font: inherit; font-size: 11px; }
     .adders { flex: 0 0 auto; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
     .add { border: 2px dashed var(--border); background: transparent; color: var(--accent); border-radius: 10px; padding: 7px 14px; font-weight: 600; white-space: nowrap; }
     .add:hover { border-color: var(--accent); }
@@ -713,7 +714,7 @@
       state.active = state.flow.length - 1;
       scrollStoryToEnd = true;
       renderStory();
-      toast(`Step added. Now click something on the page, or use the box tool to draw around it.`);
+      toast(`Step added. Now click something on the page, or use the box tool to draw around it. Or click “Or center it” on the step for one in the middle of the screen.`);
     }
     async function addPage(path) {
       clearSelection();
@@ -1170,6 +1171,8 @@
           placement: placement.value,
           fill: fill.filter((f) => f.click || f.value !== ''),
         };
+        // A centred step has nothing to click, type in or keep from saving: it continues with Next.
+        if (!els.length) Object.assign(state.flow[state.active], { advanceOn: 'next', optional: false, showOnly: false, fill: [] });
         if (state.flow[state.active].showOnly && advance.value === 'click') {
           state.flow[state.active].showOnly = false;
           toast("A step that continues on a click can't be show-only; that box was cleared.");
@@ -1536,6 +1539,10 @@
           card.innerHTML = `<div class="n">Step ${stepNo}</div><div class="t"></div><div class="chips"></div>`;
           if (item.draft) {
             card.querySelector('.t').textContent = 'Pick something to highlight…';
+            // Or highlight nothing: the step shows in the middle of the screen, e.g. an introduction to the tour.
+            const centre = Object.assign(document.createElement('button'), { className: 'chip centre-btn', textContent: 'Or center it', title: 'Show this step in the middle of the screen, with nothing highlighted (good for an introduction)' });
+            centre.onclick = (e) => { e.stopPropagation(); state.active = i; clearSelection(); openEditor([], null); renderStory(); };
+            card.querySelector('.chips').append(centre);
           } else {
             const tmp = document.createElement('div');
             tmp.innerHTML = item.titleHtml;

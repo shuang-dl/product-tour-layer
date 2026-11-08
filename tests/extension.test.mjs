@@ -278,6 +278,19 @@ try {
   await live.keyboard.type('Step text');
   await B2.locator('.pop [data-save]').click();
   await B2.locator('[data-tool=pointer]').click();
+  // A step with nothing highlighted: + Step, then "Or center it" on the new card (an introduction, say)
+  await B2.locator('.add >> text=+ Step').click();
+  await B2.locator('.card.draft .centre-btn').click();
+  const centreCode = await B2.locator('.pop code').textContent();
+  await B2.locator('.pop .tb-title').click();
+  await live.keyboard.type('Welcome');
+  await B2.locator('.pop .tb-text').click();
+  await live.keyboard.type('Intro text');
+  await B2.locator('.pop select:not([data-placement])').selectOption('click');
+  await B2.locator('.pop [data-save]').click();
+  const centreChips = await B2.locator('.card:not(.page-card)').last().locator('.chip').allInnerTexts();
+  check('builder: + Step, then "Or center it", saves a step shown in the middle with a Next button',
+    centreCode === 'nothing (shows centred)' && JSON.stringify(centreChips) === JSON.stringify(['centred', 'Next button']), JSON.stringify({ centreCode, centreChips }));
   // Preview step 1 goes to /tenants through the app's own link (no reload)
   await B2.locator('.preview-btn').click();
   await live.waitForTimeout(1500);
