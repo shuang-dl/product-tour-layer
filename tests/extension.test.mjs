@@ -327,6 +327,8 @@ try {
   await ed.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
   const E = ed.locator('#tour-layer-builder');
   const cards = () => E.locator('.card:not(.page-card) .t').allInnerTexts();
+  check('builder: an All tours link opens the tours page in a new tab',
+    (await E.locator('.all-tours').getAttribute('href')) === 'https://shuang-dl.github.io/product-tour-layer/' && (await E.locator('.all-tours').getAttribute('target')) === '_blank' && (await E.locator('.all-tours').isVisible()));
   check('edit: the tour loads into the storyboard', JSON.stringify(await cards()) === JSON.stringify(['First', 'Second']) && (await E.locator('.ws-name').textContent()) === 'Edit me');
   check("edit: the tour's style loads", (await E.locator('.style-panel input[data-var="--tour-frame"]').inputValue()) === '#0f6e56');
   await E.locator('.card:has-text("First")').click();
