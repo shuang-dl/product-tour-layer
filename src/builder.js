@@ -1313,8 +1313,9 @@
     // ---------- recording a tour by clicking through it ----------
     // Each click becomes a step that continues when that element is clicked; typing into a field becomes one step
     // with what was typed as its sample data (a suggestion picked right after is attached to it). Picking from a
-    // list without typing points the step at the whole list, so it works whatever the list holds. Afterwards every
-    // step is a normal card: click it to edit what it says.
+    // list without typing points the step at the whole list, so it works whatever the list holds; picking a day in a
+    // date picker points it at the whole calendar, so it works whatever the date. Afterwards every step is a normal
+    // card: click it to edit what it says.
     const escHtml = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
     const CLICKABLE = "button, a[href], [role=button], [role=tab], [role=menuitem], [role=checkbox], [role=radio], [role=switch], input[type=checkbox], input[type=radio], [data-item-id], [data-section-value]";
     const TEXT_FIELD = 'input:not([type=checkbox]):not([type=radio]):not([type=hidden]), textarea';
@@ -1330,11 +1331,11 @@
     }
     // A required field's label ends with "*"; leave it out of the step's words.
     const plain = (label) => label.replace(/\s*\*\s*$/, '');
-    function recordStep(el, { title, text, advanceOn, fill }) {
+    function recordStep(el, { title, text, advanceOn, fill, target }) {
       const here = app.path();
       if (here) pageCard(here);
       const step = {
-        type: 'step', page: currentPage(), target: targetFor(el), clues: cluesFor(el), label: labelFor(el),
+        type: 'step', page: currentPage(), target: target || targetFor(el), clues: cluesFor(el), label: labelFor(el),
         titleHtml: escHtml(title), textHtml: escHtml(text), image: null, advanceOn, optional: false, showOnly: false, fill: fill || [],
       };
       state.flow.push(step);
@@ -1344,6 +1345,20 @@
     }
     function recordTourClick(e) {
       if (!e.isTrusted || inBuilder(e)) return;
+      const openStep = () => pendingOpen && recordStep(pendingOpen.el, { title: `Open “${plain(pendingOpen.label)}”`, text: `Click ${plain(pendingOpen.label)} to see the options.`, advanceOn: 'click' });
+      // A day in a date picker's calendar (a grid named like "November 2026"; DoorLoop's has data-slot=calendar). The
+      // day's own label is one date, gone next month, so the step points at the whole calendar instead.
+      const grid = e.target.closest && e.target.closest('[role=grid]');
+      const calendar = grid && e.target.closest('[role=gridcell], td') && (grid.closest('[data-slot=calendar]') || (/\b\d{4}\b/.test(grid.getAttribute('aria-label') || '') ? grid : null));
+      if (calendar) {
+        const day = (e.target.closest('[aria-label]') || e.target).getAttribute('aria-label') || e.target.textContent.trim();
+        openStep();
+        pendingOpen = null;
+        lastTyped = null;
+        recordStep(calendar, { title: 'Pick a date', text: `Choose a date, for example ${day}.`, advanceOn: 'click',
+          target: calendar.matches('[data-slot=calendar]') ? "[data-slot='calendar']" : '[role=grid]' });
+        return;
+      }
       const option = e.target.closest && e.target.closest('[role=option]');
       if (option) {
         const text = option.textContent.replace(/\s+/g, ' ').trim();
@@ -1352,7 +1367,7 @@
           return save();
         }
         const list = option.closest('[role=listbox], [role=menu]') || option.parentElement;
-        if (pendingOpen) recordStep(pendingOpen.el, { title: `Open “${plain(pendingOpen.label)}”`, text: `Click ${plain(pendingOpen.label)} to see the options.`, advanceOn: 'click' });
+        openStep();
         pendingOpen = null;
         recordStep(pickable(list) || list, { title: 'Pick from the list', text: `Choose one, for example “${text}”.`, advanceOn: 'click' });
         return;

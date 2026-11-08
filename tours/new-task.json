@@ -51,15 +51,20 @@
     },
     {
       "page": "/home/global-new/internal-task/new",
-      "target": "button[aria-label='Friday, November 13th, 2026']",
+      "target": "[data-cy='dueDate']",
       "clues": {
-        "tag": "button",
-        "text": "13",
-        "aria": "Friday, November 13th, 2026",
-        "role": "button"
+        "tag": "input",
+        "role": "combobox"
       },
-      "title": "Click “Friday, November 13th, 2026”",
-      "text": "Click Friday, November 13th, 2026.",
+      "title": "Open “Due date”",
+      "text": "Click Due date to see the calendar.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/home/global-new/internal-task/new",
+      "target": "[data-slot='calendar']",
+      "title": "Pick a date",
+      "text": "Choose a due date.",
       "advanceOn": "click"
     },
     {

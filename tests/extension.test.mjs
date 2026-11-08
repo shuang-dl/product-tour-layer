@@ -1010,6 +1010,19 @@ try {
   const pickCards = (await D.locator('.card:not(.page-card) .t').allInnerTexts()).slice(-2);
   check('record tour: a pick from a list without typing opens the field, then points at the whole list',
     JSON.stringify(pickCards) === JSON.stringify(['Open “Lease”', 'Pick from the list']), JSON.stringify(pickCards));
+  // A date picker: a step to open the field, then one pointing at the whole calendar, not the day picked
+  await D.locator('.record-btn').click();
+  await dlg.click('[aria-label="Due date"]');
+  await dlg.click('#duePopper button[aria-label="November 13th, 2026"]');
+  await D.locator('.record-btn').click();
+  const dateCards = (await D.locator('.card:not(.page-card) .t').allInnerTexts()).slice(-2);
+  await D.locator('.more-btn').click();
+  await D.locator('.file-btn').click();
+  const dateStep = JSON.parse(await D.locator('.file-out').textContent()).steps.at(-1);
+  await D.locator('.file-close').click();
+  check('record tour: picking a day in a date picker opens the field, then points at the whole calendar',
+    JSON.stringify(dateCards) === JSON.stringify(['Open “Due date”', 'Pick a date']) && dateStep.target === "[data-slot='calendar']" && dateStep.advanceOn === 'click',
+    JSON.stringify({ dateCards, target: dateStep.target }));
   // Recording on a page named with data-testid and <label for> (like DoorLoop's Wallet): no step without a target
   const wt = await openBuilder('/wallet', { type: 'tour-layer:menu-new', name: 'Wallet recorded' });
   const W = wt.locator('#tour-layer-builder');
