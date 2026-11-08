@@ -1,15 +1,16 @@
 {
   "id": "wallet-wire-transfers",
   "title": "Wallet wire transfers",
-  "status": "draft",
+  "status": "live",
   "page": "/home",
   "style": {
-    "frame": "#0b1f44",
+    "frame": "#162050",
     "bandText": "#ffffff",
     "button": "#d8f34a",
     "buttonText": "#0b1f44",
     "bodyText": "#1b1d21",
     "bodyBg": "#ffffff",
+    "footerHeight": 48,
     "titleSize": "h2",
     "titleAlign": "left",
     "textAlign": "left"
