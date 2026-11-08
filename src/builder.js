@@ -33,9 +33,7 @@
       --panel-w: 340px; /* PANEL_W in the docking code */
       position: fixed; inset: 0; z-index: 2147483000; pointer-events: none;
       font: 14px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; color: var(--text);
-    }
-    @media (prefers-color-scheme: dark) {
-      .root { --bg: #11151c; --card: #1a2029; --text: #e8ecf2; --muted: #9aa4b2; --accent: #5b9bff; --border: #2a323e; }
+      color-scheme: light; /* always light, even when the computer is in dark mode (form controls and scrollbars too) */
     }
     .root * { box-sizing: border-box; }
     .root button { font: inherit; cursor: pointer; }

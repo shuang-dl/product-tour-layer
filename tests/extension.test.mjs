@@ -806,6 +806,11 @@ try {
   await pv.reload();
   await pv.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 10000 }).catch(() => {});
   const PV = pv.locator('#tour-layer-builder');
+  await pv.emulateMedia({ colorScheme: 'dark' });
+  check('builder: the panel stays light when the computer is in dark mode', await PV.evaluate((host) => {
+    const r = host.shadowRoot, ws = getComputedStyle(r.querySelector('.ws'));
+    return matchMedia('(prefers-color-scheme: dark)').matches && ws.backgroundColor === 'rgb(255, 255, 255)' && ws.colorScheme === 'light';
+  }));
   await PV.locator('.preview-btn').click();
   await pv.waitForTimeout(800);
   await pv.click('#rowActions');
