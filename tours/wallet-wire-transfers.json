@@ -63,12 +63,52 @@
     },
     {
       "page": "/wallets",
-      "target": "[data-testid='WalletWireDetails-Ready']",
-      "clues": {
-        "tag": "div",
-        "text": "DoorLoop Wallet - KBM2025 LLC",
-        "role": "div"
-      },
+      "target": [
+        "[data-testid='WalletWireDetails-AccountName']",
+        "[data-testid='WalletWireDetails-AccountHolderName']",
+        "[data-testid='WalletWireDetails-BankName']",
+        "[data-testid='WalletWireDetails-RoutingNumber']",
+        "button[aria-label='Copy Routing number']",
+        "[data-testid='WalletWireDetails-AccountNumber']",
+        "[data-testid='WalletWireDetails-ToggleAccountNumber']"
+      ],
+      "clues": [
+        {
+          "tag": "span",
+          "text": "DoorLoop Wallet - KBM2025 LLC",
+          "role": "span"
+        },
+        {
+          "tag": "span",
+          "text": "KBM2025 LLC",
+          "role": "span"
+        },
+        {
+          "tag": "span",
+          "text": "—",
+          "role": "span"
+        },
+        {
+          "tag": "span",
+          "text": "000000000",
+          "role": "span"
+        },
+        {
+          "tag": "button",
+          "aria": "Copy Routing number",
+          "role": "button"
+        },
+        {
+          "tag": "span",
+          "text": "· · · · · · 0000",
+          "role": "span"
+        },
+        {
+          "tag": "button",
+          "aria": "Show account number",
+          "role": "button"
+        }
+      ],
       "title": "Account Information",
       "text": "Find your Routing and Account number here that you will use with your bank to initiate a wire transfer into your DoorLoop Wallet account.",
       "showOnly": true
