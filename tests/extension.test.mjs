@@ -829,8 +829,21 @@ try {
     const r = host.shadowRoot, ws = getComputedStyle(r.querySelector('.ws'));
     return matchMedia('(prefers-color-scheme: dark)').matches && ws.backgroundColor === 'rgb(255, 255, 255)' && ws.colorScheme === 'light';
   }));
+  // Tour style colours also take a typed code; the swatch follows, and a bad code is marked and ignored
+  await PV.locator('.style-tool').click();
+  const frameHex = PV.locator('.style-panel input[data-var="--tour-frame"]').locator('xpath=preceding-sibling::input[1]');
+  await frameHex.fill('#dffe02');
+  const typed = await PV.evaluate((host) => ({ swatch: host.shadowRoot.querySelector('.style-panel input[data-var="--tour-frame"]').value, applied: host.shadowRoot.querySelector('.root').style.getPropertyValue('--tour-frame') }));
+  await frameHex.fill('#zz');
+  const bad = await PV.evaluate((host) => ({ swatch: host.shadowRoot.querySelector('.style-panel input[data-var="--tour-frame"]').value, marked: host.shadowRoot.querySelector('.style-panel .hex').classList.contains('bad') }));
+  await frameHex.fill('#0b1f44');
+  await PV.locator('.style-tool').click();
+  check('tour style: typing a colour code like #dffe02 sets the colour', typed.swatch === '#dffe02' && typed.applied === '#dffe02', JSON.stringify(typed));
+  check('tour style: a bad colour code is marked and ignored', bad.swatch === '#dffe02' && bad.marked, JSON.stringify(bad));
   await PV.locator('.preview-btn').click();
   await pv.waitForTimeout(800);
+  check('preview: a click step shows the hint strip under the text', (await PV.locator('.pop .tb-body .tb-hint').textContent().catch(() => '')) === 'Click the highlighted item to continue' &&
+    !/click/i.test(await PV.locator('.pop .tb-foot').textContent()));
   await pv.click('#rowActions');
   await pv.waitForTimeout(1200);
   check('preview: clicking a "click the highlighted item" step opens the app\'s menu and moves on',
@@ -908,6 +921,12 @@ try {
   const dp = await ctx.newPage();
   await dp.goto('https://acme.app.doorloop.com/payment?tour=dropdown-test');
   await title(dp);
+  const hintAt = await dp.evaluate(() => ({
+    body: document.querySelector('.tour-layer-popover .tl-body .tl-hint')?.textContent,
+    bar: document.querySelector('.tour-layer-popover .driver-popover-footer')?.textContent,
+  }));
+  check('a click step says "Click the highlighted item to continue" in a strip under the text, not in the bottom bar',
+    hintAt.body === 'Click the highlighted item to continue' && !/click/i.test(hintAt.bar), JSON.stringify(hintAt));
   check('a target inside a dialog above the overlay gets its highlight drawn above the dialog', await dp.evaluate(() => {
     const ring = document.querySelector('.tour-layer-ring');
     const lease = document.querySelector('[data-cy=mockLease]').getBoundingClientRect();

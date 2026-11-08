@@ -10,6 +10,7 @@
   const LABELLED = '[data-cy], [data-testid], [data-intercom-target], [data-item-id], [data-section-value]';
   const REPO = 'https://github.com/shuang-dl/product-tour-layer'; // where tours are published from
   const ADVANCE = { next: 'Next button', click: 'Click the element', type: 'Type text' };
+  const POINTER_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.904 17.563a1.2 1.2 0 0 0 2.228 .308l2.09 -3.093l4.907 4.907a1.067 1.067 0 0 0 1.509 0l1.047 -1.047a1.067 1.067 0 0 0 0 -1.509l-4.907 -4.907l3.113 -2.09a1.2 1.2 0 0 0 -.309 -2.228l-13.582 -3.904l3.904 13.563z"/></svg>'; // Tabler "pointer" icon (MIT)
   const SESSION_KEY = 'tourLayer.builder'; // live mode: the draft survives page reloads
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const STYLE_FIELDS = {
@@ -133,7 +134,8 @@
     .tb-foot .back { background: none; border: 0; color: inherit; font: inherit; padding: 2px 4px; }
     .tb-next { background: var(--tour-button); color: var(--tour-button-text); border: 0; border-radius: 0; font-weight: 600; font-size: 13px;
       padding: max(4px, calc((var(--tour-footer-h) - 22px) / 2.6)) calc(max(4px, calc((var(--tour-footer-h) - 22px) / 2.6)) + 10px); }
-    .tb-hint { font-size: 12px; font-style: italic; }
+    .tb-hint { display: flex; align-items: center; gap: 7px; padding: 9px 18px; font-size: 12px; line-height: 1.35; background: color-mix(in srgb, var(--tour-button) 22%, var(--tour-body-bg)); color: var(--tour-button-text); }
+    .tb-hint svg { flex: none; }
     .tb-body { background: var(--tour-body-bg); color: var(--tour-body-text); }
     .tb-img { position: relative; }
     .tb-img img { display: block; width: 100%; max-height: 180px; object-fit: cover; }
@@ -203,6 +205,8 @@
     .panel .pgrp { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 12px 0 2px; }
     .panel label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 6px 0; }
     .panel input[type=range] { flex: 1; min-width: 0; }
+    .panel .hex { margin-left: auto; width: 74px; padding: 3px 6px; border: 1px solid var(--border); border-radius: 4px; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text); background: var(--card); }
+    .panel .hex.bad { border-color: #d32f2f; }
     .panel label span.px { min-width: 34px; text-align: right; color: var(--text); }
     .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
     .seg button { border: 0; background: transparent; color: var(--text); min-width: 30px; height: 26px; font-size: 12px; display: grid; place-items: center; padding: 0 6px; }
@@ -833,7 +837,7 @@
     // Tour style: one look for every step, applied through the --tour-* CSS variables.
     $('.style-tool').onclick = () => ($('.style-panel').hidden = !$('.style-panel').hidden);
     function applyStyle() {
-      $$('.style-panel input').forEach((i) => {
+      $$('.style-panel input[data-var]').forEach((i) => {
         const px = i.type === 'range';
         rootEl.style.setProperty(i.dataset.var, i.value + (px ? 'px' : ''));
         if (px) i.nextElementSibling.textContent = i.value + 'px';
@@ -848,10 +852,33 @@
         h.innerHTML = t.innerHTML;
         t.replaceWith(h);
       });
+      syncHex();
       refreshOverlay();
       save();
     }
-    $$('.style-panel input').forEach((i) => (i.oninput = applyStyle));
+    $$('.style-panel input[data-var]').forEach((i) => (i.oninput = applyStyle));
+    // Each colour can also be typed as a code, e.g. #dffe02 (or #dfe for short); the swatch and the code stay in step.
+    function syncHex() {
+      $$('.style-panel .hex').forEach((h) => {
+        if (shadow.activeElement === h) return; // don't rewrite what someone is typing
+        h.value = h.nextElementSibling.value;
+        h.classList.remove('bad');
+      });
+    }
+    $$('.style-panel input[type=color]').forEach((swatch) => {
+      const hex = Object.assign(document.createElement('input'), { className: 'hex', maxLength: 7, spellcheck: false, value: swatch.value, title: 'Colour code, like #dffe02' });
+      hex.setAttribute('aria-label', `${swatch.parentElement.firstChild.textContent.trim()} colour code`);
+      swatch.before(hex);
+      hex.oninput = () => {
+        const m = hex.value.trim().match(/^#?([0-9a-f]{6}|[0-9a-f]{3})$/i);
+        hex.classList.toggle('bad', !m);
+        if (!m) return;
+        swatch.value = '#' + (m[1].length === 3 ? m[1].replace(/./g, (c) => c + c) : m[1]).toLowerCase();
+        applyStyle();
+      };
+      hex.onblur = syncHex;
+      hex.onkeydown = (e) => { if (e.key === 'Enter') hex.blur(); };
+    });
     $$('.style-panel .seg').forEach((seg) => (seg.onclick = (e) => {
       const b = e.target.closest('button');
       if (!b) return;
@@ -1051,12 +1078,16 @@
     function setAdvance(box, advanceOn, last, onNext) {
       const slot = box.querySelector('.tb-advance');
       slot.replaceChildren();
+      box.querySelector('.tb-hint')?.remove();
       if (advanceOn === 'next') {
         const b = Object.assign(document.createElement('button'), { className: 'tb-next', textContent: last ? 'Done' : 'Next' });
         if (onNext) b.onclick = onNext;
         slot.append(b);
       } else {
-        slot.append(Object.assign(document.createElement('span'), { className: 'tb-hint', textContent: advanceOn === 'click' ? 'Click the highlighted item' : 'Type to continue' }));
+        // Like the tour engine: the hint is a strip under the text, and the bottom bar keeps Back alone
+        const hint = Object.assign(document.createElement('div'), { className: 'tb-hint' });
+        hint.innerHTML = `${POINTER_ICON}<span>${advanceOn === 'click' ? 'Click the highlighted item to continue' : 'Type to continue'}</span>`;
+        box.querySelector('.tb-pad').after(hint);
       }
     }
 
@@ -1691,7 +1722,7 @@
         page: start,
         // Same field names the tour engine and the build check use.
         style: {
-          ...Object.fromEntries([...$$('.style-panel input')].map((i) => [STYLE_FIELDS[i.dataset.var], i.type === 'range' ? +i.value : i.value])),
+          ...Object.fromEntries([...$$('.style-panel input[data-var]')].map((i) => [STYLE_FIELDS[i.dataset.var], i.type === 'range' ? +i.value : i.value])),
           titleSize: style.titleTag,
           titleAlign: style.titleAlign,
           textAlign: style.textAlign,
@@ -1796,7 +1827,7 @@
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({
         name: state.name, id: state.id, folder: options.folder, flow, style, active: state.active, exitClicks: state.exitClicks,
         autoStart: $('.auto-start input').checked, status: $('.tour-status select').value, recordingTour: state.recordingTour,
-        inputs: Object.fromEntries([...$$('.style-panel input')].map((i) => [i.dataset.var, i.value])),
+        inputs: Object.fromEntries([...$$('.style-panel input[data-var]')].map((i) => [i.dataset.var, i.value])),
       }));
     }
     function restore(saved) {
@@ -1810,7 +1841,7 @@
       $('.auto-start input').checked = !!saved.autoStart;
       $('.tour-status select').value = saved.status || 'draft';
       Object.assign(style, saved.style);
-      $$('.style-panel input').forEach((i) => { if (saved.inputs[i.dataset.var] !== undefined) i.value = saved.inputs[i.dataset.var]; });
+      $$('.style-panel input[data-var]').forEach((i) => { if (saved.inputs[i.dataset.var] !== undefined) i.value = saved.inputs[i.dataset.var]; });
       $$('.style-panel .seg').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === style[seg.dataset.key])));
     }
 

@@ -15,6 +15,7 @@
     titleSize: 'h2', titleAlign: 'left', textAlign: 'left',
   };
   const POLL_MS = 250;
+  const POINTER_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.904 17.563a1.2 1.2 0 0 0 2.228 .308l2.09 -3.093l4.907 4.907a1.067 1.067 0 0 0 1.509 0l1.047 -1.047a1.067 1.067 0 0 0 0 -1.509l-4.907 -4.907l3.113 -2.09a1.2 1.2 0 0 0 -.309 -2.228l-13.582 -3.904l3.904 13.563z"/></svg>'; // Tabler "pointer" icon (MIT)
   const OVERLAY_OPACITY = 0.45;
   const STAGE_PADDING = 6;
   const STAGE_RADIUS = 8;
@@ -674,10 +675,15 @@
     const body = el('div', { className: 'tl-body' });
     if (step.image) body.append(el('img', { className: 'tl-img', src: step.image, alt: '' }));
     body.append(el('div', { className: 'tl-pad' }, [title, p.description, ...(note ? [el('p', { className: 'tl-note', textContent: note })] : [])]), p.closeButton);
+    // A step that continues on a click says so in a strip under the text (the bottom bar keeps Back alone).
+    if (clickToAdvance) {
+      const hint = el('div', { className: 'tl-hint' });
+      hint.innerHTML = `${POINTER_ICON}<span>Click the highlighted item to continue</span>`;
+      body.append(hint);
+    }
 
-    const right = clickToAdvance ? el('span', { className: 'tl-hint', textContent: 'Click the highlighted item' }) : p.nextButton;
     const fill = step.fill ? [el('button', { className: 'tl-fill', textContent: 'Fill example', onclick: (e) => fillSample(tour, step, e.currentTarget) })] : [];
-    p.footer.replaceChildren(p.progress, el('span', { className: 'tl-actions' }, [p.previousButton, ...fill, right]));
+    p.footer.replaceChildren(p.progress, el('span', { className: 'tl-actions' }, [p.previousButton, ...fill, ...(clickToAdvance ? [] : [p.nextButton])]));
     const bar = el('div', { className: 'tl-bar' }, [el('span', { style: `width: ${Math.round(progress * 100)}%` })]);
     p.wrapper.replaceChildren(p.arrow, body, bar, p.footer);
   }
@@ -739,7 +745,8 @@
     .tour-layer-popover .driver-popover-footer .tl-fill { background: none; color: inherit; border: 1px solid currentColor; border-radius: 6px; padding: 3px 8px; cursor: pointer; }
     .tour-layer-popover .driver-popover-footer .tl-fill:disabled { opacity: .7; cursor: default; }
     .tour-layer-popover .tl-note { margin: 8px 0 0; font-size: 13px; line-height: 1.45; font-weight: 600; text-align: var(--tl-text-align); }
-    .tour-layer-popover .tl-hint { font-size: 12px; font-style: italic; }
+    .tour-layer-popover .tl-hint { display: flex; align-items: center; gap: 7px; padding: 9px 18px; font-size: 12px; line-height: 1.35; background: color-mix(in srgb, var(--tl-button) 22%, var(--tl-body-bg)); color: var(--tl-button-text); }
+    .tour-layer-popover .tl-hint svg { flex: none; }
     .tour-layer-popover .driver-popover-arrow { border-color: transparent; }
     /* The arrow takes the colour of the edge it sits on: the bottom bar below the box, the white body elsewhere */
     .tour-layer-popover .driver-popover-arrow-side-left { border-left-color: var(--tl-body-bg); }
