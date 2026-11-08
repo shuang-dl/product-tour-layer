@@ -66,12 +66,12 @@
     </div>
 
     <h2>Drafts</h2>
-    <p>Tours that aren't live yet. Only people who turn on <strong>Show drafts</strong> see them on DoorLoop, in that browser: <a href="https://app.doorloop.com/home?drafts=on" target="_blank" rel="noopener">turn on</a> · <a href="https://app.doorloop.com/home?drafts=off" target="_blank" rel="noopener">turn off</a>. <strong>Preview</strong> turns it on too.</p>
+    <p>Tours that aren't live yet. Only people who turn on <strong>Show drafts</strong> see them on DoorLoop, in that browser: <a href="https://app.doorloop.com/home?drafts=on" target="_blank" rel="noopener">turn on</a> · <a href="https://app.doorloop.com/home?drafts=off" target="_blank" rel="noopener">turn off</a>. Clicking a draft's URL previews it and turns Show drafts on; <strong>Copy</strong> copies its permanent link, to share once it's live.</p>
     <p>To make a draft live, click <strong>Approve</strong> (it opens the tour's file on GitHub), change <code>"status": "draft"</code> to <code>"status": "live"</code>, and commit; or click <strong>Edit</strong> and set Status to Live under ⋯ More before saving. It goes live for everyone once published.</p>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Name</th><th>Description</th><th class="num">Steps</th><th>URL <small>(app.doorloop.com…)</small></th><th>Preview</th><th>GitHub approval</th><th>Edit</th></tr></thead>
-        <tbody id="drafts"><tr class="empty"><td colspan="7">Loading drafts…</td></tr></tbody>
+        <thead><tr><th>Name</th><th>Description</th><th class="num">Steps</th><th>URL <small>(app.doorloop.com…)</small></th><th>GitHub approval</th><th>Edit</th></tr></thead>
+        <tbody id="drafts"><tr class="empty"><td colspan="6">Loading drafts…</td></tr></tbody>
       </table>
     </div>
   </main>
@@ -85,14 +85,16 @@
     const link = (text, href, className) => Object.assign(document.createElement('a'), { textContent: text, href, target: '_blank', rel: 'noopener', className: className || '' });
     // The tour's link: opening it on DoorLoop starts the tour. Shown as its page and tour (every link is on
     // app.doorloop.com, as the column header says); clicking or copying uses the whole link.
+    // A draft's link also turns on Show drafts, so clicking it previews the draft; Copy still copies the plain link.
     function urlCell(t) {
       const url = `${DOORLOOP}${t.page}?tour=${encodeURIComponent(t.id)}`;
+      const open = t.status === 'draft' ? `${url}&drafts=on` : url;
       const copy = Object.assign(document.createElement('button'), { className: 'copy', textContent: 'Copy', title: 'Copy the link' });
       copy.onclick = () => navigator.clipboard.writeText(url).then(() => {
         copy.textContent = 'Copied';
         setTimeout(() => (copy.textContent = 'Copy'), 1500);
       });
-      return cell('url', Object.assign(link(url.slice(DOORLOOP.length), url), { title: url }), copy);
+      return cell('url', Object.assign(link(url.slice(DOORLOOP.length), open), { title: t.status === 'draft' ? 'Preview this draft (turns on Show drafts)' : url }), copy);
     }
     function row(t, extra) {
       const tr = document.createElement('tr');
@@ -120,9 +122,8 @@
     // Edit opens the tour in the builder on DoorLoop (the extension sees ?edit-tour= and opens the builder with it)
     const editCell = (t) => cell('act', link('Edit', `${DOORLOOP}${t.page}?edit-tour=${encodeURIComponent(t.id)}`, 'btn'));
     show('tours', 'tours.json', 5, (t) => [editCell(t)], 'No live tours yet.');
-    // Drafts: preview on DoorLoop (turns on Show drafts there), approve the file on GitHub, or edit it.
-    show('drafts', 'drafts.json', 7, (t) => [
-      cell('act', link('Preview →', `${DOORLOOP}${t.page}?tour=${encodeURIComponent(t.id)}&drafts=on`)),
+    // Drafts: approve the file on GitHub, or edit it.
+    show('drafts', 'drafts.json', 6, (t) => [
       cell('act', link('Approve', `https://github.com/shuang-dl/product-tour-layer/edit/main/tours/${encodeURIComponent(t.id)}.json`)),
       editCell(t),
     ], 'No drafts right now.');
