@@ -356,6 +356,9 @@
     // exitClicks: targets clicked when a tour that filled in sample data ends. recording: sample data being recorded
     // for the step in the editor; pickingExit: the next click on the app picks an exit click.
     const state = { name: options.name, id: null, flow: [{ type: 'page', path: options.startPath }], tool: 'pointer', active: null, previewing: false, addingPage: false, testOn: 'demo', exitClicks: [], recording: null, pickingExit: false };
+    // In Preview, the elements of a "click the highlighted item" step, whose clicks reach the app
+    let previewClick = null;
+    const previewClickHit = (e) => !!(state.previewing && previewClick && previewClick.els.some((el) => el.contains(e.target)));
     const style = { titleTag: 'h2', titleAlign: 'left', textAlign: 'left' };
     let closed = false;
 
@@ -507,6 +510,12 @@
           if (el) addExitClick(el);
           return;
         }
+        if (previewClickHit(e)) {
+          const go = previewClick.go;
+          previewClick = null;
+          setTimeout(go, 300); // like the tour engine: let the click open its menu or dialog first
+          return;
+        }
         if (state.previewing || (canPick() && state.tool === 'pointer')) {
           e.preventDefault();
           e.stopPropagation();
@@ -521,7 +530,7 @@
       // Apps open menus and dialogs as the mouse button goes down, before the click, so block the whole press.
       for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'touchstart']) {
         on(type, (e) => {
-          if (inBuilder(e) || navigating) return;
+          if (inBuilder(e) || navigating || previewClickHit(e)) return;
           if (state.previewing || (canPick() && state.tool === 'pointer')) {
             e.preventDefault();
             e.stopPropagation();
@@ -1164,6 +1173,7 @@
     }
 
     function clearSelection() {
+      previewClick = null;
       state.recording = null;
       editing = null;
       pop?.remove();
@@ -1627,11 +1637,9 @@
         };
         box.querySelector('.tb-advance').before(fillBtn);
       }
-      if (s.advanceOn === 'click' && selBox) {
-        selBox.style.pointerEvents = 'auto';
-        selBox.style.cursor = 'pointer';
-        selBox.onclick = go;
-      } else if (s.advanceOn === 'type') {
+      // A "click the highlighted item" step: the click goes to the app (opening its menu, say), then on to the next step
+      if (s.advanceOn === 'click' && els.length) previewClick = { els, go };
+      else if (s.advanceOn === 'type') {
         const input = Object.assign(document.createElement('input'), { className: 'tb-typed', placeholder: 'Type here, then press Enter' });
         input.onkeydown = (e) => {
           if (e.key === 'Enter' && input.value.trim()) go(); // not returned: false from an on* handler cancels the key

@@ -66,7 +66,26 @@
         '<div><textarea style="width:300px"></textarea></div>' +
         '<button role="checkbox" id="radix-r30" data-testid="WalletMovement-Authorize" style="width:16px;height:16px"></button>' +
         '<label for="radix-r30">I authorize this withdrawal from the selected wallet.</label>' +
-        '<button data-testid="WalletMovement-Submit">Withdraw</button></div>';
+        '<button data-testid="WalletMovement-Submit">Withdraw</button></div>' +
+        // like DoorLoop's row "⋮" menu (Radix): opens as the mouse button goes down, closes on a press outside it
+        '<div style="padding:20px"><button aria-label="Row actions" aria-haspopup="menu" aria-expanded="false" id="rowActions">⋮</button></div>';
+      const dots = document.getElementById('rowActions');
+      dots.addEventListener('pointerdown', () => {
+        if (document.getElementById('rowMenu')) return;
+        const menu = document.createElement('div');
+        menu.id = 'rowMenu';
+        menu.setAttribute('role', 'menu');
+        menu.style.cssText = 'position:fixed;left:60px;top:400px;background:#fff;border:1px solid #ccc;padding:8px';
+        menu.innerHTML = '<div role="menuitem">Wire transfer details</div>';
+        document.body.append(menu);
+        dots.setAttribute('aria-expanded', 'true');
+        setTimeout(() => document.addEventListener('pointerdown', function away(e) {
+          if (menu.contains(e.target)) return;
+          menu.remove();
+          dots.setAttribute('aria-expanded', 'false');
+          document.removeEventListener('pointerdown', away, true);
+        }, true), 0);
+      });
       return;
     }
     if (location.pathname === '/properties/new') {

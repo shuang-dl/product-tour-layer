@@ -786,6 +786,28 @@ try {
   await sv.close();
   fake.close();
 
+  // Builder Preview: a "click the highlighted item" step lets the click reach the app, so a row's ⋮ menu opens
+  const pv = await ctx.newPage();
+  await pv.goto('https://acme.app.doorloop.com/wallet');
+  await pv.evaluate(() => sessionStorage.setItem('tourLayer.builder', JSON.stringify({
+    name: 'Row menu', id: null, folder: 'tours', style: {}, inputs: {}, active: null, exitClicks: [], autoStart: false, status: 'draft', recordingTour: false,
+    flow: [{ type: 'page', path: '/wallet' },
+      { type: 'step', page: '/wallet', target: "button[aria-label='Row actions']", label: 'Row actions', titleHtml: 'Row actions', textHtml: 'Click the dots', image: null, advanceOn: 'click', optional: false, showOnly: false, placement: 'auto', fill: [] },
+      { type: 'step', page: '/wallet', target: '[role=menu]', label: 'menu', titleHtml: 'The menu', textHtml: 'Options for this wallet', image: null, advanceOn: 'next', optional: false, showOnly: false, placement: 'auto', fill: [] }],
+  })));
+  await pv.reload();
+  await pv.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 10000 }).catch(() => {});
+  const PV = pv.locator('#tour-layer-builder');
+  await PV.locator('.preview-btn').click();
+  await pv.waitForTimeout(800);
+  await pv.click('#rowActions');
+  await pv.waitForTimeout(1200);
+  check('preview: clicking a "click the highlighted item" step opens the app\'s menu and moves on',
+    (await pv.locator('#rowMenu').count()) === 1 && (await PV.locator('.pop .tb-title').innerText().catch(() => '')) === 'The menu');
+  await PV.locator('.pop .close').click();
+  await pv.evaluate(() => sessionStorage.removeItem('tourLayer.builder'));
+  await pv.close();
+
   // autoStart: opens by itself on its page once; after it ends, this browser doesn't start it again
   const ap = await ctx.newPage();
   await ap.goto('https://acme.app.doorloop.com/welcome');
