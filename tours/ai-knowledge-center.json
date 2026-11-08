@@ -1,0 +1,58 @@
+{
+  "id": "ai-knowledge-center",
+  "title": "AI Knowledge Center",
+  "status": "draft",
+  "page": "/ai-agents/concierge-agent",
+  "style": {
+    "frame": "#0b1f44",
+    "bandText": "#ffffff",
+    "button": "#d8f34a",
+    "buttonText": "#0b1f44",
+    "bodyText": "#1b1d21",
+    "bodyBg": "#ffffff",
+    "footerHeight": 56,
+    "titleSize": "h2",
+    "titleAlign": "left",
+    "textAlign": "left"
+  },
+  "steps": [
+    {
+      "title": "Intro",
+      "text": "Test intro for this section"
+    },
+    {
+      "target": "[data-cy='AiPolicies-CreatePolicy']",
+      "clues": {
+        "tag": "button",
+        "text": "Create new",
+        "role": "button"
+      },
+      "title": "Click “Create new”",
+      "text": "Click Create new.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/ai-agents/concierge-agent/policy/new",
+      "target": "[data-cy='Dialog-Container']",
+      "clues": {
+        "tag": "div",
+        "text": "NEW DOCUMENT",
+        "role": "div"
+      },
+      "title": "Enter required info",
+      "text": "show what needs to be entered"
+    },
+    {
+      "page": "/ai-agents/concierge-agent/policy/new",
+      "target": "[data-cy='Action-Button-Save']",
+      "clues": {
+        "tag": "button",
+        "text": "Save",
+        "role": "button"
+      },
+      "title": "Save",
+      "text": "click save when done",
+      "showOnly": true
+    }
+  ]
+}
