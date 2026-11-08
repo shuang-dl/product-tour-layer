@@ -68,9 +68,12 @@
     .live .ws { position: fixed; top: 0; right: 0; bottom: 0; width: var(--panel-w); display: flex; flex-direction: column; background: var(--card); border-left: 1px solid var(--border); box-shadow: -6px 0 24px rgba(0,0,0,.14); pointer-events: auto; z-index: 3; transition: right .2s, visibility 0s; }
     .live.story-collapsed .ws { right: calc(-1 * var(--panel-w) - 30px); visibility: hidden; transition: right .2s, visibility 0s .2s; }
     .live .ws-top { flex-wrap: wrap; gap: 8px; padding: 12px 14px; }
-    .live .ws-top .badge { order: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11px; font-weight: 600; background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 8px; white-space: nowrap; } /* shrinks before Hide and Close wrap */
+    /* The badge's slot starts at zero width, so Hide and Close always fit on the top line (a wrapping row moves an
+       item to the next line before anything shrinks); the badge fills what's left, with "…" when fonts run wide. */
+    .live .ws-top .badge-slot { order: 0; flex: 1 1 0; min-width: 0; display: flex; }
+    .live .ws-top .badge { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11px; font-weight: 600; background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 8px; white-space: nowrap; }
     .live .ws-top .story-btn, .live .ws-top .close-btn { flex-shrink: 0; }
-    .live .ws-top .story-btn { order: 1; margin-left: auto; }
+    .live .ws-top .story-btn { order: 1; }
     .live .ws-top .close-btn { order: 2; }
     .live .ws-top .name-row { order: 3; flex: 1 0 100%; } /* its own line: the tour name, with All tours beside it */
     .live .ws-top .ws-name { flex: 1; min-width: 0; max-width: none; font-size: 15px; }
@@ -272,7 +275,7 @@
         ${live ? LAYERS + '<button class="panel-tab" title="Show the builder">Show builder</button>' : '<div class="backdrop"></div>'}
         <div class="ws">
           <div class="ws-top">
-            ${live ? '<span class="badge">Building on live DoorLoop</span>' : ''}
+            ${live ? '<span class="badge-slot"><span class="badge">Building on live DoorLoop</span></span>' : ''}
             <span class="name-row"><strong class="ws-name"></strong>
             <a class="all-tours" href="https://shuang-dl.github.io/product-tour-layer/" target="_blank" rel="noopener" title="The page listing all tours (opens in a new tab; this draft stays here)">All tours ↗</a></span>
             <span class="url"></span>

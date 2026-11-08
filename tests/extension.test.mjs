@@ -353,6 +353,15 @@ try {
   });
   check('builder: Record tour is a dashed red outline, solid red while recording; Preview / Save tour / More line up with its edges',
     topBar.off === 'dashed rgb(211, 47, 47) rgba(0, 0, 0, 0)' && topBar.on === 'rgb(211, 47, 47)' && Math.abs(topBar.pre.left - topBar.rec.left) < 1 && Math.abs(topBar.more.right - topBar.rec.right) < 1, JSON.stringify(topBar));
+  const wideFonts = await E.evaluate((host) => {
+    const r = host.shadowRoot, root = r.querySelector('.root');
+    root.style.letterSpacing = '1.5px'; // wider text, like the fonts on CI's Linux machine
+    const close = r.querySelector('.close-btn').getBoundingClientRect(), badge = r.querySelector('.badge').getBoundingClientRect();
+    const out = Math.abs(close.top - r.querySelector('.story-btn').getBoundingClientRect().top) < 2 && Math.abs(close.top + close.height / 2 - (badge.top + badge.height / 2)) < 8;
+    root.style.letterSpacing = '';
+    return out;
+  });
+  check('builder: Hide and Close stay on the top line even with wider fonts', wideFonts);
   check('builder: the tour name keeps its own line, with All tours beside it', nameRow.nameW > 150 && nameRow.sameLine && nameRow.belowClose && nameRow.closeOnTop, JSON.stringify(nameRow));
   check('edit: the tour loads into the storyboard', JSON.stringify(await cards()) === JSON.stringify(['First', 'Second']) && (await E.locator('.ws-name').textContent()) === 'Edit me');
   check("edit: the tour's style loads", (await E.locator('.style-panel input[data-var="--tour-frame"]').inputValue()) === '#0f6e56');
