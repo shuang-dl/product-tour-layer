@@ -478,7 +478,7 @@ try {
   await title(sp);
   await sp.click('.driver-popover-next-btn');
   await title(sp);
-  check('without sample data, the last step offers Done or the real button', (await sp.locator('.tl-body > .tl-hint.tl-note').textContent()) === 'Click Done to discard and finish, or “Finish” to save what you entered.');
+  check('without sample data, the last step offers Done or the real button', (await sp.locator('.tl-body > .tl-hint.tl-note').textContent()) === 'Click Done to discard and finish, or the highlighted item to save what you entered.');
   const finBox = await sp.locator('[data-cy=mockFinish]').boundingBox();
   await sp.mouse.click(finBox.x + finBox.width / 2, finBox.y + finBox.height / 2);
   await sp.waitForTimeout(800);

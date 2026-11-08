@@ -450,7 +450,6 @@
     const last = index === total - 1;
     const sampleUsed = !!(loadState() || {}).sampleUsed;
     const target = Array.isArray(el) ? el[0] : el;
-    const saveLabel = target && target.innerText.trim().split('\n')[0];
     // Only a button (or a wrapper around one button) can save. A show-only panel, e.g. account details, gets no
     // "click … to save it" note and stays unclickable.
     const ACTION = 'button, a[href], [role=button], [role=menuitem], input[type=submit], input[type=button]';
@@ -458,7 +457,7 @@
     const canSave = step.showOnly && last && !sampleUsed && isAction;
     const note = !(step.showOnly && last && el) ? null
       : sampleUsed ? 'Click Done to discard the sample data and finish.'
-      : isAction ? `Click Done to discard and finish, or ${saveLabel ? `“${saveLabel}”` : 'the highlighted button'} to save what you entered.`
+      : isAction ? 'Click Done to discard and finish, or the highlighted item to save what you entered.'
       : null;
 
     const buttons = [];
