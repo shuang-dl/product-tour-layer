@@ -8,7 +8,7 @@ type: note
 
 Where the product tour proof of concept stands, how it got here, and what's still open. For how to use it, see the [README](README.md).
 
-**As of November 6, 2026:** extension 0.21.2, 5 live tours and 2 drafts for DoorLoop, 3 for the demo app, 142 automated checks, all passing.
+**As of November 6, 2026:** extension 0.22.0, 5 live tours and 2 drafts for DoorLoop, 3 for the demo app, 143 automated checks, all passing.
 
 ## What it is
 

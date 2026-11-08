@@ -9,10 +9,6 @@
     "buttonText": "#0b1f44",
     "bodyText": "#1b1d21",
     "bodyBg": "#ffffff",
-    "headerHeight": 26,
-    "footerHeight": 48,
-    "sideBorder": 3,
-    "corners": 10,
     "titleSize": "h2",
     "titleAlign": "left",
     "textAlign": "left"

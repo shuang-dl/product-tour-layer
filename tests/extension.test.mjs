@@ -35,10 +35,17 @@ try {
   check('tour starts from ?tour=', (await title(page)) === 'Find a tenant');
   check('?tour= stripped from URL', !page.url().includes('tour='), page.url());
   check('driver.css injected', (await page.locator('.driver-popover').evaluate((e) => getComputedStyle(e).position)) === 'fixed');
-  check('step box header shows step count', (await page.locator('.tl-head').textContent()).includes('Step 1 of 5'));
+  check('step box bottom bar shows the step count', (await page.locator('.driver-popover-footer .driver-popover-progress-text').textContent()) === '1 of 5');
+  const look = await page.evaluate(() => {
+    const box = getComputedStyle(document.querySelector('.tour-layer-popover'));
+    const kids = [...document.querySelector('.tour-layer-popover').children].map((c) => c.className.split(' ')[0]);
+    return { radius: box.borderRadius, shadow: box.boxShadow !== 'none', bg: box.backgroundColor, kids, closeInBody: !!document.querySelector('.tl-body .driver-popover-close-btn') };
+  });
+  check('step box: white body on top, progress line, bottom bar; square, with a shadow and the close in the body',
+    look.radius === '0px' && look.shadow && look.bg === 'rgb(255, 255, 255)' && look.kids.slice(1).join() === 'tl-body,tl-bar,driver-popover-footer' && look.closeInBody, JSON.stringify(look));
   check('no extra highlight layer outside dialogs', (await page.locator('.tour-layer-ring').count()) === 0);
   check('step box shows a progress bar', (await page.evaluate(() => document.querySelector('.tl-bar > span')?.style.width)) === '20%');
-  check('default style applied', (await page.locator('.driver-popover').evaluate((e) => getComputedStyle(e).backgroundColor)) === 'rgb(11, 31, 68)');
+  check('default style applied', (await page.locator('.driver-popover-footer').evaluate((e) => getComputedStyle(e).backgroundColor)) === 'rgb(11, 31, 68)');
   await page.click('.driver-popover-next-btn');
   check('optional step shows when its target is visible', (await title(page)) === 'Open People');
   await page.click('#people');
@@ -90,7 +97,7 @@ try {
   const page3 = await ctx.newPage();
   await page3.goto('https://acme.app.doorloop.com/home?tour=remote-test');
   check('uses published tours when reachable', (await title(page3)) === 'From GitHub Pages');
-  check("tour's style block applied", (await page3.locator('.driver-popover').evaluate((e) => getComputedStyle(e).backgroundColor)) === 'rgb(18, 52, 86)');
+  check("tour's style block applied", (await page3.locator('.driver-popover-footer').evaluate((e) => getComputedStyle(e).backgroundColor)) === 'rgb(18, 52, 86)');
   check('title uses the chosen heading tag', (await page3.locator('.tl-title').evaluate((e) => e.tagName)) === 'H1');
   check('step image shown', (await page3.locator('.tl-img').count()) === 1);
   await page3.keyboard.press('Escape');
@@ -540,7 +547,7 @@ try {
   check("drafts: a draft doesn't run without Show drafts", (await dr.locator('.driver-popover').count()) === 0);
   await dr.goto('https://acme.app.doorloop.com/drafty?tour=draft-test&drafts=on');
   check('drafts: ?drafts=on turns on Show drafts and the draft runs, labelled',
-    (await title(dr)) === 'Draft step' && (await dr.locator('.tl-head').textContent()).includes('Draft · Step 1 of 1') &&
+    (await title(dr)) === 'Draft step' && (await dr.locator('.driver-popover-progress-text').textContent()) === 'Draft · 1 of 1' &&
     !dr.url().includes('drafts=') && (await dr.evaluate(() => localStorage.getItem('tourLayer.showDrafts'))) === '1');
   await dr.click('.driver-popover-close-btn');
   await dr.goto('https://acme.app.doorloop.com/drafty');

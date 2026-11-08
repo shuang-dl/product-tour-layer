@@ -13,7 +13,7 @@ const STEP_KEYS = ['target', 'clues', 'title', 'text', 'page', 'advanceOn', 'opt
 // The step box style (one per tour). Colours are #rrggbb, sizes are whole pixels in a range, the rest are choices.
 const STYLE_RULES = {
   frame: 'color', bandText: 'color', button: 'color', buttonText: 'color', bodyText: 'color', bodyBg: 'color',
-  headerHeight: [16, 48], footerHeight: [32, 64], sideBorder: [0, 8], corners: [0, 16],
+  headerHeight: [16, 48], footerHeight: [32, 72], sideBorder: [0, 8], corners: [0, 16], // header, side border and corners: older files, no longer used
   titleSize: ['h1', 'h2', 'h3'], titleAlign: ['left', 'center', 'right'], textAlign: ['left', 'center', 'right', 'justify'],
 };
 // An https URL or a path to an image file, with nothing that could break out of an attribute.

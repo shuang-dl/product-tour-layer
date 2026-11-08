@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.21.2. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.22.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -130,7 +130,7 @@ Add `tours/<id>.json`:
 - **Stop sharing** in Chrome's bar ends the recording early and downloads what was recorded.
 - The tab's picture changes size while recording (Chrome shows its "sharing this tab" bar right after the share starts), and a video whose frame size changes mid-file won't play. So the export draws the tab onto one fixed size, taken once that bar is up, and records that; GIF frames work the same way.
 
-**Step box style.** Each step shows as a box with a coloured header band (step count and close), a body (image, title, text) and a coloured footer band (Back and Next). One `style` per tour keeps every step consistent; any field left out uses the default.
+**Step box style.** Each step shows as a square box with a drop shadow and no border: a white body (image, title, text, with the close × in its corner), a thin progress line, and a coloured bottom bar (step count on the left; Back and Next on the right). One `style` per tour keeps every step consistent; any field left out uses the default.
 
 ```json
 "style": { "frame": "#0f6e56", "button": "#ffffff", "buttonText": "#0f6e56", "titleSize": "h3" }
@@ -138,17 +138,16 @@ Add `tours/<id>.json`:
 
 | Style field | Default | |
 |---|---|---|
-| `frame` | `#0b1f44` | header, footer and side borders |
-| `bandText` | `#ffffff` | text in the header and footer |
+| `frame` | `#0b1f44` | the bottom bar |
+| `bandText` | `#ffffff` | text in the bottom bar |
 | `button` / `buttonText` | `#d8f34a` / `#0b1f44` | the Next button |
 | `bodyText` / `bodyBg` | `#1b1d21` / `#ffffff` | the body |
-| `headerHeight` | `26` | px, 16 to 48 |
-| `footerHeight` | `48` | px, 32 to 64 |
-| `sideBorder` | `3` | px, 0 to 8 |
-| `corners` | `10` | px, 0 to 16 |
+| `footerHeight` | `56` | the bottom bar's height, px, 32 to 72 |
 | `titleSize` | `h2` | `h1` (22px), `h2` (18px) or `h3` (16px); a real heading tag |
 | `titleAlign` | `left` | `left`, `center` or `right` |
 | `textAlign` | `left` | `left`, `center`, `right` or `justify` (text is always 14px) |
+
+Older tour files may still have `headerHeight`, `sideBorder` and `corners`; they're accepted and ignored.
 
 The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html)'s Tour style panel (◐) sets these visually, and "View tour file" writes them in this format.
 

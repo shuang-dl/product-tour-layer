@@ -14,8 +14,7 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const STYLE_FIELDS = {
     '--tour-frame': 'frame', '--tour-band-text': 'bandText', '--tour-button': 'button', '--tour-button-text': 'buttonText',
-    '--tour-body-text': 'bodyText', '--tour-body-bg': 'bodyBg', '--tour-header-h': 'headerHeight', '--tour-footer-h': 'footerHeight',
-    '--tour-side': 'sideBorder', '--tour-radius': 'corners',
+    '--tour-body-text': 'bodyText', '--tour-body-bg': 'bodyBg', '--tour-footer-h': 'footerHeight',
   };
 
   const align = (rows) =>
@@ -29,7 +28,7 @@
     .root {
       --bg: #f6f8fb; --card: #fff; --text: #1a1a1a; --muted: #5b6472; --accent: #1665d8; --border: #e2e7ef;
       --tour-frame: #0b1f44; --tour-band-text: #ffffff; --tour-button: #d8f34a; --tour-button-text: #0b1f44; --tour-body-text: #1b1d21; --tour-body-bg: #ffffff;
-      --tour-header-h: 26px; --tour-footer-h: 48px; --tour-side: 3px; --tour-radius: 10px; --tour-title-align: left; --tour-text-align: left;
+      --tour-footer-h: 56px; --tour-title-align: left; --tour-text-align: left;
       --panel-w: 340px; /* PANEL_W in the docking code */
       position: fixed; inset: 0; z-index: 2147483000; pointer-events: none;
       font: 14px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; color: var(--text);
@@ -47,6 +46,7 @@
     .ws-top strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
     .ws-top .url { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); background: var(--bg); border-radius: 6px; padding: 5px 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ws-top > button { white-space: nowrap; }
+    .demo .ws-top .ws-name { flex-shrink: 0; }
     .ws-top .all-tours { font-size: 13px; color: var(--accent); text-decoration: none; white-space: nowrap; }
     .ws-top .all-tours:hover { text-decoration: underline; }
     .ws-top .test-on { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
@@ -121,20 +121,24 @@
     .pop [contenteditable]:empty::before { content: attr(data-placeholder); opacity: .45; }
 
     /* the tour's step box, styled by the tour-wide --tour-* settings */
-    .tbox { background: var(--tour-frame); padding: 0 var(--tour-side); border-radius: var(--tour-radius); overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
-    .tb-head, .tb-foot { display: flex; align-items: center; justify-content: space-between; color: var(--tour-band-text); }
-    .tb-head { height: var(--tour-header-h); padding: 0 8px 0 10px; font-size: 12px; }
-    .tb-foot { height: var(--tour-footer-h); padding: 0 10px 0 12px; font-size: 13px; gap: 8px; }
-    .tb-head .close, .tb-foot .back { background: none; border: 0; color: inherit; font: inherit; padding: 2px 4px; }
-    .tb-head .close { font-size: 16px; line-height: 1; }
-    .tb-next { background: var(--tour-button); color: var(--tour-button-text); border: 0; border-radius: 6px; font-weight: 600; font-size: 13px;
+    /* Same look as the tour engine's step box: white body, close in the corner, progress line, bottom bar */
+    .tbox { background: var(--tour-body-bg); overflow: hidden; box-shadow: 0 14px 36px rgba(11,31,68,.24), 0 2px 8px rgba(11,31,68,.14); }
+    .tb-body { position: relative; }
+    .tb-body .close { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; background: none; border: 0; padding: 0; font-size: 18px; line-height: 1; color: color-mix(in srgb, var(--tour-body-text) 55%, transparent); }
+    .tb-line { height: 3px; background: color-mix(in srgb, var(--tour-band-text) 22%, var(--tour-frame)); }
+    .tb-line > span { display: block; height: 100%; background: var(--tour-button); }
+    .tb-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; height: var(--tour-footer-h); padding: 0 12px 0 18px; font-size: 13px; background: var(--tour-frame); color: var(--tour-band-text); }
+    .tb-count { font-size: 12px; color: color-mix(in srgb, var(--tour-band-text) 70%, transparent); white-space: nowrap; }
+    .tb-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+    .tb-foot .back { background: none; border: 0; color: inherit; font: inherit; padding: 2px 4px; }
+    .tb-next { background: var(--tour-button); color: var(--tour-button-text); border: 0; border-radius: 0; font-weight: 600; font-size: 13px;
       padding: max(4px, calc((var(--tour-footer-h) - 22px) / 2.6)) calc(max(4px, calc((var(--tour-footer-h) - 22px) / 2.6)) + 10px); }
     .tb-hint { font-size: 12px; font-style: italic; }
     .tb-body { background: var(--tour-body-bg); color: var(--tour-body-text); }
     .tb-img { position: relative; }
     .tb-img img { display: block; width: 100%; max-height: 180px; object-fit: cover; }
     .tb-img .rm { position: absolute; top: 6px; right: 6px; border: 0; border-radius: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 11px; padding: 3px 8px; }
-    .tb-pad { padding: 14px 16px 16px; }
+    .tb-pad { padding: 16px 40px 18px 18px; }
     .tb-title { margin: 0 0 6px; line-height: 1.25; font-weight: 600; text-align: var(--tour-title-align); outline: none; }
     h1.tb-title { font-size: 22px; } h2.tb-title { font-size: 18px; } h3.tb-title { font-size: 16px; }
     .tb-text { font-size: 14px; line-height: 1.5; text-align: var(--tour-text-align); outline: none; min-height: 21px; }
@@ -181,8 +185,7 @@
     .sample-list small { color: var(--muted); }
     .sample-list li.empty, .exit-list li.empty { color: var(--muted); font-style: italic; }
     .sample-list .rm, .exit-list .rm { margin-left: auto; background: none; border: 0; color: var(--muted); padding: 0 4px; }
-    .tb-fill { background: none; color: inherit; border: 1px solid currentColor; border-radius: 6px; font: inherit; font-size: 12px; padding: 3px 8px; margin-left: auto; }
-    .tb-fill + .tb-advance { margin-left: 0; }
+    .tb-fill { background: none; color: inherit; border: 1px solid currentColor; border-radius: 6px; font: inherit; font-size: 12px; padding: 3px 8px; }
     .card.page-card { flex-basis: 140px; border-style: dashed; border-color: var(--border); }
     .card.draft { border-style: dashed; border-color: var(--accent); }
     .card.draft .t { color: var(--muted); font-weight: 500; font-style: italic; }
@@ -218,17 +221,14 @@
   const STYLE_PANEL = `
     <h3>Tour style <small>Applies to every step in this tour.</small></h3>
     <div class="pgrp">Colors</div>
-    <label>Frame <input type="color" data-var="--tour-frame" value="#0b1f44"></label>
-    <label>Header and footer text <input type="color" data-var="--tour-band-text" value="#ffffff"></label>
+    <label>Bottom bar <input type="color" data-var="--tour-frame" value="#0b1f44"></label>
+    <label>Bottom bar text <input type="color" data-var="--tour-band-text" value="#ffffff"></label>
     <label>Button <input type="color" data-var="--tour-button" value="#d8f34a"></label>
     <label>Button text <input type="color" data-var="--tour-button-text" value="#0b1f44"></label>
     <label>Body text <input type="color" data-var="--tour-body-text" value="#1b1d21"></label>
     <label>Body background <input type="color" data-var="--tour-body-bg" value="#ffffff"></label>
     <div class="pgrp">Sizes</div>
-    <label>Header <input type="range" data-var="--tour-header-h" min="16" max="48" value="26"><span class="px"></span></label>
-    <label>Footer <input type="range" data-var="--tour-footer-h" min="32" max="64" value="48"><span class="px"></span></label>
-    <label>Side border <input type="range" data-var="--tour-side" min="0" max="8" value="3"><span class="px"></span></label>
-    <label>Corners <input type="range" data-var="--tour-radius" min="0" max="16" value="10"><span class="px"></span></label>
+    <label>Bottom bar <input type="range" data-var="--tour-footer-h" min="40" max="72" value="56"><span class="px"></span></label>
     <div class="pgrp">Text</div>
     <label>Title size <span class="seg" data-key="titleTag"><button data-v="h1">H1</button><button data-v="h2" class="on">H2</button><button data-v="h3">H3</button></span></label>
     <label>Title align <span class="seg" data-key="titleAlign">${['left', 'center', 'right'].map((a, i) => `<button data-v="${a}" title="${a}" class="${i ? '' : 'on'}">${AL[a]}</button>`).join('')}</span></label>
@@ -1017,21 +1017,22 @@
       Object.assign(pop.style, { left: left + 'px', top: top + 'px' });
     }
 
-    // The tour's step box: header band, body (full-width image, title, text), footer band.
+    // The tour's step box: body (full-width image, title, text, close), progress line, bottom bar.
     function stepBox({ n, total, editable }) {
       const box = document.createElement('div');
       box.className = 'tbox';
       const edit = (ph) => (editable ? `contenteditable data-placeholder="${ph}"` : '');
       box.innerHTML = `
-        <div class="tb-head"><span>Step ${n} of ${total}</span><button class="close" aria-label="Close">×</button></div>
         <div class="tb-body">
           <div class="tb-img"></div>
           <div class="tb-pad">
             <${style.titleTag} class="tb-title" ${edit('Step title')}></${style.titleTag}>
             <div class="tb-text" ${edit('What should people know here?')}></div>
           </div>
+          <button class="close" aria-label="Close">×</button>
         </div>
-        <div class="tb-foot"><button class="back" style="visibility:${n > 1 ? 'visible' : 'hidden'}">Back</button><span class="tb-advance"></span></div>`;
+        <div class="tb-line"><span style="width:${Math.round((n / total) * 100)}%"></span></div>
+        <div class="tb-foot"><span class="tb-count">${n} of ${total}</span><span class="tb-actions"><button class="back" style="display:${n > 1 ? '' : 'none'}">Back</button><span class="tb-advance"></span></span></div>`;
       return box;
     }
     function setImage(box, src, onRemove) {
