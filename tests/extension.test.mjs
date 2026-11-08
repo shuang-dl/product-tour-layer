@@ -336,10 +336,15 @@ try {
   });
   const topBar = await E.evaluate((host) => {
     const r = host.shadowRoot, box = (q) => r.querySelector(q).getBoundingClientRect();
-    return { red: getComputedStyle(r.querySelector('.record-btn')).backgroundColor, rec: box('.record-btn'), pre: box('.preview-btn'), more: box('.more-btn') };
+    const off = getComputedStyle(r.querySelector('.record-btn'));
+    const btn = r.querySelector('.record-btn');
+    btn.classList.add('on');
+    const on = getComputedStyle(btn).backgroundColor;
+    btn.classList.remove('on');
+    return { off: off.borderStyle + ' ' + off.color + ' ' + off.backgroundColor, on, rec: box('.record-btn'), pre: box('.preview-btn'), more: box('.more-btn') };
   });
-  check('builder: Record tour is red, and Preview / Save tour / More line up with its edges',
-    topBar.red === 'rgb(211, 47, 47)' && Math.abs(topBar.pre.left - topBar.rec.left) < 1 && Math.abs(topBar.more.right - topBar.rec.right) < 1, JSON.stringify(topBar));
+  check('builder: Record tour is a dashed red outline, solid red while recording; Preview / Save tour / More line up with its edges',
+    topBar.off === 'dashed rgb(211, 47, 47) rgba(0, 0, 0, 0)' && topBar.on === 'rgb(211, 47, 47)' && Math.abs(topBar.pre.left - topBar.rec.left) < 1 && Math.abs(topBar.more.right - topBar.rec.right) < 1, JSON.stringify(topBar));
   check('builder: the tour name keeps its own line, with All tours beside it', nameRow.nameW > 150 && nameRow.sameLine && nameRow.belowClose, JSON.stringify(nameRow));
   check('edit: the tour loads into the storyboard', JSON.stringify(await cards()) === JSON.stringify(['First', 'Second']) && (await E.locator('.ws-name').textContent()) === 'Edit me');
   check("edit: the tour's style loads", (await E.locator('.style-panel input[data-var="--tour-frame"]').inputValue()) === '#0f6e56');

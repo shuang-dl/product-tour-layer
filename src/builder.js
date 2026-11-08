@@ -163,9 +163,11 @@
     .more-menu .export-menu { display: grid; }
     .more-menu button { background: none; border: 0; text-align: left; padding: 6px 8px; border-radius: 6px; font: inherit; color: var(--text); }
     .more-menu button:hover { background: var(--bg); }
-    .record-btn { background: #d32f2f; color: #fff; border-color: #d32f2f; font-weight: 600; }
-    .record-btn:hover { background: #b71c1c; border-color: #b71c1c; }
-    .record-btn.on { background: transparent; color: #c62828; border-color: #c62828; } /* recording: outlined, with Stop */
+    /* Off: a dashed red outline, like + Step and + Page. Recording: a solid red button, with Stop. */
+    .record-btn { background: transparent; color: #d32f2f; border: 2px dashed #e8a3a3; font-weight: 600; }
+    .record-btn:hover { border-color: #d32f2f; }
+    .record-btn.on { background: #d32f2f; color: #fff; border: 2px solid #d32f2f; }
+    .record-btn.on:hover { background: #b71c1c; border-color: #b71c1c; }
     .tour-status { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; }
     .tour-status select { font: inherit; font-size: 12px; padding: 2px; border-radius: 6px; }
     .dock-opt { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; }
