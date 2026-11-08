@@ -128,7 +128,7 @@ function validateTour(tour, file) {
   return errors;
 }
 
-// Reads and validates every tour in a folder: tours/ (DoorLoop) or demo-tours/ (the demo app).
+// Reads and validates every tour in a folder (tours/).
 async function loadTours(dir) {
   const files = (await readdir(join(root, dir))).filter((f) => f.endsWith('.json')).sort();
   const tours = [];
@@ -156,8 +156,7 @@ async function loadTours(dir) {
 const { tours: allTours, errors: tourErrors } = await loadTours('tours');
 const tours = allTours.filter((t) => t.status !== 'draft');
 const drafts = allTours.filter((t) => t.status === 'draft');
-const { tours: demoTours, errors: demoErrors } = await loadTours('demo-tours');
-const errors = [...tourErrors, ...demoErrors];
+const errors = tourErrors;
 
 if (errors.length) {
   console.error(`Tour validation failed:\n  ${errors.join('\n  ')}`);
@@ -169,8 +168,6 @@ await mkdir(dist);
 await writeFile(join(dist, 'tours.json'), JSON.stringify({ tours }, null, 2));
 await writeFile(join(dist, 'drafts.json'), JSON.stringify({ tours: drafts }, null, 2)); // never bundled into the extension
 await copyFile(join(root, 'site/index.html'), join(dist, 'index.html'));
-await copyFile(join(root, 'site/builder-concept.html'), join(dist, 'builder-concept.html'));
-await copyFile(join(root, 'src/builder.js'), join(dist, 'builder.js'));
 
 // Chrome extension: everything it runs is bundled, nothing loads from a CDN.
 const ext = join(dist, 'extension');
@@ -211,13 +208,4 @@ await writeFile(
 await writeFile(join(ext, 'bundled-tours.js'), `window.TOUR_LAYER_BUNDLED = ${JSON.stringify({ tours })};\n`);
 execFileSync('zip', ['-qr', '../doorloop-tours-extension.zip', '.'], { cwd: ext });
 
-// Demo app: a DoorLoop-style app with sample data. The engine is built in, like DoorLoop would add it.
-// 404.html is the same page, so GitHub Pages serves the app for deep links like /demo/tenants/t1.
-const demo = join(dist, 'demo');
-await mkdir(demo);
-for (const f of await readdir(join(root, 'site/demo'))) await copyFile(join(root, 'site/demo', f), join(demo, f));
-for (const f of ['tour-layer.js', 'driver.js.iife.js', 'driver.css']) await copyFile(join(ext, f), join(demo, f));
-await writeFile(join(demo, 'tours.json'), JSON.stringify({ tours: demoTours }, null, 2));
-await copyFile(join(root, 'site/demo/index.html'), join(dist, '404.html'));
-
-console.log(`Built ${tours.length} live and ${drafts.length} draft DoorLoop tour(s), ${demoTours.length} demo tour(s), the extension and the demo app into dist/`);
+console.log(`Built ${tours.length} live and ${drafts.length} draft DoorLoop tour(s) and the extension into dist/`);

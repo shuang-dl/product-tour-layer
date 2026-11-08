@@ -29,6 +29,37 @@ const check = (name, ok, detail = '') => results.push({ name, ok, detail });
 const title = (p) => p.locator('.driver-popover-title').textContent({ timeout: 10000 }).catch(() => null);
 
 try {
+  // The extension's id, for opening its menu (popup.html) as a page
+  const mgr = await ctx.newPage();
+  await mgr.goto('chrome://extensions');
+  const extId = await mgr.evaluate(() => document.querySelector('extensions-manager').shadowRoot
+    .querySelector('extensions-item-list').shadowRoot.querySelector('extensions-item').id);
+  await mgr.close();
+  // Opens a DoorLoop page and starts the builder there the way the extension's menu does: New tour
+  // ({ type: 'tour-layer:menu-new', name }) or Edit ({ type: 'tour-layer:menu-edit', id }).
+  let builderTabs = 0;
+  const openBuilder = async (path, msg) => {
+    const url = `https://acme.app.doorloop.com${path}?builder=${++builderTabs}`;
+    const p = await ctx.newPage();
+    await p.goto(url);
+    const m = await ctx.newPage();
+    await m.goto(`chrome-extension://${extId}/popup.html`);
+    await m.evaluate(async ({ url, msg }) => {
+      const [tab] = await chrome.tabs.query({ url });
+      for (let i = 0; i < 40; i++) {
+        try {
+          return await chrome.tabs.sendMessage(tab.id, msg);
+        } catch {
+          await new Promise((r) => setTimeout(r, 250)); // the page's extension script isn't listening yet
+        }
+      }
+    }, { url, msg });
+    await m.close();
+    await p.bringToFront();
+    await p.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
+    return p;
+  };
+
   // Multi-page tour with click-to-advance steps, using the tours bundled into the extension
   const page = await ctx.newPage();
   await page.goto('https://acme.app.doorloop.com/home?tour=find-a-tenant');
@@ -128,35 +159,25 @@ try {
   check("clues: clues that fit nothing don't point at the wrong element", miss.title === 'Miss' && (!miss.active || miss.active.includes('driver-dummy-element')), JSON.stringify(miss));
   await cp.close();
 
-  // "Test on: Live DoorLoop": a page opens DoorLoop and sends it a draft tour. Only the builder's site is accepted.
-  const sender = (title) => `<!doctype html><script>
-    window.result = 'waiting';
-    const tab = window.open('https://acme.app.doorloop.com/home', 'dl');
-    const tour = { id: 'draft-x', title: 'Draft', page: '/home', steps: [
-      { title: ${JSON.stringify(title)}, text: 'hi', target: ["[data-cy='global-search-trigger']", "[data-cy='SideMenu-CreateNewMenu-Button']", "[data-cy='mockField']"] },
+  // A step that points at several items highlights them as one area
+  const existing = {
+    id: 'edit-me', title: 'Edit me', page: '/tenants', style: { frame: '#0f6e56' },
+    steps: [
+      { target: "input[aria-label='Search-renamed']", clues: { tag: 'input', aria: 'Search' }, title: 'First', text: 'one' },
+      { target: "button[aria-label='Filter']", title: 'Second', text: 'two', advanceOn: 'click' },
+    ],
+  };
+  await ctx.unroute(TOURS_URL);
+  await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [
+    { id: 'group-test', title: 'Group', page: '/home', steps: [
+      { title: 'A group', text: 'hi', target: ["[data-cy='global-search-trigger']", "[data-cy='SideMenu-CreateNewMenu-Button']", "[data-cy='mockField']"] },
       { title: 'Second', text: 'two' },
-    ] };
-    const timer = setInterval(() => tab.postMessage({ type: 'tour-layer:draft', id: 'one', tour }, '*'), 300);
-    addEventListener('message', (e) => { if (e.data && e.data.type === 'tour-layer:draft-received') { window.result = 'ack'; clearInterval(timer); } });
-  </script>`;
-  await ctx.route('https://shuang-dl.github.io/product-tour-layer/test-sender.html', (r) => r.fulfill({ contentType: 'text/html', body: sender('Drafted in the builder') }));
-  await ctx.route('https://evil.example/', (r) => r.fulfill({ contentType: 'text/html', body: sender('Not from the builder') }));
-
-  const evil = await ctx.newPage();
-  const evilTab = ctx.waitForEvent('page');
-  await evil.goto('https://evil.example/');
-  const evilPopup = await evilTab;
-  await evilPopup.waitForTimeout(3000);
-  check('draft from another site is ignored', (await evilPopup.locator('.driver-popover').count()) === 0 && (await evil.evaluate(() => window.result)) === 'waiting');
-  await evilPopup.close();
-  await evil.close();
-
-  const builder = await ctx.newPage();
-  const builderTab = ctx.waitForEvent('page');
-  await builder.goto('https://shuang-dl.github.io/product-tour-layer/test-sender.html');
-  const tab = await builderTab;
-  check('draft from the builder runs on DoorLoop', (await title(tab)) === 'Drafted in the builder');
-  check('builder hears back', (await builder.evaluate(() => window.result)) === 'ack');
+    ] },
+    existing, // opened in the builder below
+  ] }) }));
+  const tab = await ctx.newPage();
+  await tab.goto('https://acme.app.doorloop.com/home?tour=group-test');
+  check('a tour with a group target starts', (await title(tab)) === 'A group');
   check('a group target is highlighted as one area', await tab.evaluate(() => {
     const box = document.querySelector('.tour-layer-group');
     const a = document.querySelector("[data-cy='global-search-trigger']").getBoundingClientRect();
@@ -188,59 +209,16 @@ try {
     return box.top > 0 && box.left > 0 && box.bottom >= field.bottom - 1;
   }));
   await tab.click("body", { position: { x: 900, y: 600 } }); // outside the highlight: blocked by the overlay
-  check('clicks outside the highlight are blocked', (await title(tab)) === 'Drafted in the builder');
+  check('clicks outside the highlight are blocked', (await title(tab)) === 'A group');
   await tab.click('.driver-popover-next-btn');
   await tab.waitForTimeout(500);
   await tab.reload();
-  check('draft survives a page reload', (await title(tab)) === 'Second');
-  await tab.click('.driver-popover-next-btn');
-  await tab.waitForTimeout(500);
-  check('finished draft is cleared', (await tab.evaluate(() => sessionStorage.getItem('tourLayer.draft'))) === null);
+  check('a tour survives a page reload', (await title(tab)) === 'Second');
+  await tab.close();
 
-  // "Build on: Live DoorLoop": the builder page asks the extension to open the builder. Same origin rule.
-  const buildSender = `<!doctype html><script>
-    const tab = window.open('https://acme.app.doorloop.com/tenants', 'dlb');
-    setInterval(() => tab.postMessage({ type: 'tour-layer:build', id: 'b1', name: 'Built live', page: '/tenants' }, '*'), 300);
-  </script>`;
-  await ctx.route('https://shuang-dl.github.io/product-tour-layer/test-build.html', (r) => r.fulfill({ contentType: 'text/html', body: buildSender }));
-  await ctx.route('https://evil.example/build', (r) => r.fulfill({ contentType: 'text/html', body: buildSender }));
-  const evilB = await ctx.newPage();
-  const evilBTab = ctx.waitForEvent('page');
-  await evilB.goto('https://evil.example/build');
-  const evilBPopup = await evilBTab;
-  await evilBPopup.waitForTimeout(3000);
-  check('build request from another site is ignored', (await evilBPopup.locator('#tour-layer-builder').count()) === 0);
-  await evilBPopup.close();
-  await evilB.close();
-  const okB = await ctx.newPage();
-  const okBTab = ctx.waitForEvent('page');
-  await okB.goto('https://shuang-dl.github.io/product-tour-layer/test-build.html');
-  const builderTab2 = await okBTab;
-  await builderTab2.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 10000 }).catch(() => {});
-  check('build request from the builder opens it on DoorLoop',
-    (await builderTab2.locator('#tour-layer-builder .ws-name').textContent().catch(() => null)) === 'Built live');
-
-  // Building on live DoorLoop, start to finish: the real builder page (served from dist/ at the builder's address)
-  // opens DoorLoop, the extension opens the builder there, and a two-page tour is built, reloaded and previewed.
-  await ctx.route('https://app.doorloop.com/**', (r) => {
-    const u = new URL(r.request().url());
-    r.fulfill({ contentType: 'text/html', body: `<script>location.replace('https://acme.app.doorloop.com${u.pathname}')</script>` });
-  });
-  await ctx.route('https://shuang-dl.github.io/product-tour-layer/builder*', (r) => {
-    const file = new URL(r.request().url()).pathname.split('/').pop();
-    r.fulfill({ contentType: file.endsWith('.js') ? 'text/javascript' : 'text/html', body: readFileSync(join(root, 'dist', file), 'utf8') });
-  });
-  const site = await ctx.newPage();
-  await site.goto('https://shuang-dl.github.io/product-tour-layer/builder-concept.html');
-  await site.click('#create');
-  check('builder: a new tour starts on /home by default', (await site.inputValue('#tourUrl')) === '/home');
-  check('builder: the tour name starts empty and is required', (await site.inputValue('#tourName')) === '' && (await site.locator('#tourName').evaluate((i) => i.required && i.placeholder === 'e.g. Add a new property')));
-  await site.fill('#tourName', 'Working with your tenant list');
-  await site.fill('#tourUrl', '/tenants');
-  await site.check('input[value=live]');
-  const liveTabP = ctx.waitForEvent('page');
-  await site.click('#openBtn');
-  const live = await liveTabP;
+  // Building on live DoorLoop, start to finish: the extension's menu opens the builder on DoorLoop, and a
+  // two-page tour is built, reloaded and previewed.
+  const live = await openBuilder('/tenants', { type: 'tour-layer:menu-new', name: 'Working with your tenant list' });
   const errors = [];
   live.on('pageerror', (e) => errors.push(e.message));
   await live.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
@@ -313,25 +291,8 @@ try {
     (await live.locator('#tour-layer-builder').count()) === 0 && (await live.evaluate(() => sessionStorage.getItem('tourLayer.builder'))) === null);
   check('live: no page errors', errors.length === 0, errors.join('; '));
 
-  // Editing an existing tour on live DoorLoop: paste a tour file, insert a missing step, reorder, export.
-  const existing = {
-    id: 'edit-me', title: 'Edit me', page: '/tenants', style: { frame: '#0f6e56' },
-    steps: [
-      { target: "input[aria-label='Search-renamed']", clues: { tag: 'input', aria: 'Search' }, title: 'First', text: 'one' },
-      { target: "button[aria-label='Filter']", title: 'Second', text: 'two', advanceOn: 'click' },
-    ],
-  };
-  const site2 = await ctx.newPage();
-  await site2.goto('https://shuang-dl.github.io/product-tour-layer/builder-concept.html');
-  await site2.click('#create');
-  await site2.check('input[value=edit]');
-  await site2.selectOption('#tourPick', 'paste');
-  await site2.fill('#tourPaste', JSON.stringify(existing));
-  await site2.check('input[value=live]');
-  const editTabP = ctx.waitForEvent('page');
-  await site2.click('#openBtn');
-  const ed = await editTabP;
-  await ed.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
+  // Editing an existing tour on live DoorLoop: open it from the menu, insert a missing step, reorder, export.
+  const ed = await openBuilder('/tenants', { type: 'tour-layer:menu-edit', id: 'edit-me' });
   const E = ed.locator('#tour-layer-builder');
   const cards = () => E.locator('.card:not(.page-card) .t').allInnerTexts();
   check('builder: an All tours link opens the tours page in a new tab',
@@ -613,18 +574,8 @@ try {
   await tk.goto('https://acme.app.doorloop.com/home?tour=export-test&export=gif');
   check('export: people taking a tour are never offered an export', (await title(tk)) === 'First' && (await tk.locator('.tour-export-card').count()) === 0);
   await tk.close();
-  const exportSender = `<!doctype html><script>
-    const tab = window.open('https://acme.app.doorloop.com/home', 'dlx');
-    setInterval(() => tab.postMessage({ type: 'tour-layer:build', id: 'x1', name: 'Export me', page: '/home', tour: ${JSON.stringify(exportTour)} }, '*'), 300);
-  </script>`;
-  await ctx.route('https://shuang-dl.github.io/product-tour-layer/test-build-export.html', (r) => r.fulfill({ contentType: 'text/html', body: exportSender }));
   for (const kind of ['gif', 'video']) {
-    const opener = await ctx.newPage();
-    const xpP = ctx.waitForEvent('page');
-    await opener.goto('https://shuang-dl.github.io/product-tour-layer/test-build-export.html');
-    const xp = await xpP;
-    await xp.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
-    await opener.close();
+    const xp = await openBuilder('/home', { type: 'tour-layer:menu-edit', id: 'export-test' });
     const X = xp.locator('#tour-layer-builder');
     await X.locator('.more-btn').click();
     await X.locator(`.export-menu [data-kind=${kind}]`).click();
@@ -668,11 +619,6 @@ try {
   }
 
   // The extension's menu (its icon), opened as a page and pointed at a DoorLoop tab: new tour, edit a tour, Show drafts
-  const mgr = await ctx.newPage();
-  await mgr.goto('chrome://extensions');
-  const extId = await mgr.evaluate(() => document.querySelector('extensions-manager').shadowRoot
-    .querySelector('extensions-item-list').shadowRoot.querySelector('extensions-item').id);
-  await mgr.close();
   const mt = await ctx.newPage();
   await mt.goto('https://acme.app.doorloop.com/menu-test');
   await mt.waitForTimeout(2000);
@@ -966,16 +912,7 @@ try {
   await dp.close();
 
   // Recording sample data in the live builder, and picking the exit click
-  const site3 = await ctx.newPage();
-  await site3.goto('https://shuang-dl.github.io/product-tour-layer/builder-concept.html');
-  await site3.click('#create');
-  await site3.fill('#tourName', 'Recorded');
-  await site3.fill('#tourUrl', '/properties/new');
-  await site3.check('input[value=live]');
-  const recTabP = ctx.waitForEvent('page');
-  await site3.click('#openBtn');
-  const rec = await recTabP;
-  await rec.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
+  const rec = await openBuilder('/properties/new', { type: 'tour-layer:menu-new', name: 'Recorded' });
   const R = rec.locator('#tour-layer-builder');
   await R.locator('.adders .add', { hasText: '+ Step' }).click();
   await rec.click('[aria-label=Street]');
@@ -1022,16 +959,7 @@ try {
     sent && sent.id === 'recorded' && sent.exitClicks.length === 1 && sent.steps[0].fill.length === 1, ghNew.href.slice(0, 200));
 
   // Sample data recorded in a dialog with no exit clicks yet: the builder suggests the dialog's ×
-  const site4 = await ctx.newPage();
-  await site4.goto('https://shuang-dl.github.io/product-tour-layer/builder-concept.html');
-  await site4.click('#create');
-  await site4.fill('#tourName', 'In a dialog');
-  await site4.fill('#tourUrl', '/payment');
-  await site4.check('input[value=live]');
-  const dlgTabP = ctx.waitForEvent('page');
-  await site4.click('#openBtn');
-  const dlg = await dlgTabP;
-  await dlg.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
+  const dlg = await openBuilder('/payment', { type: 'tour-layer:menu-new', name: 'In a dialog' });
   const D = dlg.locator('#tour-layer-builder');
   await D.locator('.adders .add', { hasText: '+ Step' }).click();
   await dlg.click('[aria-label=Amount]');
@@ -1048,16 +976,7 @@ try {
   const suggested = await D.locator('.exit-list li:not(.empty)').allInnerTexts();
   // Recording a tour by clicking through it: each click and each filled-in field becomes a step, page changes add
   // page cards, and a suggestion picked after typing goes into that field's sample data
-  const site5 = await ctx.newPage();
-  await site5.goto('https://shuang-dl.github.io/product-tour-layer/builder-concept.html');
-  await site5.click('#create');
-  await site5.fill('#tourName', 'Recorded by clicking');
-  await site5.fill('#tourUrl', '/properties/new');
-  await site5.check('input[value=live]');
-  const rtP = ctx.waitForEvent('page');
-  await site5.click('#openBtn');
-  const rt = await rtP;
-  await rt.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
+  const rt = await openBuilder('/properties/new', { type: 'tour-layer:menu-new', name: 'Recorded by clicking' });
   const T = rt.locator('#tour-layer-builder');
   await T.locator('.record-btn').click();
   await rt.click('[data-cy=mockChoice]');
@@ -1092,16 +1011,7 @@ try {
   check('record tour: a pick from a list without typing opens the field, then points at the whole list',
     JSON.stringify(pickCards) === JSON.stringify(['Open “Lease”', 'Pick from the list']), JSON.stringify(pickCards));
   // Recording on a page named with data-testid and <label for> (like DoorLoop's Wallet): no step without a target
-  const site6 = await ctx.newPage();
-  await site6.goto('https://shuang-dl.github.io/product-tour-layer/builder-concept.html');
-  await site6.click('#create');
-  await site6.fill('#tourName', 'Wallet recorded');
-  await site6.fill('#tourUrl', '/wallet');
-  await site6.check('input[value=live]');
-  const wtP = ctx.waitForEvent('page');
-  await site6.click('#openBtn');
-  const wt = await wtP;
-  await wt.waitForSelector('#tour-layer-builder', { state: 'attached', timeout: 15000 }).catch(() => {});
+  const wt = await openBuilder('/wallet', { type: 'tour-layer:menu-new', name: 'Wallet recorded' });
   const W = wt.locator('#tour-layer-builder');
   await W.locator('.record-btn').click();
   await wt.click('#wallet-movement-amount');

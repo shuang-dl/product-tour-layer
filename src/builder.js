@@ -1,6 +1,5 @@
-// Tour builder: build tours visually on top of an app.
-//   demo: on the builder page, with the demo app in a frame (TourBuilder.open({ mode: 'demo', ... })).
-//   live: on DoorLoop itself, opened by the DoorLoop Tours extension (TourBuilder.open({ mode: 'live', ... })).
+// Tour builder: build tours visually on top of DoorLoop itself, opened by the DoorLoop Tours extension
+// (TourBuilder.open({ name, startPath, ... })).
 // The UI lives in a shadow root, so the app's CSS and the builder's CSS can't affect each other.
 (function () {
   'use strict';
@@ -11,7 +10,7 @@
   const REPO = 'https://github.com/shuang-dl/product-tour-layer'; // where tours are published from
   const ADVANCE = { next: 'Next button', click: 'Click the element', type: 'Type text' };
   const POINTER_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.904 17.563a1.2 1.2 0 0 0 2.228 .308l2.09 -3.093l4.907 4.907a1.067 1.067 0 0 0 1.509 0l1.047 -1.047a1.067 1.067 0 0 0 0 -1.509l-4.907 -4.907l3.113 -2.09a1.2 1.2 0 0 0 -.309 -2.228l-13.582 -3.904l3.904 13.563z"/></svg>'; // Tabler "pointer" icon (MIT)
-  const SESSION_KEY = 'tourLayer.builder'; // live mode: the draft survives page reloads
+  const SESSION_KEY = 'tourLayer.builder'; // the draft survives page reloads
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const STYLE_FIELDS = {
     '--tour-frame': 'frame', '--tour-band-text': 'bandText', '--tour-button': 'button', '--tour-button-text': 'buttonText',
@@ -38,20 +37,15 @@
     .root * { box-sizing: border-box; }
     .root button { font: inherit; cursor: pointer; }
     .ghost { background: transparent; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; white-space: nowrap; }
-    .ghost.live-preview { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 
-    /* layout: demo = full-screen workspace with the demo app framed; live = floating pieces over the real app */
-    .demo .backdrop { position: fixed; inset: 0; background: rgba(10, 15, 25, .55); pointer-events: auto; }
-    .demo .ws { position: fixed; inset: 12px; background: var(--card); border-radius: 12px; display: grid; grid-template: auto 1fr auto / 56px 1fr; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.35); pointer-events: auto; }
+    /* layout: floating pieces over the real app */
     .ws-top { grid-column: 1 / -1; position: relative; z-index: 7; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--card); }
     .ws-top strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
     .ws-top .url { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); background: var(--bg); border-radius: 6px; padding: 5px 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ws-top > button { white-space: nowrap; }
     .ws-top .name-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
-    .demo .ws-top .name-row { flex-shrink: 0; }
     .ws-top .all-tours { font-size: 13px; color: var(--accent); text-decoration: none; white-space: nowrap; }
     .ws-top .all-tours:hover { text-decoration: underline; }
-    .ws-top .test-on { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
     .tools { border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; padding: 8px; background: var(--card); }
     .tool { width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font-size: 16px; display: grid; place-items: center; position: relative; }
     .tool:hover { background: var(--bg); }
@@ -59,9 +53,6 @@
     .live .tool[data-tip]:hover::after { left: auto; right: 48px; }
     .tool[data-tip]:hover::after { content: attr(data-tip); position: absolute; left: 48px; white-space: nowrap; background: #222; color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; z-index: 5; }
     .tools hr { width: 100%; border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
-    .stage { position: relative; overflow: auto; background: #e9edf3; padding: 16px; }
-    .stage-inner { position: relative; min-width: 1100px; height: 100%; min-height: 560px; }
-    .frame { display: block; width: 100%; height: 100%; border: 0; border-radius: 8px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
     .story { grid-column: 1 / -1; border-top: 1px solid var(--border); padding: 10px 14px; display: flex; gap: 8px; align-items: stretch; overflow-x: auto; min-height: 112px; background: var(--card); }
 
     /* live: one panel on the right with the controls, tools and storyboard; it slides away to show the page */
@@ -245,7 +236,7 @@
 
   let current = null; // one builder at a time
 
-  // options: { mode: 'demo' | 'live', name, startPath, demoBase?, restore?, onClose? }
+  // options: { name, startPath, tour?, restore?, onClose? }
   function open(options) {
     if (current) current.close(true);
     current = createBuilder(options);
@@ -261,7 +252,6 @@
   }
 
   function createBuilder(options) {
-    const live = options.mode === 'live';
     const host = document.createElement('div');
     host.id = 'tour-layer-builder';
     const shadow = host.attachShadow({ mode: 'open' });
@@ -271,23 +261,22 @@
     const LAYERS = '<div class="draw-surface"></div><div class="layer"></div>';
     shadow.innerHTML = `
       <style>${CSS}</style>
-      <div class="root ${live ? 'live' : 'demo'}">
-        ${live ? LAYERS + '<button class="panel-tab" title="Show the builder">Show builder</button>' : '<div class="backdrop"></div>'}
+      <div class="root live">
+        ${LAYERS}<button class="panel-tab" title="Show the builder">Show builder</button>
         <div class="ws">
           <div class="ws-top">
-            ${live ? '<span class="badge-slot"><span class="badge">Building on live DoorLoop</span></span>' : ''}
+            <span class="badge-slot"><span class="badge">Building on live DoorLoop</span></span>
             <span class="name-row"><strong class="ws-name"></strong>
             <a class="all-tours" href="https://shuang-dl.github.io/product-tour-layer/" target="_blank" rel="noopener" title="The page listing all tours (opens in a new tab; this draft stays here)">All tours ↗</a></span>
             <span class="url"></span>
-            ${live ? '' : '<span class="test-on">Test on <span class="seg test-seg"><button data-v="demo" class="on">Demo</button><button data-v="live">Live DoorLoop</button></span></span>'}
-            <button class="ghost story-btn" title="${live ? 'Slide the builder away to see the whole page' : 'Show or hide the storyboard'}">${live ? 'Hide ▸' : 'Storyboard ▾'}</button>
+            <button class="ghost story-btn" title="Slide the builder away to see the whole page">Hide ▸</button>
             <button class="ghost record-btn" title="Click through the workflow; each click or typed value becomes a step">● Record tour</button>
             <button class="ghost preview-btn">▶ Preview</button>
             <button class="ghost save-btn" title="Save this tour to GitHub (sign in from the extension's menu first)">💾 Save tour</button>
             <span class="more-wrap"><button class="ghost more-btn" title="Status, starting by itself, the tour file, export">⋯ More</button>
               <span class="more-menu" hidden>
                 <label class="tour-status" title="Drafts only show for people with Show drafts on; Live tours show for everyone">Status <select><option value="draft">Draft</option><option value="live">Live</option></select></label>
-                ${live ? '<label class="dock-opt" title="Narrow DoorLoop so the panel sits beside it instead of covering it"><input type="checkbox"> Keep DoorLoop beside the panel</label>' : ''}
+                <label class="dock-opt" title="Narrow DoorLoop so the panel sits beside it instead of covering it"><input type="checkbox"> Keep DoorLoop beside the panel</label>
                 <label class="auto-start" title="Open this tour by itself the first time someone visits its start page (once per browser)"><input type="checkbox"> Start by itself once</label>
                 <hr>
                 <button class="file-btn">View tour file</button>
@@ -305,7 +294,6 @@
             <hr>
             <button class="tool undo-tool" data-tip="Remove last storyboard item">↶</button>
           </div>
-          ${live ? '' : `<div class="stage"><div class="stage-inner"><iframe class="frame" title="Demo app"></iframe>${LAYERS}</div></div>`}
           <div class="story"></div>
           <div class="panel style-panel" hidden>${STYLE_PANEL}</div>
           <div class="panel exit-panel" hidden>
@@ -321,8 +309,8 @@
         </div>
         <div class="toast" role="status" hidden></div>
       </div>`;
-    // On live DoorLoop the builder sits outside <body>, so shrinking the body (see dock) doesn't shrink the builder.
-    (live ? document.documentElement : document.body).append(host);
+    // The builder sits outside <body>, so shrinking the body (see dock) doesn't shrink the builder.
+    document.documentElement.append(host);
     // Keep the builder's own presses, typing and focus changes from reaching the app. Otherwise an open app
     // dialog sees them as "outside" and pulls focus back to itself or closes.
     for (const type of ['pointerdown', 'mousedown', 'touchstart', 'focusin', 'focusout', 'keydown', 'keyup', 'keypress']) {
@@ -338,8 +326,8 @@
     const layer = $('.layer');
 
     // While building on DoorLoop, hide the tour launcher so it doesn't get in the way.
-    const hideLauncher = live ? Object.assign(document.createElement('style'), { textContent: '.tour-layer-launcher { display: none !important; }' }) : null;
-    if (hideLauncher) document.head.append(hideLauncher);
+    const hideLauncher = Object.assign(document.createElement('style'), { textContent: '.tour-layer-launcher { display: none !important; }' });
+    document.head.append(hideLauncher);
 
     // Docking: while the panel is open, DoorLoop's <body> is narrowed to end where the panel starts. "contain: layout"
     // makes the body the box that DoorLoop's fixed-position dialogs, drawers and dropdowns place themselves in, so they
@@ -347,14 +335,13 @@
     // under More (remembered per browser).
     const DOCK_KEY = 'tourLayer.dock';
     const PANEL_W = 340;
-    const dockStyle = live ? Object.assign(document.createElement('style'), { textContent: `
+    const dockStyle = Object.assign(document.createElement('style'), { textContent: `
       html.tour-layer-docked { overflow: hidden !important; }
       html.tour-layer-docked > body { width: auto !important; margin-right: ${PANEL_W}px !important; height: 100vh !important;
-        overflow-x: hidden !important; overflow-y: auto !important; contain: layout !important; }` }) : null;
-    if (dockStyle) document.head.append(dockStyle);
+        overflow-x: hidden !important; overflow-y: auto !important; contain: layout !important; }` });
+    document.head.append(dockStyle);
     const dockWanted = () => { try { return localStorage.getItem(DOCK_KEY) !== 'off'; } catch { return true; } };
     function dock() {
-      if (!live) return;
       const on = !closed && dockWanted() && !rootEl.classList.contains('story-collapsed');
       if (document.documentElement.classList.contains('tour-layer-docked') === on) return;
       document.documentElement.classList.toggle('tour-layer-docked', on);
@@ -365,14 +352,14 @@
     const noSidewaysScroll = () => {
       if (document.documentElement.classList.contains('tour-layer-docked') && document.body.scrollLeft) document.body.scrollLeft = 0;
     };
-    if (live) document.addEventListener('scroll', noSidewaysScroll, true);
+    document.addEventListener('scroll', noSidewaysScroll, true);
 
     // flow: the storyboard, in order. { type: 'page', path } or { type: 'step', page, draft?, els, target, ... }.
     // active: index of the step being picked or edited; highlighting only works while a step is active.
     // id: kept from the tour file when editing an existing tour, so the edited file replaces the original.
     // exitClicks: targets clicked when a tour that filled in sample data ends. recording: sample data being recorded
     // for the step in the editor; pickingExit: the next click on the app picks an exit click.
-    const state = { name: options.name, id: null, flow: [{ type: 'page', path: options.startPath }], tool: 'pointer', active: null, previewing: false, addingPage: false, testOn: 'demo', exitClicks: [], recording: null, pickingExit: false };
+    const state = { name: options.name, id: null, flow: [{ type: 'page', path: options.startPath }], tool: 'pointer', active: null, previewing: false, addingPage: false, exitClicks: [], recording: null, pickingExit: false };
     // In Preview, the elements of a "click the highlighted item" step, whose clicks reach the app
     let previewClick = null;
     const previewClickHit = (e) => !!(state.previewing && previewClick && previewClick.els.some((el) => el.contains(e.target)));
@@ -414,58 +401,30 @@
       const before = state.flow.slice(0, -1).reverse().find((i) => i.type === 'page');
       if (before && before.path === path) state.flow.pop();
     }
-    const showPage = (path) => ($('.url').textContent = live
-      ? `${location.host}${path}`
-      : `app.doorloop.com${path}  (demo app)` + (state.testOn === 'live' ? '  ·  Preview runs on live DoorLoop' : ''));
+    const showPage = (path) => ($('.url').textContent = `${location.host}${path}`);
 
-    // ---------- the app being built on: the framed demo, or this page itself ----------
-    const frame = $('.frame');
-    const app = live
-      ? {
-          doc: () => document,
-          path: () => location.pathname,
-          // Move DoorLoop the way its own menu does: click its link to that page (an in-app page change).
-          // With no such link, load the page; the extension brings the builder back with the draft.
-          async navigate(path) {
-            if (location.pathname === path) return;
-            const link = [...document.querySelectorAll('a[href]')].find((a) => a.origin === location.origin && a.pathname === path && !host.contains(a));
-            if (link) {
-              navigating = true;
-              link.click();
-              navigating = false;
-              for (let i = 0; i < 30 && location.pathname !== path; i++) await sleep(100);
-              await sleep(400);
-              return;
-            }
-            save();
-            location.assign(path);
-            await new Promise(() => {}); // the page is unloading
-          },
-          offset: () => ({ left: 0, top: 0 }),
+    // ---------- the app being built on: this page itself ----------
+    const app = {
+      doc: () => document,
+      path: () => location.pathname,
+      // Move DoorLoop the way its own menu does: click its link to that page (an in-app page change).
+      // With no such link, load the page; the extension brings the builder back with the draft.
+      async navigate(path) {
+        if (location.pathname === path) return;
+        const link = [...document.querySelectorAll('a[href]')].find((a) => a.origin === location.origin && a.pathname === path && !host.contains(a));
+        if (link) {
+          navigating = true;
+          link.click();
+          navigating = false;
+          for (let i = 0; i < 30 && location.pathname !== path; i++) await sleep(100);
+          await sleep(400);
+          return;
         }
-      : {
-          doc: () => frame.contentDocument,
-          path: () => {
-            const w = frame.contentWindow;
-            return w && w.DEMO_ROOT ? w.location.pathname.slice(w.DEMO_ROOT.length) || '/' : null;
-          },
-          // Once loaded, use the demo's own routing, so nothing reloads.
-          async navigate(path) {
-            const w = frame.contentWindow;
-            if (w && w.DEMO_ROOT) {
-              if (app.path() !== path) {
-                w.history.pushState({}, '', w.DEMO_ROOT + path);
-                w.dispatchEvent(new PopStateEvent('popstate'));
-              }
-              return;
-            }
-            await new Promise((resolve) => {
-              frame.addEventListener('load', resolve, { once: true });
-              frame.src = (options.demoBase || 'demo') + path;
-            });
-          },
-          offset: () => frame.getBoundingClientRect(),
-        };
+        save();
+        location.assign(path);
+        await new Promise(() => {}); // the page is unloading
+      },
+    };
     const inBuilder = (e) => e.composedPath().includes(host);
     // A page pattern like /tenants/* can't be opened directly; you open a matching page yourself.
     let missingPage = null;
@@ -555,8 +514,7 @@
         }, true);
       }
     }
-    if (live) wire(document);
-    else frame.addEventListener('load', () => wire(frame.contentDocument));
+    wire(document);
 
     // Follow the app's page as you browse it.
     let shownPath = null;
@@ -576,8 +534,7 @@
     function rectIn(el) {
       const r = el.getBoundingClientRect();
       const o = layer.getBoundingClientRect();
-      const f = el.ownerDocument === app.doc() && !live ? app.offset() : { left: 0, top: 0 };
-      return { left: r.left + f.left - o.left, top: r.top + f.top - o.top, width: r.width, height: r.height };
+      return { left: r.left - o.left, top: r.top - o.top, width: r.width, height: r.height };
     }
     function unionRect(els) {
       const rs = els.map(rectIn);
@@ -756,7 +713,7 @@
       state.active = state.flow.length - 1;
       scrollStoryToEnd = true;
       renderStory();
-      toast(`Step added. Now click something ${live ? 'on the page' : 'in the demo'}, or use the box tool to draw around it.`);
+      toast(`Step added. Now click something on the page, or use the box tool to draw around it.`);
     }
     async function addPage(path) {
       clearSelection();
@@ -944,9 +901,8 @@
     };
     // Everything visible and mostly (60%+) inside the box. Nested matches collapse to the outermost,
     // so a box around a widget picks the widget, and a box around menu items picks the items.
-    // The builder's own UI covers part of the page in live mode, so hide it while measuring.
+    // The builder's own UI covers part of the page, so hide it while measuring.
     function measuring(fn) {
-      if (!live) return fn(); // in demo mode the app is inside the builder, so it can't be hidden
       host.style.visibility = 'hidden';
       try {
         return fn();
@@ -1023,7 +979,7 @@
     }
     // Put the step box beside the highlight, never over it, like the tour engine does (tour-layer.js placeBox):
     // the step's Box position when the box fits there, otherwise the first side with room, otherwise the roomiest.
-    // In live mode it keeps clear of the builder's panel.
+    // It keeps clear of the builder's panel.
     let boxSide = 'auto';
     function placePop() {
       if (!shown || !shown.length) {
@@ -1032,7 +988,7 @@
       }
       const a = unionRect(shown);
       const m = 8, gap = 14, w = pop.offsetWidth || 320, h = pop.offsetHeight;
-      const right = live && !rootEl.classList.contains('story-collapsed') ? $('.ws').getBoundingClientRect().left - 10 : layer.clientWidth;
+      const right = !rootEl.classList.contains('story-collapsed') ? $('.ws').getBoundingClientRect().left - 10 : layer.clientWidth;
       const bottom = layer.clientHeight;
       const r = { left: a.left, top: a.top, right: a.left + a.width, bottom: a.top + a.height };
       const room = { right: right - m - r.right - gap, left: r.left - gap - m, bottom: bottom - m - r.bottom - gap, top: r.top - gap - m };
@@ -1071,9 +1027,7 @@
       const slot = box.querySelector('.tb-img');
       slot.replaceChildren();
       if (!src) return;
-      // Tour files may use a path relative to the app (e.g. the demo's "tour-welcome.svg").
-      const shown = /^(https?:|data:|\/)/.test(src) || live ? src : `${options.demoBase || 'demo'}/${src}`;
-      slot.append(Object.assign(document.createElement('img'), { src: shown, alt: '' }));
+      slot.append(Object.assign(document.createElement('img'), { src, alt: '' }));
       if (onRemove) {
         const rm = Object.assign(document.createElement('button'), { className: 'rm', textContent: 'Remove image' });
         rm.onclick = onRemove;
@@ -1174,7 +1128,7 @@
           if (editor.isConnected) editor.style.visibility = '';
         };
         docs.forEach((d) => d.addEventListener('keydown', onKey, true));
-        toast(`Click what this step should point at ${live ? 'on the page' : 'in the demo'}, or draw around it with the box tool. Your edits are kept. Esc to keep it where it is.`, 6000);
+        toast(`Click what this step should point at on the page, or draw around it with the box tool. Your edits are kept. Esc to keep it where it is.`, 6000);
       };
       renderSample();
       const recBtn = meta.querySelector('[data-record]');
@@ -1316,14 +1270,12 @@
     }
 
     $('.auto-start input').onchange = save;
-    if (live) {
-      $('.dock-opt input').checked = dockWanted();
-      $('.dock-opt input').onchange = (e) => {
-        try { localStorage.setItem(DOCK_KEY, e.target.checked ? 'on' : 'off'); } catch {}
-        dock();
-        if (shown && pop) placePop();
-      };
-    }
+    $('.dock-opt input').checked = dockWanted();
+    $('.dock-opt input').onchange = (e) => {
+      try { localStorage.setItem(DOCK_KEY, e.target.checked ? 'on' : 'off'); } catch {}
+      dock();
+      if (shown && pop) placePop();
+    };
     $('.tour-status select').onchange = () => {
       save();
       if ($('.tour-status select').value === 'live') toast('Live: once saved to GitHub, everyone with the extension sees this tour. Keep it a draft until it\'s approved.', 6000);
@@ -1467,16 +1419,12 @@
     let recordStart = 0;
 
     // ---------- saving to GitHub ----------
-    // On live DoorLoop the extension's background commits the tour file as the signed-in person (extension/
-    // background.js); the GitHub login stays there. A new tour asks before replacing a file with the same name.
-    // The demo builder can't reach the extension, so there it's View tour file → Save to GitHub as before.
+    // The extension's background commits the tour file as the signed-in person (extension/background.js); the
+    // GitHub login stays there. A new tour asks before replacing a file with the same name.
     $('.save-btn').onclick = async () => {
       if (!steps().length) return toast('Add a step first: there is nothing to save yet.');
-      const extension = live && window.chrome && chrome.runtime && chrome.runtime.id;
-      if (!extension) return toast('Saving straight to GitHub works in the builder on live DoorLoop. Here, use View tour file → Save to GitHub.', 7000);
       const { tour, changes } = buildTour('publish');
-      const folder = options.folder === 'demo-tours' ? 'demo-tours' : 'tours';
-      const path = `${folder}/${tour.id}.json`;
+      const path = `tours/${tour.id}.json`;
       const request = (mode) => chrome.runtime.sendMessage({
         type: 'tour-layer:github-save', path, mode, content: JSON.stringify(tour, null, 2) + '\n',
         message: `${state.id ? 'Update' : 'Add'} the "${tour.title}" tour (${tour.status}) from the builder`,
@@ -1512,26 +1460,24 @@
     function exportAs(kind) {
       $('.more-menu').hidden = true;
       if (!steps().length) return toast('Add a step first: there is nothing to record yet.');
-      if (!live || !window.TourExport) return toast('Export records the tour on live DoorLoop: build it there (Build on: Live DoorLoop), then export.', 6000);
       const { tour } = buildTour('engine');
       if (!matches(tour.page, app.path())) return toast(`Go to the tour's start page first (${tour.page}): click the Start page card, then Export.`, 6000);
       clearSelection();
       save();
       const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY));
       close(true);
-      window.TourExport.offer(tour, kind, () => open({ mode: 'live', restore: saved }));
+      window.TourExport.offer(tour, kind, () => open({ restore: saved }));
     }
 
     // ---------- storyboard ----------
     let dragFrom = null;
     let scrollStoryToEnd = false;
     $('.story-btn').onclick = () => {
-      const hidden = rootEl.classList.toggle('story-collapsed');
-      if (!live) $('.story-btn').textContent = hidden ? 'Storyboard ▴' : 'Storyboard ▾';
+      rootEl.classList.toggle('story-collapsed');
       dock();
       if (shown && pop) placePop();
     };
-    if (live) $('.panel-tab').onclick = () => $('.story-btn').click();
+    $('.panel-tab').onclick = () => $('.story-btn').click();
     function renderStory() {
       const story = $('.story');
       story.replaceChildren();
@@ -1627,22 +1573,8 @@
 
     // ---------- preview ----------
     let previewRun = 0;
-    // Demo only. Test on: the demo (here) or live DoorLoop (a new tab, run by the DoorLoop Tours extension).
-    const testSeg = $('.test-seg');
-    if (testSeg) testSeg.onclick = (e) => {
-      const b = e.target.closest('button');
-      if (!b) return;
-      state.testOn = b.dataset.v;
-      testSeg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
-      const toLive = state.testOn === 'live';
-      $('.preview-btn').textContent = toLive ? '▶ Preview on DoorLoop' : '▶ Preview';
-      $('.preview-btn').classList.toggle('live-preview', toLive);
-      showPage(app.path() || currentPage());
-      if (toLive) toast(steps().length ? 'Click “Preview on DoorLoop” to run this tour in a new DoorLoop tab.' : 'Add a step, then click “Preview on DoorLoop” to run it in a new DoorLoop tab.');
-    };
     $('.preview-btn').onclick = () => {
       if (!steps().length) return toast('Add a step first: click + Step in the storyboard, pick something, and save it.');
-      if (!live && state.testOn === 'live') return previewOnDoorLoop();
       clearSelection();
       state.active = null;
       state.previewing = true;
@@ -1685,8 +1617,8 @@
       if (s.fill && s.fill.length) {
         const fillBtn = Object.assign(document.createElement('button'), { className: 'tb-fill', textContent: 'Fill example' });
         fillBtn.onclick = async () => {
-          // The tour engine does the typing: in this page on DoorLoop, in the demo's own page otherwise.
-          const engine = live ? window.TourLayer : frame.contentWindow && frame.contentWindow.TourLayer;
+          // The tour engine on this page does the typing.
+          const engine = window.TourLayer;
           if (!engine || !engine.fill) return toast("The tour engine isn't loaded here, so Fill example can't run.");
           fillBtn.disabled = true;
           fillBtn.textContent = 'Filling…';
@@ -1709,8 +1641,8 @@
 
     // ---------- tour file ----------
     // The storyboard as a tour file. mode 'view' shows everything, including what the tour format can't hold yet.
-    // 'engine' (a live test) and 'publish' (Save to GitHub) simplify that (listed in `changes`); a live test also
-    // keeps images embedded, since the tour engine has to run the file as-is.
+    // 'engine' (export, which plays the tour) and 'publish' (Save to GitHub) simplify that (listed in `changes`);
+    // 'engine' also keeps images embedded, since the tour engine has to run the file as-is.
     function buildTour(mode) {
       const forEngine = mode === 'engine';
       const simplify = mode !== 'view';
@@ -1802,7 +1734,7 @@
       } catch {
         copied = false;
       }
-      const folder = options.folder === 'demo-tours' ? 'demo-tours' : 'tours';
+      const folder = 'tours';
       const value = encodeURIComponent(text);
       const fits = value.length < 6000; // GitHub rejected a ~10,000-character pre-fill ("Bad request")
       const url = state.id
@@ -1817,20 +1749,12 @@
       toast(`${what} Once committed, CI checks it and publishes it.${changes.length ? ` For publishing, ${changes.join('; ')}.` : ''}${images}`, 12000);
     };
 
-    // Demo only: open DoorLoop in a tab and hand it the draft (see sendToDoorLoop).
-    function previewOnDoorLoop() {
-      const { tour, changes } = buildTour('engine');
-      const ok = sendToDoorLoop(tour.page, 'doorloop-tour-test', { type: 'tour-layer:draft', tour }, () => toast('Tour started on DoorLoop. Switch to that tab.'));
-      if (!ok) return toast('Your browser blocked the new tab. Allow pop-ups for this page and try again.');
-      toast(changes.length ? `Opening DoorLoop. For this test, ${changes.join('; ')}.` : 'Opening DoorLoop…');
-    }
-
-    // ---------- live mode: keep the draft across page reloads ----------
+    // ---------- keep the draft across page reloads ----------
     function save() {
-      if (!live || closed) return;
+      if (closed) return;
       const flow = state.flow.map(({ els, ...rest }) => rest); // elements can't be saved; targets find them again
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-        name: state.name, id: state.id, folder: options.folder, flow, style, active: state.active, exitClicks: state.exitClicks,
+        name: state.name, id: state.id, flow, style, active: state.active, exitClicks: state.exitClicks,
         autoStart: $('.auto-start input').checked, status: $('.tour-status select').value, recordingTour: state.recordingTour,
         inputs: Object.fromEntries([...$$('.style-panel input[data-var]')].map((i) => [i.dataset.var, i.value])),
       }));
@@ -1842,7 +1766,6 @@
       state.active = saved.active ?? null;
       state.exitClicks = saved.exitClicks || [];
       state.recordingTour = !!saved.recordingTour;
-      options.folder = saved.folder;
       $('.auto-start input').checked = !!saved.autoStart;
       $('.tour-status select').value = saved.status || 'draft';
       Object.assign(style, saved.style);
@@ -1886,12 +1809,12 @@
       listeners.forEach((off) => off());
       window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('focusout', keepFocus, true);
-      if (live) sessionStorage.removeItem(SESSION_KEY);
-      hideLauncher?.remove();
+      sessionStorage.removeItem(SESSION_KEY);
+      hideLauncher.remove();
       document.documentElement.classList.remove('tour-layer-docked');
-      dockStyle?.remove();
+      dockStyle.remove();
       document.removeEventListener('scroll', noSidewaysScroll, true);
-      if (live) window.dispatchEvent(new Event('resize'));
+      window.dispatchEvent(new Event('resize'));
       host.remove();
       if (current && current.host === host) current = null;
       options.onClose?.();
@@ -1908,39 +1831,11 @@
     renderStory();
     renderExit();
     dock();
-    showPage(live ? app.path() : currentPage());
-    if (live) {
-      toast(options.restore ? 'Builder restored. Your draft is still here.' : options.tour ? LOADED : 'Building on live DoorLoop. Click + Step, then click what it should highlight.');
-    } else {
-      app.navigate(currentPage()).then(() => toast(options.tour ? LOADED : 'Browse the demo if you like. Click + Step in the storyboard to add the first step.'));
-    }
+    showPage(app.path());
+    toast(options.restore ? 'Builder restored. Your draft is still here.' : options.tour ? LOADED : 'Building on live DoorLoop. Click + Step, then click what it should highlight.');
 
     return { host, close };
   }
 
-  // Open DoorLoop in a named tab and keep posting a message until the DoorLoop Tours extension answers.
-  // The tab starts on app.doorloop.com and redirects to your account's address, where the extension runs,
-  // so its exact origin isn't known here.
-  const sends = {};
-  function sendToDoorLoop(path, tabName, message, onAnswer) {
-    const tab = window.open(`https://app.doorloop.com${path}`, tabName);
-    if (!tab) return false;
-    const id = String(Date.now());
-    clearInterval(sends[tabName]);
-    let tries = 0;
-    sends[tabName] = setInterval(() => {
-      if (tab.closed || ++tries > 80) return clearInterval(sends[tabName]);
-      tab.postMessage({ ...message, id }, '*');
-    }, 750);
-    const onMessage = (e) => {
-      if (!/^https:\/\/([a-z0-9-]+\.)*app\.doorloop\.com$/.test(e.origin) || !e.data || e.data.id !== id) return;
-      clearInterval(sends[tabName]);
-      window.removeEventListener('message', onMessage);
-      onAnswer();
-    };
-    window.addEventListener('message', onMessage);
-    return true;
-  }
-
-  window.TourBuilder = { open, savedSession, sendToDoorLoop };
+  window.TourBuilder = { open, savedSession };
 })();

@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.23.2. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.24.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -35,16 +35,6 @@ links page ──click──▶ app.doorloop.com/tenants?tour=tenants-list
 - **On screen:** the step box is kept inside the window (and shrinks on narrow windows), with a progress bar under the step count. With "reduce motion" turned on in the system settings, the highlight jumps between steps instead of gliding.
 - **Starting by itself:** a tour with `autoStart` opens the first time someone visits its page, once per browser.
 - **Ending:** × ends a tour at any step; **Done** ends it on the last step. Escape and clicks on the dimmed page don't, since they're easy to do by accident in the middle of a form. Done on the last step also leaves the form the tour went through, without saving (see "Sample data").
-
-## Demo app (no setup)
-
-[`/demo/`](https://shuang-dl.github.io/product-tour-layer/demo/home) is a simple, read-only DoorLoop-style app with made-up data: Overview, Properties, Units, Leases, Tenants (with profiles), Vendors, Tasks, Transactions, Reports and Settings. Navigation, search, filters and tabs work; create and edit buttons only say they're turned off.
-
-- It uses the same element labels as DoorLoop (`data-cy`, `data-intercom-target`, `aria-label`), so tours carry over between the two.
-- The tour engine is built into the page (`site/demo/index.html` loads `tour-layer.js` and calls `TourLayer.init`), with no extension. That's the integration DoorLoop would add to its own app.
-- Demo tours live in `demo-tours/` and are listed on the links page under "Try it now, no setup".
-- Source: `site/demo/` (`data.js` sample data, `app.js` pages and routing). GitHub Pages serves unknown paths with `404.html`, which is a copy of the demo page, so deep links like `/demo/tenants/t1` work.
-- Preview locally: `npm run build && npm run serve`, then open http://localhost:4173/product-tour-layer/.
 
 ## Try it on DoorLoop
 
@@ -149,7 +139,7 @@ Add `tours/<id>.json`:
 
 Older tour files may still have `headerHeight`, `sideBorder` and `corners`; they're accepted and ignored. In the builder's **Tour style** panel each colour has a swatch and a code field: type a code like `#dffe02` (or `#dfe`) to set it exactly.
 
-The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-concept.html)'s Tour style panel (◐) sets these visually, and "View tour file" writes them in this format.
+The builder's Tour style panel (◐) sets these visually, and "View tour file" writes them in this format.
 
 **The extension's menu.** The extension is an internal tool, and its icon (a lime spotlight on navy) opens a menu on any DoorLoop page:
 
@@ -161,27 +151,28 @@ The [builder concept](https://shuang-dl.github.io/product-tour-layer/builder-con
 
 Only the extension's own menu can send these requests to the page; websites can't.
 
-**Building on live DoorLoop.** Use the extension's menu (above), or in the [builder page](https://shuang-dl.github.io/product-tour-layer/builder-concept.html) choose **Build on: Live DoorLoop** when creating a tour. DoorLoop opens in a new tab and the DoorLoop Tours extension (0.8.0 or later) opens the same builder on top of it, in one panel on the right: the tour's controls at the top, then the tools, then the storyboard as a list of steps from top to bottom. **Hide ▸** slides the panel away to see the whole page (for example a drawer that opens on the right); the **Show builder** tab on the right edge brings it back. While the panel is open, DoorLoop is narrowed to end where the panel starts, so the panel sits beside the page instead of covering it; DoorLoop's dialogs, drawers and dropdowns stop at the panel's edge too. (DoorLoop's own layout rules still see the full window width, so a page may come out a little cramped.) **⋯ More → Keep DoorLoop beside the panel** turns this off, and the panel covers the page instead. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
+**Building on live DoorLoop.** Use the extension's menu (above). The builder opens on top of DoorLoop, in one panel on the right: the tour's controls at the top, then the tools, then the storyboard as a list of steps from top to bottom. **Hide ▸** slides the panel away to see the whole page (for example a drawer that opens on the right); the **Show builder** tab on the right edge brings it back. While the panel is open, DoorLoop is narrowed to end where the panel starts, so the panel sits beside the page instead of covering it; DoorLoop's dialogs, drawers and dropdowns stop at the panel's edge too. (DoorLoop's own layout rules still see the full window width, so a page may come out a little cramped.) **⋯ More → Keep DoorLoop beside the panel** turns this off, and the panel covers the page instead. Pick elements on the real app, add steps and pages, set the tour style, preview, and copy the tour file.
 
-- The builder is `src/builder.js`, shared by the builder page (demo mode, with the demo app in a frame) and the extension (live mode). It draws inside a shadow root so DoorLoop's CSS and the builder's can't affect each other.
+- The builder is `src/builder.js`, part of the extension. It draws inside a shadow root so DoorLoop's CSS and the builder's can't affect each other.
 - Pages change through DoorLoop's own links (an in-app page change). Where there's no link, the page loads normally and the builder comes back with the draft, which is kept in `sessionStorage` for that tab.
 - The tour launcher is hidden while building. Closing the builder discards the draft, so copy the tour file first.
-- A new tour needs a name, and starts on `/home` unless you enter another page. Each step needs a title and some text before it saves.
+- A new tour needs a name, and starts on the page you open it from. Each step needs a title and some text before it saves.
+- Record pages like `/tenants/t1` become `/tenants/*` in the tour file, so a step works on any record.
 - **● Record tour** in the panel records a tour by clicking through it: do the workflow the way people should, then click **Stop recording**. Each click becomes a step that continues when that element is clicked ("Click "Receive payment""); a checkbox becomes a "Tick" step; typing into a field becomes one "Enter …" step with what you typed as its sample data, and a suggestion picked right after goes with it. Picking from a list without typing records a step to open the field and one pointing at the whole list (so it works whatever the list holds). Changing pages adds page cards, and a full page load keeps recording. Clicks on nothing in particular and double clicks are skipped. Elements are named by `data-cy`, `data-testid`, a hand-written id, a placeholder or their `<label>`; one with none of these gets a short path from the nearest named element, so a recorded step never has an empty target. Afterwards every step is a normal card: click it to rewrite its title and text, add show-only, and so on. What you typed ends up in the tour file, so use made-up data.
 - The builder is always light, even when the computer is in dark mode.
 - **All tours ↗** next to the tour's name opens the page listing all tours in a new tab (the draft stays where it is).
 - The panel has **● Record tour**, **▶ Preview**, **💾 Save tour**, **Hide ▸** and **Close**; **⋯ More** holds **Status** (the tour's `status`; new tours start as Draft), **Start by itself once** (`autoStart`), **View tour file** and **Export video / GIF**.
 - In **View tour file**, the box holds only the tour file (notes sit below it), and select-all inside the box selects just the file. Copying the whole page instead brings the builder's screen text along, which the build rejects.
-- The builder's **Preview** is a quick stand-in. A "Click the highlighted item" step passes the click to DoorLoop, so a row's ⋮ menu or a dialog opens and the next step can point into it. Preview doesn't block show-only steps, run exit clicks, or behave exactly like the tour engine. To check those, publish the tour (or use **Test on: Live DoorLoop** from the demo builder) and run it from DoorLoop.
+- The builder's **Preview** is a quick stand-in. A "Click the highlighted item" step passes the click to DoorLoop, so a row's ⋮ menu or a dialog opens and the next step can point into it. Preview doesn't block show-only steps, run exit clicks, or behave exactly like the tour engine. To check those, publish the tour (as a draft) and run it from DoorLoop.
 
 **Saving a tour.** In the live builder, **💾 Save tour** in the panel commits the tour file to `tours/<id>.json` on GitHub, as you, with nothing else to do. Sign in first from the extension's menu (**Sign in with GitHub**). Saving again updates the same file; a new tour whose file name already exists asks before replacing it. Once committed, CI checks the file and publishes it to GitHub Pages; the extension picks it up when DoorLoop next loads (Pages can take a few minutes). New tours are drafts until their status is changed to live.
 
 - **How the sign-in works:** a GitHub App ("DoorLoop Tours") with permission to change files, installed only on this repo, and GitHub's device sign-in (a code entered at github.com/login/device). A sign-in can never do more than the person's own GitHub access, so only contributors with write access can save. The extension's background keeps the login in its own storage and does the saving; it's never handed to DoorLoop's page. Signing out removes it. Anyone using the same Chrome profile while you're signed in can save tours, so sign out on shared computers.
 - **Setting it up (once):** register the GitHub App (Contents: read and write; device flow on; token expiry off; webhook off; installed only on this repo) and put its Client ID in `extension/background.js` (`CLIENT_ID`). Done: the app is registered and installed on this repo. To let someone save tours, give them write access to the repo.
-- **On the demo builder** (no extension there), **⋯ More → View tour file → Save to GitHub** still opens GitHub's own page instead: a new tour opens the "new file" page (filled in when short, otherwise paste the copied file), an edited tour opens its file's edit page, and you commit there.
+- **⋯ More → View tour file → Save to GitHub** opens GitHub's own page instead, without signing in to the extension: a new tour opens the "new file" page (filled in when short, otherwise paste the copied file), an edited tour opens its file's edit page, and you commit there.
 - What the tour format can't hold yet is simplified first ("type text" steps use a Next button, text formatting is left out); the builder says which applied. Uploaded images aren't saved with it: put the image online and set the step's `image` to its `https://` address.
 
-**Editing a tour.** In the builder's start popup choose **Edit existing tour**, then pick a published tour (DoorLoop or demo) or paste a tour file, and build on the demo or live DoorLoop. The storyboard fills in with the tour's pages and steps, and its style loads into the Tour style panel.
+**Editing a tour.** On DoorLoop, open the extension's menu, pick a live tour or a draft, and click **Open in the builder**. The storyboard fills in with the tour's pages and steps, and its style loads into the Tour style panel.
 
 - Click a card to edit that step (the builder goes to its page and finds its element again). For a page pattern like `/tenants/*`, open a matching page first.
 - **Repointing a step** that highlights the wrong thing (or that couldn't be found): open its card, click **⌖ Repoint** next to "Anchored to" (the editor steps aside; Esc brings it back), then click the right element or draw around it with the box tool. The title, text and settings you had in the editor are kept, including unsaved changes; **Save step** keeps the new spot, **Cancel** leaves the step as it was. Clicking another element while the editor is open does the same.
@@ -189,17 +180,9 @@ Only the extension's own menu can send these requests to the page; websites can'
 - The step editor's **Skip this step if it isn't on screen** sets `optional`, and **Show only** sets `showOnly`.
 - **Sample data** in the step editor: click **Record**, then fill in the highlighted area the way people should (type, pick a suggestion, click a choice) and click **Stop**. Only what happens inside the highlight is recorded; a picked suggestion attaches to the field typed into just before it. The list shows what was recorded: edit a value or remove a row before saving the step. Everything in it ends up in the published tour file, so use made-up data.
 - **⎋ Leaving without saving** in the panel's tools: **+ Pick a button**, then click what should be pressed when the tour ends (it isn't pressed while picking). These are the tour's `exitClicks`. When you save a step with sample data inside a dialog and the tour has no exit clicks yet, the builder suggests the dialog's × and shows it here to keep or remove.
-- **View tour file** keeps the tour's id, so the edited file replaces the original in `tours/` (or `demo-tours/`).
+- **View tour file** keeps the tour's id, so the edited file replaces the original in `tours/`.
 - When an element's label is shared by several elements (e.g. two choice cards with the same wrapper label), the builder uses a uniquely labelled element inside it instead, since the tour engine only uses one of them: the one in view, otherwise the first on the page.
-- **Hide ▸** slides the live builder's panel away, e.g. to reach something under it; in the demo builder, **Storyboard ▾** collapses the storyboard.
-- Like draft previews, the extension only opens the builder when asked by the builder's own site.
-
-**Testing a draft on live DoorLoop.** In the builder, set **Test on** to **Live DoorLoop** and click **Preview**. DoorLoop opens in a new tab and the DoorLoop Tours extension (version 0.2.0 or later) runs the draft there, on your own account. DoorLoop can't be shown inside the builder, so you still build on the demo, whose element labels match DoorLoop's.
-
-- The extension only accepts drafts sent from the builder's own site (`https://shuang-dl.github.io`, or `http://localhost:4173` for `npm run serve`). Messages from anywhere else are ignored.
-- The draft is kept for that tab until it finishes, so multi-page drafts keep going after a page loads.
-- Demo record pages like `/tenants/t1` become `/tenants/*`, so a step works on any record.
-- For the live test, features the engine doesn't support yet are simplified: "type text" steps use a Next button, and text formatting is left out. The builder says which applied.
+- **Hide ▸** slides the builder's panel away, e.g. to reach something under it.
 
 **When a target stops matching.** Steps the builder saves carry `clues` as well as a `target`. If the target finds nothing for 1.5 seconds, the tour scores every visible element of the same tag against the clues (text counts most, then aria-label, name, placeholder, link and role; the idea comes from Mimik's Guide Me replay) and uses the best one above 60%. A partial text match only counts when the shorter text is most of the longer one, and role alone never counts, so a poor fit leaves the step centred rather than pointing at the wrong thing. The tour logs a warning in the console when it falls back, and opening that step in the builder finds the element the same way: saving it writes a working target. Tours written by hand, or saved before clues existed, don't have them; re-saving each step in the builder adds them.
 
@@ -214,15 +197,13 @@ Only the extension's own menu can send these requests to the page; websites can'
 | Path | |
 |---|---|
 | `src/tour-layer.js` | the engine (`TourLayer.init`, `start`, `run`, `stop`) |
-| `src/builder.js` | the tour builder, used by the builder page and the extension |
+| `src/builder.js` | the tour builder, opened by the extension on DoorLoop |
 | `src/export.js`, `src/gif.js` | exporting a tour as a video or GIF, and the GIF encoder (extension only) |
 | `tours/*.json` | one file per tour on real DoorLoop |
-| `demo-tours/*.json` | tours for the demo app (same format) |
-| `site/demo/` | the demo app |
 | `site/index.html` | links page (lists tours from `tours.json`) |
 | `extension/` | Chrome extension manifest, loader (`content.js`), the icon's menu (`popup.html`, `popup.js`), icons, and the background worker (`background.js`: GitHub sign-in and saving) |
 | `vendor/driver.js/` | highlight/popover library (MIT), bundled into the extension |
-| `scripts/build.mjs` | validation + build site, extension and demo app into `dist/` |
+| `scripts/build.mjs` | validation + build site and extension into `dist/` |
 | `scripts/serve.mjs` | serves `dist/` locally the way GitHub Pages does |
 | `tests/` | extension test (Playwright) and the mock DoorLoop page it runs against |
 | `.github/workflows/pages.yml` | validate on PRs, publish to GitHub Pages on `main` |

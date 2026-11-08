@@ -8,7 +8,7 @@ type: note
 
 Where the product tour proof of concept stands, how it got here, and what's still open. For how to use it, see the [README](README.md).
 
-**As of November 6, 2026:** extension 0.23.2, 5 live tours and 2 drafts for DoorLoop, 3 for the demo app, 148 automated checks, all passing.
+**As of November 8, 2026:** extension 0.24.0, 6 live tours and 2 drafts for DoorLoop, 141 automated checks, all passing.
 
 ## What it is
 
@@ -16,10 +16,9 @@ Guided product tours that run on top of DoorLoop without touching DoorLoop's cod
 
 - **Tours are files.** One JSON file per tour in this GitHub repo. GitHub checks them and publishes them to GitHub Pages; nothing is hand-deployed.
 - **An in-house Chrome extension runs them on DoorLoop.** It loads the published tours and highlights each step on the real app. No Intercom, no Tampermonkey, nothing loaded from outside servers. The one outside library, driver.js (MIT), is copied into the repo.
-- **A demo app shows the built-in version.** A read-only, DoorLoop-style app with made-up data and the tour engine built into the page, with no extension. That's what DoorLoop would do in its own app.
-- **A visual tour builder makes tours without writing JSON.** It works on the demo app or directly on top of live DoorLoop.
+- **A visual tour builder makes tours without writing JSON.** It opens from the extension's menu, directly on top of live DoorLoop.
 
-Links: [tours](https://shuang-dl.github.io/product-tour-layer/), [demo app](https://shuang-dl.github.io/product-tour-layer/demo/home), [builder](https://shuang-dl.github.io/product-tour-layer/builder-concept.html).
+Links: [tours](https://shuang-dl.github.io/product-tour-layer/).
 
 ## How it got here
 
@@ -57,6 +56,7 @@ Links: [tours](https://shuang-dl.github.io/product-tour-layer/), [demo app](http
 - **Repoint a step:** ⌖ Repoint in the step editor moves a step that points at the wrong thing to the right element, keeping its text and settings.
 - **Step box placement:** the box sits beside the highlighted area instead of covering it, on a side chosen per step (Box position: Auto, right, left, below, above).
 - **Save tour, straight to GitHub:** sign in once from the extension's menu (a GitHub App limited to this repo; only contributors with write access can save), then the builder's Save tour commits the tour file with no other steps.
+- **The demo app and the builder page are gone** (November 8): building happens only on live DoorLoop, from the extension's menu.
 - **Drafts and approval:** tours can be drafts, seen only by people who turn on Show drafts, and go live once their status is changed to live on GitHub. *Create a request* is the first draft.
 
 ## What real DoorLoop taught us

@@ -37,10 +37,6 @@
     <h1>DoorLoop Product Tours</h1>
     <p>Proof of concept: guided tours that run on top of DoorLoop without changing its code. Pick a tour and it opens the right page and starts.</p>
 
-    <h2>Try it now, no setup</h2>
-    <p>These tours run on a <a href="demo/home">demo app</a> that looks like DoorLoop and uses made-up data. Nothing to install, no login. The tour engine is built into the demo, the way DoorLoop could build it in.</p>
-    <div class="tours" id="demoTours"><p>Loading tours…</p></div>
-
     <h2>On real DoorLoop</h2>
     <p>These run on your own DoorLoop account through the DoorLoop Tours Chrome extension.</p>
     <div class="tours" id="tours"><p>Loading tours…</p></div>
@@ -59,8 +55,8 @@
     <p>To make a draft live, open it with <strong>Approve on GitHub</strong>, change <code>"status": "draft"</code> to <code>"status": "live"</code>, and commit. It goes live for everyone once published.</p>
     <div class="tours" id="drafts"><p>Loading drafts…</p></div>
 
-    <h2>Coming later</h2>
-    <p><a href="builder-concept.html">Tour builder concept</a>: a clickable draft of building tours visually, by pointing at elements or drawing boxes, with a storyboard of steps.</p>
+    <h2>Build or edit a tour</h2>
+    <p>On any DoorLoop page, click the DoorLoop Tours extension icon, then <strong>Build a new tour here</strong>, or pick a tour and <strong>Open in the builder</strong>. The builder opens on top of DoorLoop.</p>
   </main>
   <script>
     function showTours(listId, url, hrefFor, newTab) {
@@ -88,7 +84,6 @@
         })
         .catch(() => { list.textContent = `Could not load ${url}.`; });
     }
-    showTours('demoTours', 'demo/tours.json', (t) => `demo${t.page}?tour=${encodeURIComponent(t.id)}`, false);
     showTours('tours', 'tours.json', (t) => `https://app.doorloop.com${t.page}?tour=${encodeURIComponent(t.id)}`, true);
     // Drafts: try one on DoorLoop (turns on Show drafts there), or open its file on GitHub to approve it.
     fetch('drafts.json', { cache: 'no-store' })

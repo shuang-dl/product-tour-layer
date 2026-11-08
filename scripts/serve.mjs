@@ -1,5 +1,4 @@
-// Serves dist/ the way GitHub Pages does: under /product-tour-layer/, with 404.html for unknown paths
-// (which is how the demo app's deep links work). Run: npm run build && npm run serve
+// Serves dist/ the way GitHub Pages does: under /product-tour-layer/. Run: npm run build && npm run serve
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { join, extname, dirname } from 'node:path';
@@ -21,6 +20,6 @@ createServer(async (req, res) => {
     const body = await readFile(join(dist, file));
     res.writeHead(200, { 'content-type': TYPES[extname(file)] || 'application/octet-stream' }).end(body);
   } catch {
-    res.writeHead(404, { 'content-type': 'text/html' }).end(await readFile(join(dist, '404.html')));
+    res.writeHead(404, { 'content-type': 'text/plain' }).end('Not found');
   }
 }).listen(PORT, () => console.log(`Serving dist/ at http://localhost:${PORT}${PREFIX}/`));
