@@ -457,8 +457,8 @@
     const isAction = !!target && !Array.isArray(el) && (target.matches(ACTION) || target.querySelectorAll(ACTION).length === 1);
     const canSave = step.showOnly && last && !sampleUsed && isAction;
     const note = !(step.showOnly && last && el) ? null
-      : sampleUsed ? 'Click Done to discard the sample data.'
-      : isAction ? `Click Done to discard what you entered, or click ${saveLabel ? `“${saveLabel}”` : 'the highlighted button'} to save it.`
+      : sampleUsed ? 'Click Done to discard the sample data and finish.'
+      : isAction ? `Click Done to discard and finish, or ${saveLabel ? `“${saveLabel}”` : 'the highlighted button'} to save what you entered.`
       : null;
 
     const buttons = [];
@@ -674,9 +674,11 @@
     title.textContent = step.title;
     const body = el('div', { className: 'tl-body' });
     if (step.image) body.append(el('img', { className: 'tl-img', src: step.image, alt: '' }));
-    body.append(el('div', { className: 'tl-pad' }, [title, p.description, ...(note ? [el('p', { className: 'tl-note', textContent: note })] : [])]), p.closeButton);
-    // A step that continues on a click says so in a strip under the text (the bottom bar keeps Back alone).
-    if (clickToAdvance) {
+    body.append(el('div', { className: 'tl-pad' }, [title, p.description]), p.closeButton);
+    // The last show-only step says what Done does (and what saving does) in the strip under the text.
+    if (note) body.append(el('div', { className: 'tl-hint tl-note', textContent: note }));
+    // A step that continues on a click says so in the same strip (the bottom bar keeps Back alone).
+    else if (clickToAdvance) {
       const hint = el('div', { className: 'tl-hint' });
       hint.innerHTML = `${POINTER_ICON}<span>Click the highlighted item to continue</span>`;
       body.append(hint);
@@ -744,7 +746,6 @@
     .tour-layer-ringed .driver-overlay { opacity: 0 !important; }
     .tour-layer-popover .driver-popover-footer .tl-fill { background: none; color: inherit; border: 1px solid currentColor; border-radius: 6px; padding: 3px 8px; cursor: pointer; }
     .tour-layer-popover .driver-popover-footer .tl-fill:disabled { opacity: .7; cursor: default; }
-    .tour-layer-popover .tl-note { margin: 8px 0 0; font-size: 13px; line-height: 1.45; font-weight: 600; text-align: var(--tl-text-align); }
     .tour-layer-popover .tl-hint { display: flex; align-items: center; gap: 7px; padding: 9px 18px; font-size: 12px; line-height: 1.35; background: color-mix(in srgb, var(--tl-button) 22%, var(--tl-body-bg)); color: var(--tl-button-text); }
     .tour-layer-popover .tl-hint svg { flex: none; }
     .tour-layer-popover .driver-popover-arrow { border-color: transparent; }

@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.24.1. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.24.2. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -91,7 +91,7 @@ Add `tours/<id>.json`:
 | `advanceOn` | `"next"` (default) or `"click"`: the user clicks the highlighted element to continue |
 | `optional` | `true` = skip this step if its target isn't on screen (e.g. "open the People menu" when it's already open) |
 | `image` | optional. An image shown full width at the top of the step: an `https://` URL or a path to a `.png`, `.jpg`, `.gif`, `.webp` or `.svg` file |
-| `showOnly` | `true` = the highlighted element can't be clicked or pressed (e.g. point at Finish without anyone saving). Can't be combined with `advanceOn: "click"`. On the **last** step it adds a note: after Fill example, "Click Done to discard the sample data" (the button stays blocked); otherwise "Click Done to discard what you entered, or click Finish to save it", and the button works: it saves and ends the tour. That note and saving only apply when the highlighted element is a button or link (or wraps a single one); a show-only panel, e.g. account details, gets no note |
+| `showOnly` | `true` = the highlighted element can't be clicked or pressed (e.g. point at Finish without anyone saving). Can't be combined with `advanceOn: "click"`. On the **last** step it adds a note in the light strip under the text: after Fill example, "Click Done to discard the sample data and finish" (the button stays blocked); otherwise "Click Done to discard and finish, or “Finish” to save what you entered", and the button works: it saves and ends the tour. That note and saving only apply when the highlighted element is a button or link (or wraps a single one); a show-only panel, e.g. account details, gets no note |
 | `placement` | Where the step box goes: `right`, `left`, `bottom` or `top` of the highlighted area. Left out (or `auto`), it goes on the first side with room, in that order. Either way it never covers the highlighted area when there's room beside it, falls back to another side when the chosen one has no room, and stays inside the window. In the builder: **Box position** in the step editor |
 | `fill` | optional. Sample data: adds a **Fill example** button to the step. A list of `{ "target", "value", "pick"? }` (type the value into the field, then click the suggestion whose text is `pick`) or `{ "target", "click": true }` (click a choice or checkbox) |
 
