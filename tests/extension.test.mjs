@@ -339,7 +339,8 @@ try {
   const nameRow = await E.evaluate((host) => {
     const r = host.shadowRoot, n = r.querySelector('.ws-name').getBoundingClientRect(), a = r.querySelector('.all-tours').getBoundingClientRect();
     const close = r.querySelector('.close-btn').getBoundingClientRect();
-    return { nameW: n.width, sameLine: Math.abs(n.top + n.height / 2 - (a.top + a.height / 2)) < 6, belowClose: n.top >= close.bottom };
+    const badge = r.querySelector('.badge').getBoundingClientRect();
+    return { nameW: n.width, sameLine: Math.abs(n.top + n.height / 2 - (a.top + a.height / 2)) < 6, belowClose: n.top >= close.bottom, closeOnTop: Math.abs(close.top + close.height / 2 - (badge.top + badge.height / 2)) < 8 };
   });
   const topBar = await E.evaluate((host) => {
     const r = host.shadowRoot, box = (q) => r.querySelector(q).getBoundingClientRect();
@@ -352,7 +353,7 @@ try {
   });
   check('builder: Record tour is a dashed red outline, solid red while recording; Preview / Save tour / More line up with its edges',
     topBar.off === 'dashed rgb(211, 47, 47) rgba(0, 0, 0, 0)' && topBar.on === 'rgb(211, 47, 47)' && Math.abs(topBar.pre.left - topBar.rec.left) < 1 && Math.abs(topBar.more.right - topBar.rec.right) < 1, JSON.stringify(topBar));
-  check('builder: the tour name keeps its own line, with All tours beside it', nameRow.nameW > 150 && nameRow.sameLine && nameRow.belowClose, JSON.stringify(nameRow));
+  check('builder: the tour name keeps its own line, with All tours beside it', nameRow.nameW > 150 && nameRow.sameLine && nameRow.belowClose && nameRow.closeOnTop, JSON.stringify(nameRow));
   check('edit: the tour loads into the storyboard', JSON.stringify(await cards()) === JSON.stringify(['First', 'Second']) && (await E.locator('.ws-name').textContent()) === 'Edit me');
   check("edit: the tour's style loads", (await E.locator('.style-panel input[data-var="--tour-frame"]').inputValue()) === '#0f6e56');
   await E.locator('.card:has-text("First")').click();
