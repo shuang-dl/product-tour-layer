@@ -191,7 +191,7 @@
     .shot-view { position: fixed; inset: 0; z-index: 21; display: flex; align-items: center; justify-content: center; padding: 30px; background: rgba(0,0,0,.55); pointer-events: auto; }
     .shot-view[hidden] { display: none; }
     .shot-box { background: var(--card); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; max-width: 100%; max-height: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
-    .shot-box img { max-width: min(1000px, 100%); max-height: calc(100vh - 140px); object-fit: contain; border-radius: 6px; border: 1px solid var(--border); }
+    .shot-box img { max-width: 100%; max-height: calc(100vh - 140px); object-fit: contain; border-radius: 6px; border: 1px solid var(--border); }
     .shot-box .row { display: flex; gap: 8px; align-items: center; }
     .shot-box .row strong { flex: 1; font-size: 13px; }
     .card .centre-btn { border: 1px dashed var(--accent); background: transparent; color: var(--accent); cursor: pointer; font: inherit; font-size: 11px; }
@@ -288,7 +288,7 @@
                 <label class="auto-start" title="Open this tour by itself the first time someone visits its start page (once per browser)"><input type="checkbox"> Start by itself once</label>
                 <hr>
                 <button class="file-btn">View tour file</button>
-                <button class="shots-btn" title="Download the screenshot of each step as a JPG">Download all screenshots</button>
+                <button class="shots-btn" title="Download the screenshot of each step as a PNG">Download all screenshots</button>
                 <span class="export-menu"><button data-kind="video">Export video</button><button data-kind="gif">Export GIF (a frame per step)</button></span>
               </span>
             </span>
@@ -317,7 +317,7 @@
           <p class="file-notes"></p>
         </div>
         <div class="shot-view" hidden>
-          <div class="shot-box"><div class="row"><strong></strong><button class="ghost shot-dl">Download JPG</button><button class="ghost shot-retake">Retake</button><button class="ghost shot-close">Close</button></div><img alt=""></div>
+          <div class="shot-box"><div class="row"><strong></strong><button class="ghost shot-dl">Download PNG</button><button class="ghost shot-retake">Retake</button><button class="ghost shot-close">Close</button></div><img alt=""></div>
         </div>
         <div class="toast" role="status" hidden></div>
       </div>`;
@@ -712,11 +712,11 @@
     }
 
     // ---------- step screenshots ----------
-    // Each step gets a JPG of DoorLoop (at most 1000 px wide) with a pink dashed outline around what it highlights,
+    // Each step gets a PNG of DoorLoop (at most 2000 px wide, so a Retina screen keeps its sharpness) with a pink dashed outline around what it highlights,
     // to see what the step does without previewing, or to use elsewhere. The builder and tour boxes hide while the
     // picture is taken; with DoorLoop docked, the picture stops where the panel starts. The extension's background
     // takes it (chrome.tabs.captureVisibleTab). Pictures stay in this browser's extension storage, by tour.
-    const SHOT_MAX_W = 1000;
+    const SHOT_MAX_W = 2000;
     const SHOT_COLOR = '#ff4998';
     let lastFrame = null; // while recording: the picture taken as the mouse last went down on DoorLoop
     let retaking = false; // the next step opened takes a new picture even if it has one
@@ -771,21 +771,22 @@
       ctx.drawImage(img, 0, 0, srcW, img.height, 0, 0, canvas.width, canvas.height);
       if (rect) {
         const f = k * s;
-        const pad = 6;
+        // Sized in CSS pixels, so the outline looks the same whatever the screen's pixel density
+        const pad = 6 * f;
         ctx.strokeStyle = SHOT_COLOR;
-        ctx.lineWidth = 3;
-        ctx.setLineDash([8, 5]);
+        ctx.lineWidth = 3 * f;
+        ctx.setLineDash([8 * f, 5 * f]);
         ctx.beginPath();
-        ctx.roundRect(rect.left * f - pad, rect.top * f - pad, rect.width * f + pad * 2, rect.height * f + pad * 2, 6);
+        ctx.roundRect(rect.left * f - pad, rect.top * f - pad, rect.width * f + pad * 2, rect.height * f + pad * 2, 6 * f);
         ctx.stroke();
       }
-      return canvas.toDataURL('image/jpeg', 0.8);
+      return canvas.toDataURL('image/png');
     }
     function attachShot(step, shot) {
       if (!shot) return;
-      shot.then((jpg) => {
-        if (!jpg) return;
-        step.shot = jpg;
+      shot.then((png) => {
+        if (!png) return;
+        step.shot = png;
         if (dragFrom === null) renderStory(); // redrawing the cards mid-drag would drop the drag
         save();
       });
@@ -806,7 +807,7 @@
     function saveShots() {
       if (!chrome.storage || !shotsLoaded) return;
       const map = Object.fromEntries(shotKeys().filter(([, item]) => item.shot).map(([key, item]) => [key, item.shot]));
-      const sig = shotsKey() + Object.entries(map).map(([key, jpg]) => key + jpg.length).join();
+      const sig = shotsKey() + Object.entries(map).map(([key, png]) => key + png.length).join();
       if (sig === shotsSaved) return;
       shotsSaved = sig;
       chrome.storage.local.set({ [shotsKey()]: map }).catch((e) => console.warn('[TourBuilder] could not store the screenshots', e));
@@ -824,9 +825,9 @@
       saveShots();
     }
     const stepNoAt = (i) => state.flow.slice(0, i + 1).filter((x) => x.type === 'step' && !x.draft).length;
-    const shotFile = (n) => `${shotsKey().slice('tourLayer.shots:'.length) || 'tour'}-step-${String(n).padStart(2, '0')}.jpg`;
-    function downloadShot(jpg, name) {
-      const a = Object.assign(document.createElement('a'), { href: jpg, download: name });
+    const shotFile = (n) => `${shotsKey().slice('tourLayer.shots:'.length) || 'tour'}-step-${String(n).padStart(2, '0')}.png`;
+    function downloadShot(png, name) {
+      const a = Object.assign(document.createElement('a'), { href: png, download: name });
       document.body.append(a);
       a.click();
       a.remove();

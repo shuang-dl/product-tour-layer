@@ -297,7 +297,7 @@ try {
   const centreChips = await B2.locator('.card:not(.page-card)').last().locator('.chip').allInnerTexts();
   check('builder: + Step, then "Or center it", saves a step shown in the middle with a Next button',
     centreCode === 'nothing (shows centred)' && JSON.stringify(centreChips) === JSON.stringify(['centred', 'Next button']), JSON.stringify({ centreCode, centreChips }));
-  // Each step gets a screenshot under its card: a JPG of DoorLoop only (no builder), at most 1000 px wide, with a
+  // Each step gets a screenshot under its card: a PNG of DoorLoop only (no builder), at most 2000 px wide, with a
   // pink (#ff4998) dashed outline around what the step highlights (none on a centred step)
   await live.waitForFunction(() => document.getElementById('tour-layer-builder').shadowRoot.querySelectorAll('.card .shot-thumb').length >= 2, null, { timeout: 5000 }).catch(() => {});
   const shots = await B2.evaluate(async (host) => {
@@ -312,21 +312,21 @@ try {
       const d = ctx.getImageData(0, 0, c.width, c.height).data;
       let pink = 0;
       for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 255) < 40 && Math.abs(d[i + 1] - 73) < 40 && Math.abs(d[i + 2] - 152) < 40) pink++;
-      return { jpg: img.src.startsWith('data:image/jpeg'), w: img.naturalWidth, ratio: +(img.naturalWidth / img.naturalHeight).toFixed(2), want: +(view.w / view.h).toFixed(2), pink };
+      return { png: img.src.startsWith('data:image/png'), w: img.naturalWidth, ratio: +(img.naturalWidth / img.naturalHeight).toFixed(2), want: +(view.w / view.h).toFixed(2), pink };
     }));
   });
   const [, boxShot, centreShot] = shots;
-  check('builder: each step gets a JPG screenshot under its card, at most 1000 px wide, DoorLoop only',
-    shots.every((s) => s && s.jpg && s.w <= 1000) && Math.abs(boxShot.ratio - boxShot.want) < 0.02, JSON.stringify(shots));
+  check('builder: each step gets a PNG screenshot under its card, at most 2000 px wide, DoorLoop only',
+    shots.every((s) => s && s.png && s.w <= 2000) && Math.abs(boxShot.ratio - boxShot.want) < 0.02, JSON.stringify(shots));
   check('builder: the screenshot outlines the step\'s element in pink, and a centred step has no outline',
     boxShot && boxShot.pink > 200 && centreShot && centreShot.pink < 20, JSON.stringify(shots));
-  // Click a picture: shown large, with Download JPG
+  // Click a picture: shown large, with Download PNG
   await B2.locator('.card:not(.page-card) .shot-thumb').first().click();
   const viewOpen = await B2.locator('.shot-view').isVisible();
   const [shotDownload] = await Promise.all([live.waitForEvent('download', { timeout: 5000 }).catch(() => null), B2.locator('.shot-dl').click()]);
   await B2.locator('.shot-close').click();
-  check('builder: clicking a screenshot shows it large, and Download JPG saves it',
-    viewOpen && !!shotDownload && /-step-01\.jpg$/.test(shotDownload.suggestedFilename()), shotDownload && shotDownload.suggestedFilename());
+  check('builder: clicking a screenshot shows it large, and Download PNG saves it',
+    viewOpen && !!shotDownload && /-step-01\.png$/.test(shotDownload.suggestedFilename()), shotDownload && shotDownload.suggestedFilename());
   // Preview step 1 goes to /tenants through the app's own link (no reload)
   await B2.locator('.preview-btn').click();
   await live.waitForTimeout(1500);
