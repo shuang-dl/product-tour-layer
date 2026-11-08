@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.24.3. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.24.4. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -120,7 +120,7 @@ Add `tours/<id>.json`:
 - **Stop sharing** in Chrome's bar ends the recording early and downloads what was recorded.
 - The tab's picture changes size while recording (Chrome shows its "sharing this tab" bar right after the share starts), and a video whose frame size changes mid-file won't play. So the export draws the tab onto one fixed size, taken once that bar is up, and records that; GIF frames work the same way.
 
-**Step box style.** Each step shows as a square box with a drop shadow and no border: a white body (image, title, text, with the close × in its corner), a thin progress line, and a coloured bottom bar (step count on the left; Back and Next on the right). A step that continues on a click has no Next button; instead a light strip under its text, tinted from the button colour, says "Click the highlighted item to continue". One `style` per tour keeps every step consistent; any field left out uses the default.
+**Step box style.** Each step shows as a square box with a drop shadow and no border: a white body (image, title, text, with the close × in its corner), a thin progress line, and a coloured bottom bar (step count on the left; Back and Next on the right). A step that continues on a click has no Next button; instead a light strip under its text, tinted from the button colour, says "Click the highlighted item to continue". A step with sample data says "Enter your own details in the highlighted area, or click Fill example. Then click Next." in the same strip. One `style` per tour keeps every step consistent; any field left out uses the default.
 
 ```json
 "style": { "frame": "#0f6e56", "button": "#ffffff", "buttonText": "#0f6e56", "titleSize": "h3" }

@@ -443,6 +443,8 @@ try {
   const sp = await ctx.newPage();
   await sp.goto('https://acme.app.doorloop.com/properties/new?tour=sample-test');
   check('sample: the step box offers Fill example', (await title(sp)) === 'Fill it' && (await sp.locator('.tl-fill').textContent()) === 'Fill example');
+  check('sample: a strip under the text says to enter your own details or click Fill example, then Next',
+    (await sp.locator('.tl-body > .tl-hint.tl-fill-hint').textContent()) === 'Enter your own details in the highlighted area, or click Fill example. Then click Next.');
   await sp.click('.tl-fill');
   await sp.waitForFunction(() => document.querySelector('.tl-fill')?.textContent !== 'Filling…', null, { timeout: 15000 }).catch(() => {});
   check('sample: Fill example types, picks the suggestion and clicks choices', await sp.evaluate(() =>

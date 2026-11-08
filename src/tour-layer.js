@@ -676,6 +676,10 @@
     body.append(el('div', { className: 'tl-pad' }, [title, p.description]), p.closeButton);
     // The last show-only step says what Done does (and what saving does) in the strip under the text.
     if (note) body.append(el('div', { className: 'tl-hint tl-note', textContent: note }));
+    // A step with sample data says how to fill it in: your own details or Fill example, then Next.
+    else if (step.fill && step.fill.length && !clickToAdvance) {
+      body.append(el('div', { className: 'tl-hint tl-fill-hint', textContent: `Enter your own details in the highlighted area, or click Fill example. Then click ${progress === 1 ? 'Done' : 'Next'}.` }));
+    }
     // A step that continues on a click says so in the same strip (the bottom bar keeps Back alone).
     else if (clickToAdvance) {
       const hint = el('div', { className: 'tl-hint' });

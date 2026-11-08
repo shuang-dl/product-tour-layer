@@ -1640,6 +1640,9 @@
           fillBtn.textContent = (await engine.fill(s.fill)) ? 'Filled' : 'Partly filled';
         };
         box.querySelector('.tb-advance').before(fillBtn);
+        // Like the tour engine: a strip under the text says how to fill it in
+        const last = i === all.length - 1;
+        if (s.advanceOn === 'next') box.querySelector('.tb-pad').after(Object.assign(document.createElement('div'), { className: 'tb-hint', textContent: `Enter your own details in the highlighted area, or click Fill example. Then click ${last ? 'Done' : 'Next'}.` }));
       }
       // A "click the highlighted item" step: the click goes to the app (opening its menu, say), then on to the next step
       if (s.advanceOn === 'click' && els.length) previewClick = { els, go };
