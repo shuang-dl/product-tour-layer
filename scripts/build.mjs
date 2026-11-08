@@ -129,6 +129,17 @@ function validateTour(tour, file) {
 }
 
 // Reads and validates every tour in a folder (tours/).
+// When a tour file last changed, from git (YYYY-MM-DD), for the tours page. Null when git can't say (a new file not
+// committed yet, or no git history: CI checks out the whole history for this).
+function lastChanged(path) {
+  try {
+    return execFileSync('git', ['log', '-1', '--format=%cs', '--', path], { cwd: root, encoding: 'utf8' }).trim() || null;
+  } catch {
+    return null;
+  }
+}
+const updated = new Map(); // tour -> date it last changed
+
 async function loadTours(dir) {
   const files = (await readdir(join(root, dir))).filter((f) => f.endsWith('.json')).sort();
   const tours = [];
@@ -147,6 +158,7 @@ async function loadTours(dir) {
     }
     errors.push(...validateTour(tour, file).map((e) => `${dir}/${e}`));
     tours.push(tour);
+    updated.set(tour, lastChanged(`${dir}/${file}`));
   }
   const ids = tours.map((t) => t.id);
   ids.filter((id, i) => ids.indexOf(id) !== i).forEach((id) => errors.push(`${dir}: duplicate tour id "${id}"`));
@@ -165,8 +177,10 @@ if (errors.length) {
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist);
-await writeFile(join(dist, 'tours.json'), JSON.stringify({ tours }, null, 2));
-await writeFile(join(dist, 'drafts.json'), JSON.stringify({ tours: drafts }, null, 2)); // never bundled into the extension
+// The site's lists also say when each tour last changed (the tours page shows it); tour files don't hold it.
+const withDate = (list) => list.map((t) => ({ ...t, updated: updated.get(t) }));
+await writeFile(join(dist, 'tours.json'), JSON.stringify({ tours: withDate(tours) }, null, 2));
+await writeFile(join(dist, 'drafts.json'), JSON.stringify({ tours: withDate(drafts) }, null, 2)); // never bundled into the extension
 await copyFile(join(root, 'site/index.html'), join(dist, 'index.html'));
 
 // Chrome extension: everything it runs is bundled, nothing loads from a CDN.
