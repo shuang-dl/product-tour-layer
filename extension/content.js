@@ -49,7 +49,10 @@
         console.warn('[TourLayer] could not fetch draft tours', e);
       }
     }
-    window.TourLayer.init({ tours });
+    // Tour events go to the extension's background, which sends them to the test collector when one is set in the
+    // extension's menu (Reporting). Inside DoorLoop, DoorLoop's own code would do this with its analytics.
+    window.TourLayer.onEvent((event) => chrome.runtime.sendMessage({ type: 'tour-layer:track', event }).catch(() => {}));
+    window.TourLayer.init({ tours, context: { source: 'extension', extension: chrome.runtime.getManifest().version } });
     // A builder was open in this tab before the page reloaded: bring it back with the draft.
     const saved = window.TourBuilder.savedSession();
     if (saved) window.TourBuilder.open({ restore: saved });

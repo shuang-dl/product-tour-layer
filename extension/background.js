@@ -102,8 +102,64 @@ async function save({ path, content, message, mode }) {
   return { ok: true, commitUrl: done.commit?.html_url, fileUrl: done.content?.html_url };
 }
 
+// Reporting (test): tour events from DoorLoop tabs are queued here and sent in batches to the collector set in the
+// extension's menu (e.g. http://localhost:4174/events from npm run collector). No collector set: events are dropped.
+// Unsent events wait in storage (the newest 1000) and go with the next batch.
+const COLLECTOR = 'tourLayer.collector';
+const QUEUE = 'tourLayer.events';
+const MAX_QUEUE = 1000;
+const SEND_AFTER_MS = 5000;
+const RETRY_MS = 30000;
+let chain = Promise.resolve();
+const inTurn = (fn) => (chain = chain.then(fn, fn)); // one storage change at a time, so no event is lost
+let sendTimer = null;
+const sendSoon = (ms) => {
+  clearTimeout(sendTimer);
+  sendTimer = setTimeout(() => inTurn(send), ms);
+};
+
+async function track(event) {
+  const { [COLLECTOR]: url, [QUEUE]: queue = [] } = await chrome.storage.local.get([COLLECTOR, QUEUE]);
+  if (!url || !event || typeof event.type !== 'string') return { ok: true, queued: false };
+  await chrome.storage.local.set({ [QUEUE]: [...queue, event].slice(-MAX_QUEUE) });
+  // The end of a run goes straight away; the rest within a few seconds, together
+  sendSoon(/^tour_(finished|closed)$/.test(event.type) ? 0 : SEND_AFTER_MS);
+  return { ok: true, queued: true };
+}
+
+async function send() {
+  const { [COLLECTOR]: url, [QUEUE]: queue = [] } = await chrome.storage.local.get([COLLECTOR, QUEUE]);
+  if (!url || !queue.length) return;
+  try {
+    // text/plain keeps it a simple request (no CORS preflight); the body is JSON
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ events: queue }) });
+    if (!res.ok) throw new Error(`collector said ${res.status}`);
+    await chrome.storage.local.set({ [QUEUE]: [] });
+  } catch (e) {
+    console.warn('[TourLayer] could not send tour events; trying again later', e);
+    sendSoon(RETRY_MS);
+  }
+}
+
+async function collector() {
+  const { [COLLECTOR]: url = '', [QUEUE]: queue = [] } = await chrome.storage.local.get([COLLECTOR, QUEUE]);
+  return { url, waiting: queue.length };
+}
+async function setCollector(url) {
+  url = String(url || '').trim();
+  if (url && !/^https?:\/\/[^\s]+$/.test(url)) return { error: 'Enter a web address starting with http:// or https://' };
+  if (url) await chrome.storage.local.set({ [COLLECTOR]: url });
+  else await chrome.storage.local.remove([COLLECTOR, QUEUE]);
+  return collector();
+}
+chrome.runtime.onStartup.addListener(() => inTurn(send));
+
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   const run = {
+    // Only DoorLoop tabs (the content script) report tour events
+    'tour-layer:track': () => (sender.tab ? inTurn(() => track(msg.event)) : Promise.resolve({ error: 'not from a tab' })),
+    'tour-layer:collector-get': collector,
+    'tour-layer:collector-set': () => inTurn(() => setCollector(msg.url)),
     'tour-layer:github-status': status,
     'tour-layer:github-signin': startSignin,
     'tour-layer:github-signout': () => chrome.storage.local.remove([STORE, SIGNIN]).then(() => ({ ok: true })),

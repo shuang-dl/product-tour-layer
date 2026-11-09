@@ -3,6 +3,7 @@
 import { chromium } from 'playwright';
 import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1164,6 +1165,67 @@ try {
   check('a show-only last step on a panel (not a button) has no "click … to save it" note',
     (await title(pl)) === 'Panel' && (await pl.locator('.tl-note').count()) === 0);
   await pl.close();
+
+  // Reporting: tour events go from the tour, through the extension's background, to the test collector
+  const evFile = join(mkdtempSync(join(tmpdir(), 'tour-layer-events-')), 'events.ndjson');
+  const evPort = 4300 + Math.floor(Math.random() * 500);
+  const collector = spawn(process.execPath, [join(root, 'scripts/collector.mjs')], { env: { ...process.env, PORT: String(evPort), EVENTS_FILE: evFile }, stdio: 'ignore' });
+  try {
+    await new Promise((r) => setTimeout(r, 800));
+    const evUrl = `http://localhost:${evPort}/events`;
+    const menu = await ctx.newPage();
+    await menu.goto(`chrome-extension://${extId}/popup.html`);
+    const setTo = await menu.evaluate((url) => chrome.runtime.sendMessage({ type: 'tour-layer:collector-set', url }), evUrl);
+    const refused = await menu.evaluate(() => chrome.runtime.sendMessage({ type: 'tour-layer:collector-set', url: 'javascript:alert(1)' }));
+    check('reporting: the collector address is saved; anything but http(s) is refused', setTo.url === evUrl && !!refused.error, JSON.stringify({ setTo, refused }));
+    await ctx.unroute(TOURS_URL);
+    await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [{
+      id: 'report-test', title: 'Reporting', page: '/home', updated: '2026-11-01', steps: [
+        { title: 'Hello', text: 'A centred step' },
+        { target: "[data-cy='SideMenu-CreateNewMenu-Button']", title: 'Button', text: 'A highlighted button' },
+        { target: '#not-on-the-page', title: 'Gone', text: 'Its target is missing' },
+        { title: 'Bye', text: 'The last step' },
+      ],
+    }] }) }));
+    // Run 1: all the way through, past a step whose target is missing
+    const rp = await ctx.newPage();
+    await rp.goto('https://acme.app.doorloop.com/home?tour=report-test');
+    await title(rp);
+    for (const next of ['Button', 'Gone', 'Bye']) {
+      await rp.click('.driver-popover-next-btn');
+      await rp.waitForFunction((t) => document.querySelector('.driver-popover-title')?.textContent === t, next, { timeout: 15000 }).catch(() => {});
+    }
+    await rp.click('.driver-popover-next-btn');
+    // Run 2: on a record's page, closed with × on the first step
+    await rp.goto('https://acme.app.doorloop.com/properties/64f0c2a19b?tour=report-test');
+    await title(rp);
+    await rp.click('.driver-popover-close-btn');
+    let events = [];
+    for (let i = 0; i < 40 && events.filter((e) => /^tour_(finished|closed)$/.test(e.type)).length < 2; i++) {
+      await rp.waitForTimeout(250);
+      events = (await (await fetch(`${evUrl}?tour=report-test`)).json()).events;
+    }
+    const runs = [...new Set(events.map((e) => e.runId))];
+    const one = events.filter((e) => e.runId === runs[0]).map((e) => [e.type, e.step, e.how || e.anchor || e.reason].filter((x) => x !== undefined).join(':'));
+    const two = events.filter((e) => e.runId === runs[1]);
+    check('reporting: a run reports its start, each step (how it was found), a missing target, and the finish',
+      JSON.stringify(one) === JSON.stringify(['tour_started:link', 'step_shown:1:centred', 'step_shown:2:target', 'step_failed:3:target_missing', 'step_shown:3:missing', 'step_shown:4:centred', 'tour_finished:4:done']),
+      JSON.stringify(one));
+    const first = events[0] || {};
+    check('reporting: events carry the tour, its version, the run, the time and the extension as source',
+      runs.length === 2 && runs.every(Boolean) && first.tourStatus === 'live' && first.tourUpdated === '2026-11-01' && first.path === '/home' &&
+      first.context?.source === 'extension' && typeof first.at === 'string' && events.filter((e) => e.runId === runs[0]).every((e, i, a) => !i || e.ms >= a[i - 1].ms),
+      JSON.stringify(first));
+    check('reporting: closing with × reports the step it was closed on; record ids are left out of the path',
+      two.at(-1)?.type === 'tour_closed' && two.at(-1).step === 1 && two.at(-1).how === 'close' && two.every((e) => e.path === '/properties/:id'),
+      JSON.stringify(two.map((e) => [e.type, e.step, e.path])));
+    const left = await menu.evaluate(() => chrome.runtime.sendMessage({ type: 'tour-layer:collector-get' }));
+    check('reporting: nothing is left waiting once the collector has the events', left.waiting === 0, JSON.stringify(left));
+    await rp.close();
+    await menu.close();
+  } finally {
+    collector.kill();
+  }
 } finally {
   await ctx.close();
 }

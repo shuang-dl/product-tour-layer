@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.26.2. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.27.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -194,19 +194,45 @@ Only the extension's own menu can send these requests to the page; websites can'
 
 **Test the extension:** `npm install`, `npx playwright install chromium` (once), then `npm run build && npm test`. This loads the built extension into a headless Chromium and runs 89 checks against a stand-in DoorLoop page (`tests/mock-doorloop.html`) that copies the traps found on the real app: a field outline over its input, dropdowns mounted outside the field, a full-screen dialog that blocks outside clicks and asks before discarding, a scrolling menu with the same item twice, a wizard with a suggesting street field. The checks cover the engine (steps, groups, dropdowns, dialogs, sample data, show-only, exit clicks, auto-start, on-screen) and the live builder (picking, recording sample data, editing, saving). CI runs it on every push and pull request; publishing stops if it fails. Each check added for a bug was confirmed to fail without its fix. If a tour starts pointing at new DoorLoop elements, add them to the mock page.
 
+## Reporting
+
+Every run of a tour reports what happened, so we can see how often each tour is viewed, how many people finish it, where they stop, and which steps break. The tour engine only reports the events; whoever loads it decides where they go. Inside DoorLoop that would be DoorLoop's own analytics, with the signed-in user and account attached. For now the extension sends them to a test collector.
+
+**Events** (from `TourLayer.onEvent(fn)`; steps count from 1):
+
+| Event | When | Also has |
+|---|---|---|
+| `tour_started` | a run begins | `how`: `link`, `launcher`, `auto`, `preview` (builder or export) or `api` |
+| `step_shown` | a step appears | `step`, `total`, `anchor`: `target`, `clues` (found by its clues; the target needs updating), `missing` or `centred` |
+| `step_failed` | a step's target wasn't found in 8 seconds (it shows without a highlight) | `step`, `total`, `reason`: `target_missing` |
+| `tour_paused` | someone left the page mid-step | `step`, `total`, `reason`: `left_page` |
+| `tour_finished` | Done on the last step, or the form saved there | `step`, `total`, `how`: `done` or `saved` |
+| `tour_closed` | × or Stop tour before the end | `step`, `total`, `how`: `close` or `stop` |
+
+Every event also has `tourId`, `tourStatus` (`live` or `draft`), `tourUpdated` (the tour file's last change, when known), `runId` (one per run, kept across page loads), `ms` (since the run started), `at` (ISO time), `path` (with record ids replaced by `:id`), and `context` (whatever the host passed to `init`; the extension sends `{ source: 'extension', extension: <version> }`). A run with no `tour_finished` or `tour_closed` was left some other way, such as closing the tab. Nothing typed into DoorLoop and no page text is ever included. Reporting can't break a tour: a failing listener is logged and skipped.
+
+**Trying it with the extension:**
+1. `npm run collector` (keeps events in `data/events.ndjson`, which isn't committed).
+2. In the extension's menu, under **Reporting (test)**, enter `http://localhost:4174/events` and click **Save**.
+3. Play a tour on DoorLoop. Events are sent in batches within a few seconds, and right away when a run ends; if the collector is down they wait (the newest 1000) and go with the next batch.
+4. See them at `http://localhost:4174/events` (one tour: `?tour=<id>`).
+
+Leave the field empty to turn reporting off; nothing is kept then.
+
 ## Layout
 
 | Path | |
 |---|---|
-| `src/tour-layer.js` | the engine (`TourLayer.init`, `start`, `run`, `stop`) |
+| `src/tour-layer.js` | the engine (`TourLayer.init`, `start`, `run`, `stop`, `onEvent`) |
 | `src/builder.js` | the tour builder, opened by the extension on DoorLoop |
 | `src/export.js`, `src/gif.js` | exporting a tour as a video or GIF, and the GIF encoder (extension only) |
 | `tours/*.json` | one file per tour on real DoorLoop |
 | `site/index.html` | tours page: setup, then live tours and drafts as tables (from `tours.json` and `drafts.json`) |
-| `extension/` | Chrome extension manifest, loader (`content.js`), the icon's menu (`popup.html`, `popup.js`), icons, and the background worker (`background.js`: GitHub sign-in and saving) |
+| `extension/` | Chrome extension manifest, loader (`content.js`), the icon's menu (`popup.html`, `popup.js`), icons, and the background worker (`background.js`: GitHub sign-in and saving, and sending tour events) |
 | `vendor/driver.js/` | highlight/popover library (MIT), bundled into the extension |
 | `scripts/build.mjs` | validation + build site and extension into `dist/` |
 | `scripts/serve.mjs` | serves `dist/` locally the way GitHub Pages does |
+| `scripts/collector.mjs` | test collector for tour events (`npm run collector`) |
 | `tests/` | extension test (Playwright) and the mock DoorLoop page it runs against |
 | `.github/workflows/pages.yml` | validate on PRs, publish to GitHub Pages on `main` |
 
@@ -220,6 +246,6 @@ Future ideas, such as a visual tour builder, are collected in [IDEAS.md](IDEAS.m
 
 ## Path to production
 
-The extension only does three things: load driver.js, load `tour-layer.js`, and call `TourLayer.init({ tours })` (see `extension/content.js`). If DoorLoop's app did the same, customers would get tours with nothing to install. The engine and tour files carry over unchanged.
+The extension only does three things: load driver.js, load `tour-layer.js`, and call `TourLayer.init({ tours })` (see `extension/content.js`). If DoorLoop's app did the same, customers would get tours with nothing to install. The engine and tour files carry over unchanged. For reporting, DoorLoop's code would add `TourLayer.onEvent((e) => /* send to DoorLoop's analytics */)` and pass the signed-in user and account as `context` (an object, or a function returning one) to `init`; see [Reporting](#reporting).
 
 Before that, engineering would want: hosting on a DoorLoop-controlled domain, a security review, targeting by role/plan (passed to `init`), per-user "seen" state stored with the account (today `autoStart` remembers per browser), analytics events, a kill switch, and a decision on driver.js (replace it with our own spotlight, or keep it).

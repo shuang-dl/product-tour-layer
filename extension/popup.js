@@ -66,11 +66,31 @@ function githubSection() {
   return el('section', {}, [el('h2', { textContent: 'GitHub' }), body]);
 }
 
+// Reporting (test): where tour events go. Inside DoorLoop they'd go to DoorLoop's own analytics; here, to a test
+// collector (npm run collector). Empty: events aren't kept.
+function reportingSection() {
+  const url = el('input', { type: 'text', placeholder: 'http://localhost:4174/events' });
+  const save = el('button', { className: 'quiet', textContent: 'Save', style: 'flex: none' });
+  const status = el('p');
+  const show = (s) => {
+    if (s.error) return status.replaceChildren(el('span', { className: 'error', textContent: s.error }));
+    url.value = s.url;
+    status.textContent = s.url ? `Tour events go here.${s.waiting ? ` ${s.waiting} waiting to send.` : ''}` : 'Off: tour events are not kept.';
+  };
+  save.onclick = async () => show(await chrome.runtime.sendMessage({ type: 'tour-layer:collector-set', url: url.value }));
+  url.onkeydown = (e) => {
+    if (e.key === 'Enter') save.click();
+  };
+  background('tour-layer:collector-get').then(show);
+  return el('section', {}, [el('h2', { textContent: 'Reporting (test)' }), el('div', { className: 'row' }, [url, save]), status]);
+}
+
 function notOnDoorLoop() {
   main.replaceChildren(
     el('p', { textContent: 'Open DoorLoop to build or edit tours. The menu works on any DoorLoop page.' }),
     el('button', { textContent: 'Open DoorLoop', onclick: () => chrome.tabs.create({ url: 'https://app.doorloop.com/' }).then(() => window.close()) }),
-    githubSection()
+    githubSection(),
+    reportingSection()
   );
 }
 
@@ -116,7 +136,8 @@ function render(tab, info) {
     el('section', {}, [el('h2', { textContent: 'New tour' }), name, build]),
     el('section', {}, [el('h2', { textContent: 'Edit a tour' }), ...(pick.options.length ? [pick] : [el('p', { textContent: 'No tours yet.' })]), edit]),
     el('section', {}, [el('h2', { textContent: 'Drafts' }), el('label', { className: 'switch' }, [drafts, 'Show drafts on DoorLoop (reloads the page)'])]),
-    githubSection()
+    githubSection(),
+    reportingSection()
   );
   name.focus();
 }

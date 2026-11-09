@@ -1,5 +1,6 @@
 // Product Tour Layer: runs guided tours on top of DoorLoop without changing DoorLoop's code.
-// Load vendor/driver.js (JS + CSS) first, then: TourLayer.init({ tours, basePath? }).
+// Load vendor/driver.js (JS + CSS) first, then: TourLayer.init({ tours, basePath?, context? }).
+// Reporting: TourLayer.onEvent(fn) calls fn with each tour event (see track below); the host app decides where they go.
 (function () {
   'use strict';
   if (window.TourLayer) return;
@@ -166,10 +167,12 @@
     }
   };
   const saveState = (state) => sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
-  // Moving to a step keeps the note that this tour filled in sample data (see fillSample and endTour).
+  // Moving to a step keeps the note that this tour filled in sample data (see fillSample and endTour), and the run's
+  // id and start time (see track).
   const saveStep = (tour, step) => {
     const prev = loadState();
-    saveState({ tourId: tour.id, step, ...(prev && prev.tourId === tour.id && prev.sampleUsed ? { sampleUsed: true } : {}) });
+    const same = prev && prev.tourId === tour.id;
+    saveState({ tourId: tour.id, step, ...(same && prev.sampleUsed ? { sampleUsed: true } : {}), ...(same && prev.runId ? { runId: prev.runId, startedAt: prev.startedAt } : {}) });
   };
   const clearState = () => sessionStorage.removeItem(STATE_KEY);
   const findTour = (id) => tours.find((t) => t.id === id);
@@ -386,10 +389,64 @@
   // recording (src/export.js) and, later, reporting.
   const announce = (type, detail) => dispatchEvent(new CustomEvent(`tourlayer:${type}`, { detail }));
 
-  function endTour(finished = false) {
+  // ---------- reporting ----------
+
+  // Each run of a tour reports what happened, to every function given to TourLayer.onEvent:
+  //   tour_started  { how: 'link' | 'launcher' | 'auto' | 'preview' | 'api' }
+  //   step_shown    { step, total, anchor: 'target' | 'clues' | 'missing' | 'centred' }
+  //   step_failed   { step, total, reason: 'target_missing' }   (the step then shows without a highlight)
+  //   tour_paused   { step, total, reason: 'left_page' }
+  //   tour_finished { step, total, how: 'done' | 'saved' }
+  //   tour_closed   { step, total, how: 'close' | 'stop' }
+  // Every event also has tourId, tourStatus, tourUpdated (when known), runId (one per run, kept across page loads),
+  // ms (since the run started), at (ISO time), path (record ids replaced by :id) and the host's context, if any.
+  // A run with no tour_finished or tour_closed was left another way (tab closed, another tour started).
+  // Steps count from 1. Nothing typed into the app, and no page text, is ever included.
+  const listeners = new Set();
+  let context = null; // from init: an object, or a function returning one (e.g. the signed-in user and account)
+  const newId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+  // A path segment with a digit in it and 6+ characters (or only digits) is a record id: /tenants/64f0c2… → /tenants/:id
+  const scrubPath = (path) => path.split('/').map((s) => (/^\d+$/.test(s) || (s.length >= 6 && /\d/.test(s)) ? ':id' : s)).join('/');
+  function track(type, tour, extra) {
+    if (!listeners.size || !tour) return;
+    const state = loadState();
+    const run = state && state.tourId === tour.id ? state : null;
+    const event = {
+      type, tourId: tour.id, tourStatus: tour.status === 'draft' ? 'draft' : 'live', ...(tour.updated ? { tourUpdated: tour.updated } : {}),
+      runId: (run && run.runId) || null, ms: run && run.startedAt ? Date.now() - run.startedAt : 0,
+      at: new Date().toISOString(), path: scrubPath(currentPath()), ...extra,
+    };
+    try {
+      const ctx = typeof context === 'function' ? context() : context;
+      if (ctx) event.context = ctx;
+    } catch (e) {
+      console.warn('[TourLayer] context failed', e);
+    }
+    // Reporting must never break a tour
+    for (const fn of listeners) {
+      try {
+        fn(event);
+      } catch (e) {
+        console.warn('[TourLayer] event listener failed', e);
+      }
+    }
+  }
+  // A new run of a tour, from its first step.
+  function begin(tour, how) {
+    saveState({ tourId: tour.id, step: 0, runId: newId(), startedAt: Date.now() });
+    track('tour_started', tour, { how });
+    goTo(tour, 0);
+  }
+
+  // how: 'done' (Done on the last step), 'saved' (saved the form on the last step), 'close' (×) or 'stop' (Stop tour)
+  function endTour(finished = false, how = finished ? 'done' : 'close') {
     runToken++;
     const state = loadState();
     const tour = state && findTour(state.tourId);
+    if (tour) {
+      const at = { step: Math.min(state.step, tour.steps.length - 1) + 1, total: tour.steps.length };
+      track(finished || how === 'saved' ? 'tour_finished' : 'tour_closed', tour, { ...at, how });
+    }
     if (tour) announce('end', { tourId: tour.id, step: state.step, finished });
     if (tour) markSeen(tour.id);
     // Leave the form the tour went through, without saving, once the highlight is gone: always after Done, and after
@@ -434,11 +491,12 @@
     }
     if (step.target && !el) {
       console.warn(`[TourLayer] ${tour.id} step ${index + 1}: target not found, showing it unanchored`, step.target);
+      track('step_failed', tour, { step: index + 1, total: tour.steps.length, reason: 'target_missing' });
     }
-    showStep(tour, index, el);
+    showStep(tour, index, el, !el ? (step.target ? 'missing' : 'centred') : step.clues && !findTarget(step.target) ? 'clues' : 'target');
   }
 
-  function showStep(tour, index, el) {
+  function showStep(tour, index, el, anchorBy) {
     const step = tour.steps[index];
     const total = tour.steps.length;
     const clickToAdvance = step.advanceOn === 'click' && el;
@@ -503,6 +561,7 @@
 
     if (el) stepDialog = (Array.isArray(el) ? el[0] : el).closest('[role=dialog]') || stepDialog;
     announce('step', { tourId: tour.id, index, total });
+    track('step_shown', tour, { step: index + 1, total, anchor: anchorBy });
     if (anchor) ringOver(anchor, el);
     placing = { anchor, placement: step.placement };
     requestAnimationFrame(() => requestAnimationFrame(placeBox)); // right after driver.js places it
@@ -511,7 +570,7 @@
     if (canSave) {
       // Saving ends the tour, leaving the form as it is (no exit clicks); the click itself goes on to the app.
       const token = runToken;
-      const onSave = () => token === runToken && setTimeout(() => endTour(), 0);
+      const onSave = () => token === runToken && setTimeout(() => endTour(false, 'saved'), 0);
       for (const t of Array.isArray(el) ? el : [el]) t.addEventListener('click', onSave, { once: true, capture: true });
     }
 
@@ -702,12 +761,14 @@
         if (!driverObj) goTo(tour, state.step);
         return;
       }
-      destroyDriver(); // navigated away mid-tour: pause, launcher offers Resume
+      // navigated away mid-tour: pause, launcher offers Resume
+      if (driverObj) track('tour_paused', tour, { step: state.step + 1, total: tour.steps.length, reason: 'left_page' });
+      destroyDriver();
     }
     // Not while the tour builder is open on this page (it keeps its draft under this key).
     const auto = !step && !driverObj && !sessionStorage.getItem('tourLayer.builder') &&
       tours.find((t) => t.autoStart && pageMatches(t.page, currentPath()) && !seen(t.id));
-    if (auto) return goTo(auto, 0);
+    if (auto) return begin(auto, 'auto');
     renderLauncher();
   }
 
@@ -789,13 +850,13 @@
           if (!page || pageMatches(page, currentPath())) return goTo(paused, state.step);
           // Reloads the app on the step's page; the saved state picks the tour back up.
           if (page.includes('*')) {
-            saveState({ tourId: paused.id, step: 0 });
+            saveState({ ...state, step: 0 });
             location.assign(basePath + paused.page);
           } else {
             location.assign(basePath + page);
           }
         }),
-        item('Stop tour', null, () => endTour())
+        item('Stop tour', null, () => endTour(false, 'stop'))
       );
     }
     // Drafts only load for people who turned on Show drafts; list them apart so they're never mistaken for live tours.
@@ -803,11 +864,11 @@
     const drafts = here.filter((t) => t.status === 'draft');
     if (live.length) {
       panel.append(el('div', { className: 'tour-layer-heading', textContent: 'Tours for this page' }));
-      live.forEach((t) => panel.append(item(t.title, t.description, () => goTo(t, 0))));
+      live.forEach((t) => panel.append(item(t.title, t.description, () => begin(t, 'launcher'))));
     }
     if (drafts.length) {
       panel.append(el('div', { className: 'tour-layer-heading', textContent: 'Drafts (not live yet)' }));
-      drafts.forEach((t) => panel.append(item(t.title, t.description, () => goTo(t, 0))));
+      drafts.forEach((t) => panel.append(item(t.title, t.description, () => begin(t, 'launcher'))));
     }
 
     const toggle = el('button', {
@@ -823,6 +884,7 @@
     if (!(window.driver && window.driver.js)) throw new Error('[TourLayer] load vendor/driver.js before tour-layer.js');
     tours = options.tours;
     basePath = options.basePath || '';
+    context = options.context || null;
     const draft = loadDraft();
     if (isTour(draft)) tours = [...tours.filter((t) => t.id !== draft.id), draft];
     document.head.append(el('style', { textContent: STYLE }));
@@ -836,7 +898,7 @@
       history.replaceState(history.state, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
     }
     if (requested && findTour(requested)) {
-      goTo(findTour(requested), 0);
+      begin(findTour(requested), 'link');
     } else {
       if (requested) console.warn(`[TourLayer] no tour with id "${requested}"`);
       onRoute();
@@ -853,7 +915,7 @@
   function start(id) {
     const tour = findTour(id);
     if (!tour) return console.warn(`[TourLayer] no tour with id "${id}"`);
-    goTo(tour, 0);
+    begin(tour, 'api');
   }
 
   // Run a tour that isn't in the published list (a draft from the tour builder).
@@ -861,14 +923,19 @@
     if (!isTour(tour)) return console.warn('[TourLayer] ignored a draft tour with missing fields', tour);
     sessionStorage.setItem(DRAFT_KEY, JSON.stringify(tour));
     tours = [...tours.filter((t) => t.id !== tour.id), tour];
-    goTo(tour, 0);
+    begin(tour, 'preview');
   }
 
   window.TourLayer = {
     init,
     start,
     run,
-    stop: () => endTour(),
+    stop: () => endTour(false, 'stop'),
+    // Reporting: fn(event) for each tour event; returns a function that stops it.
+    onEvent: (fn) => {
+      listeners.add(fn);
+      return () => listeners.delete(fn);
+    },
     fill: (items) => fillAll(items), // the tour builder's preview uses it for a step's sample data
     get tours() {
       return tours;

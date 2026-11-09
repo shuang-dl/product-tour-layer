@@ -8,7 +8,7 @@ type: note
 
 Where the product tour proof of concept stands, how it got here, and what's still open. For how to use it, see the [README](README.md).
 
-**As of November 8, 2026:** extension 0.26.2, 6 live tours and 4 drafts for DoorLoop, 150 automated checks, all passing.
+**As of November 9, 2026:** extension 0.27.0, 6 live tours and 5 drafts for DoorLoop, 155 automated checks, all passing.
 
 ## What it is
 
@@ -107,5 +107,5 @@ Each of these was found by running a tour on DoorLoop. The engine and builder pr
   - a security review;
   - targeting by role or plan;
   - "seen" state stored per user rather than per browser;
-  - analytics;
+  - reporting: the engine now reports each run (started, each step, failed steps, finished or closed; see the README's Reporting section). Inside DoorLoop, DoorLoop's code would send these to its own analytics with the user and account attached; until then a test collector stands in. The report pages (all tours, then one tour's step funnel) are next;
   - a kill switch.
