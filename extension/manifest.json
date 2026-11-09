@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DoorLoop Product Tours",
-  "version": "0.27.0",
+  "version": "0.27.1",
   "description": "Guided product tours on top of DoorLoop. Internal proof of concept.",
   "icons": {
     "16": "icon-16.png",
@@ -28,7 +28,9 @@
   "host_permissions": [
     "https://*.app.doorloop.com/*",
     "https://github.com/*",
-    "https://api.github.com/*"
+    "https://api.github.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
   "content_scripts": [
     {

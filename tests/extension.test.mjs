@@ -14,6 +14,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EXT = mkdtempSync(join(tmpdir(), 'tour-layer-ext-'));
 cpSync(join(root, 'dist/extension'), EXT, { recursive: true });
 const manifest = JSON.parse(readFileSync(join(EXT, 'manifest.json'), 'utf8'));
+// Chrome blocks an extension's requests to this computer (the test collector) unless it may reach localhost; the
+// copy's <all_urls> would hide that, so check the real manifest first.
+const localhostAllowed = ['http://localhost/*', 'http://127.0.0.1/*'].every((p) => manifest.host_permissions.includes(p));
 manifest.host_permissions.push('<all_urls>');
 writeFileSync(join(EXT, 'manifest.json'), JSON.stringify(manifest));
 const MOCK = readFileSync(join(root, 'tests/mock-doorloop.html'), 'utf8');
@@ -1177,6 +1180,7 @@ try {
     await menu.goto(`chrome-extension://${extId}/popup.html`);
     const setTo = await menu.evaluate((url) => chrome.runtime.sendMessage({ type: 'tour-layer:collector-set', url }), evUrl);
     const refused = await menu.evaluate(() => chrome.runtime.sendMessage({ type: 'tour-layer:collector-set', url: 'javascript:alert(1)' }));
+    check('reporting: the extension may send to a collector on this computer (localhost)', localhostAllowed);
     check('reporting: the collector address is saved; anything but http(s) is refused', setTo.url === evUrl && !!refused.error, JSON.stringify({ setTo, refused }));
     await ctx.unroute(TOURS_URL);
     await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [{
