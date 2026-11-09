@@ -1,0 +1,109 @@
+{
+  "id": "creating-a-new-prospect",
+  "title": "Creating a New Prospect",
+  "status": "draft",
+  "page": "/home",
+  "style": {
+    "frame": "#0b1f44",
+    "bandText": "#ffffff",
+    "button": "#d8f34a",
+    "buttonText": "#0b1f44",
+    "bodyText": "#1b1d21",
+    "bodyBg": "#ffffff",
+    "footerHeight": 56,
+    "titleSize": "h2",
+    "titleAlign": "left",
+    "textAlign": "left"
+  },
+  "steps": [
+    {
+      "target": "[data-cy='SideMenu-CreateNewMenu-Button']",
+      "clues": {
+        "tag": "button",
+        "text": "Create new",
+        "role": "button"
+      },
+      "title": "Click “Create new”",
+      "text": "Click Create new.",
+      "advanceOn": "click"
+    },
+    {
+      "target": "button[data-section-value='people']",
+      "clues": {
+        "tag": "button",
+        "text": "People",
+        "role": "button"
+      },
+      "title": "Click “People”",
+      "text": "Click People.",
+      "advanceOn": "click"
+    },
+    {
+      "target": "[data-item-id='prospect']",
+      "clues": {
+        "tag": "div",
+        "text": "Prospect",
+        "role": "button"
+      },
+      "title": "Click “Prospect”",
+      "text": "Click Prospect.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/home/global-new/prospects/new",
+      "target": "[data-cy='firstName']",
+      "clues": {
+        "tag": "div",
+        "text": "First name",
+        "role": "div"
+      },
+      "title": "Enter First name",
+      "text": "Type First name.",
+      "fill": [
+        {
+          "target": "[data-cy='firstName']",
+          "clues": {
+            "tag": "div",
+            "text": "First name",
+            "role": "div"
+          },
+          "value": "Samuel"
+        }
+      ]
+    },
+    {
+      "page": "/home/global-new/prospects/new",
+      "target": "[data-cy='lastName']",
+      "clues": {
+        "tag": "div",
+        "text": "Last name",
+        "role": "div"
+      },
+      "title": "Enter Last name",
+      "text": "Type Last name.",
+      "fill": [
+        {
+          "target": "[data-cy='lastName']",
+          "clues": {
+            "tag": "div",
+            "text": "Last name",
+            "role": "div"
+          },
+          "value": "H"
+        }
+      ]
+    },
+    {
+      "page": "/home/global-new/prospects/new",
+      "target": "[data-cy='Action-Button-Save']",
+      "clues": {
+        "tag": "button",
+        "text": "Save",
+        "role": "button"
+      },
+      "title": "Click Save",
+      "text": "Last step to finish creating a prospect.",
+      "showOnly": true
+    }
+  ]
+}
