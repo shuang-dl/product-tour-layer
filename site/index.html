@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DoorLoop Product Tours</title>
   <style>
-    :root { --bg: #f6f8fb; --card: #fff; --text: #1a1a1a; --muted: #5b6472; --accent: #1665d8; --border: #e2e7ef; }
+    :root { --bg: #f6f8fb; --card: #fff; --text: #1a1a1a; --muted: #5b6472; --accent: #1665d8; --border: #e2e7ef; --danger: #c62828; }
     @media (prefers-color-scheme: dark) {
-      :root { --bg: #11151c; --card: #1a2029; --text: #e8ecf2; --muted: #9aa4b2; --accent: #5b9bff; --border: #2a323e; }
+      :root { --bg: #11151c; --card: #1a2029; --text: #e8ecf2; --muted: #9aa4b2; --accent: #5b9bff; --border: #2a323e; --danger: #ff6b6b; }
     }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, sans-serif; }
@@ -41,6 +41,8 @@
     .acts { display: flex; flex-wrap: wrap; gap: 6px; }
     .acts a, .acts button { font: inherit; font-size: 13px; font-weight: 600; text-decoration: none; color: var(--accent); background: none; border: 1px solid var(--accent); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
     .acts a:hover, .acts button:hover { background: var(--accent); color: #fff; }
+    .acts a.del { color: var(--danger); border-color: var(--danger); }
+    .acts a.del:hover { background: var(--danger); color: #fff; }
     .empty { color: var(--muted); }
   </style>
 </head>
@@ -68,6 +70,9 @@
     <p>Tours that aren't live yet. Only people who turn on <strong>Show drafts</strong> see them on DoorLoop, in that browser: <a href="https://app.doorloop.com/home?drafts=on" target="_blank" rel="noopener">turn on</a> · <a href="https://app.doorloop.com/home?drafts=off" target="_blank" rel="noopener">turn off</a>. <strong>Preview</strong> runs a draft and turns Show drafts on; <strong>Copy</strong> copies its permanent link, to share once it's live.</p>
     <p>To make a draft live, click <strong>Approve</strong> (it opens the tour's file on GitHub), change <code>"status": "draft"</code> to <code>"status": "live"</code>, and commit; or click <strong>Edit</strong> and set Status to Live under ⋯ More before saving. It goes live for everyone once published.</p>
     <div class="cards" id="drafts"><p class="empty">Loading drafts…</p></div>
+
+    <h2>Deleting a tour</h2>
+    <p><strong>Delete</strong> on a card opens GitHub's Delete file page for that tour; click <strong>Commit changes</strong> there and it's gone from this page and from DoorLoop a minute later. Deleting a live tour breaks links already shared for it, so if someone might still use it, switch it back to a draft instead (<strong>Edit</strong>, then Status under ⋯ More). GitHub keeps the file's history, so a deleted tour can be brought back.</p>
   </main>
   <script>
     const DOORLOOP = 'https://app.doorloop.com';
@@ -99,7 +104,9 @@
           copy,
           // Edit: the extension sees ?edit-tour= on DoorLoop and opens the builder with this tour
           link('Edit', `${DOORLOOP}${t.page}?edit-tour=${encodeURIComponent(t.id)}`),
-          ...(draft ? [link('Approve', `https://github.com/shuang-dl/product-tour-layer/edit/main/tours/${encodeURIComponent(t.id)}.json`)] : [])));
+          ...(draft ? [link('Approve', `https://github.com/shuang-dl/product-tour-layer/edit/main/tours/${encodeURIComponent(t.id)}.json`)] : []),
+          // Delete: GitHub's own "Delete file" page for the tour file; nothing is deleted until you commit there
+          Object.assign(link('Delete', `https://github.com/shuang-dl/product-tour-layer/delete/main/tours/${encodeURIComponent(t.id)}.json`), { className: 'del', title: 'Opens GitHub to delete this tour (you confirm there)' })));
       return el('div', { className: draft ? 'flip draft' : 'flip', tabIndex: 0 }, el('div', { className: 'flip-in' }, front, back));
     }
     function show(id, url, draft, none) {
