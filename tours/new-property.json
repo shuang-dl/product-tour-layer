@@ -1,0 +1,194 @@
+{
+  "id": "new-property",
+  "title": "New property",
+  "status": "draft",
+  "page": "/home",
+  "style": {
+    "frame": "#0b1f44",
+    "bandText": "#ffffff",
+    "button": "#d8f34a",
+    "buttonText": "#0b1f44",
+    "bodyText": "#1b1d21",
+    "bodyBg": "#ffffff",
+    "footerHeight": 56,
+    "titleSize": "h2",
+    "titleAlign": "left",
+    "textAlign": "left"
+  },
+  "steps": [
+    {
+      "target": "[data-cy='SideMenu-CreateNewMenu-Button']",
+      "clues": {
+        "tag": "button",
+        "text": "Create new",
+        "role": "button"
+      },
+      "title": "Click “Create new”",
+      "text": "Click Create new.",
+      "advanceOn": "click"
+    },
+    {
+      "target": "button[data-section-value='rentals']",
+      "clues": {
+        "tag": "button",
+        "text": "Rentals",
+        "role": "button"
+      },
+      "title": "Click “Rentals”",
+      "text": "Click Rentals.",
+      "advanceOn": "click"
+    },
+    {
+      "target": "[data-item-id='property']",
+      "clues": {
+        "tag": "div",
+        "text": "Property",
+        "role": "button"
+      },
+      "title": "Click “Property”",
+      "text": "Click Property.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='NewProperty-Selection-Residential']",
+      "clues": {
+        "tag": "button",
+        "text": "Residential",
+        "role": "button"
+      },
+      "title": "Click “Residential”",
+      "text": "Click Residential.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='NewProperty-Selection-MultiFamily']",
+      "clues": {
+        "tag": "button",
+        "text": "Multi-Family",
+        "role": "button"
+      },
+      "title": "Click “Multi-Family”",
+      "text": "Click Multi-Family.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='BottomNavigationPanel-NextButton']",
+      "clues": {
+        "tag": "button",
+        "text": "Next",
+        "role": "button"
+      },
+      "title": "Click “Next”",
+      "text": "Click Next.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='street1']",
+      "clues": {
+        "tag": "div",
+        "text": "Street 1 *",
+        "role": "div"
+      },
+      "title": "Enter Street 1",
+      "text": "Type Street 1.",
+      "fill": [
+        {
+          "target": "[data-cy='street1']",
+          "clues": {
+            "tag": "div",
+            "text": "Street 1 *",
+            "role": "div"
+          },
+          "value": "6001 Washing",
+          "pick": "6001 Washington Ave Whittier, CA, 90601"
+        }
+      ]
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='BottomNavigationPanel-NextButton']",
+      "clues": {
+        "tag": "button",
+        "text": "Next",
+        "role": "button"
+      },
+      "title": "Click “Next”",
+      "text": "Click Next.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='units[0].name']",
+      "clues": {
+        "tag": "div",
+        "text": "Unit name *",
+        "role": "div"
+      },
+      "title": "Enter Unit name",
+      "text": "Type Unit name.",
+      "fill": [
+        {
+          "target": "[data-cy='units[0].name']",
+          "clues": {
+            "tag": "div",
+            "text": "Unit name *",
+            "role": "div"
+          },
+          "value": "546"
+        }
+      ]
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='BottomNavigationPanel-NextButton']",
+      "clues": {
+        "tag": "button",
+        "text": "Next",
+        "role": "button"
+      },
+      "title": "Click “Next”",
+      "text": "Click Next.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='BottomNavigationPanel-NextButton']",
+      "clues": {
+        "tag": "button",
+        "text": "Next",
+        "role": "button"
+      },
+      "title": "Click “Next”",
+      "text": "Click Next.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='NewProperty-Ownership-OwnedByMe']",
+      "clues": {
+        "tag": "button",
+        "text": "Self-owned",
+        "role": "button"
+      },
+      "title": "Click “Self-owned”",
+      "text": "Click Self-owned.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/properties/new",
+      "target": "[data-cy='BottomNavigationPanel-NextButton']",
+      "clues": {
+        "tag": "button",
+        "text": "Finish",
+        "role": "button"
+      },
+      "title": "Finish",
+      "text": "rgarharharha",
+      "showOnly": true
+    }
+  ]
+}
