@@ -69,13 +69,15 @@ function githubSection() {
 // Reporting (test): where tour events go. Inside DoorLoop they'd go to DoorLoop's own analytics; here, to a test
 // collector (npm run collector). Empty: events aren't kept.
 function reportingSection() {
-  const url = el('input', { type: 'text', placeholder: 'http://localhost:4174/events' });
+  // No example address as a placeholder: grey text in the box looks like it's already filled in
+  const url = el('input', { type: 'text', placeholder: 'Collector address' });
   const save = el('button', { className: 'quiet', textContent: 'Save', style: 'flex: none' });
   const status = el('p');
   const show = (s) => {
     if (s.error) return status.replaceChildren(el('span', { className: 'error', textContent: s.error }));
     url.value = s.url;
-    status.textContent = s.url ? `Tour events go here.${s.waiting ? ` ${s.waiting} waiting to send.` : ''}` : 'Off: tour events are not kept.';
+    status.textContent = s.url ? `Tour events go here.${s.waiting ? ` ${s.waiting} waiting to send.` : ''}`
+      : 'Off: tour events are not kept. For the test collector (npm run collector), type http://localhost:4174/events and click Save.';
   };
   save.onclick = async () => show(await chrome.runtime.sendMessage({ type: 'tour-layer:collector-set', url: url.value }));
   url.onkeydown = (e) => {
