@@ -1,0 +1,113 @@
+{
+  "id": "wallet-fund-transfer",
+  "title": "Wallet Fund Transfer",
+  "status": "draft",
+  "page": "/home",
+  "style": {
+    "frame": "#0b1f44",
+    "bandText": "#ffffff",
+    "button": "#d8f34a",
+    "buttonText": "#0b1f44",
+    "bodyText": "#1b1d21",
+    "bodyBg": "#ffffff",
+    "footerHeight": 56,
+    "titleSize": "h2",
+    "titleAlign": "left",
+    "textAlign": "left"
+  },
+  "steps": [
+    {
+      "target": {
+        "text": "DoorLoop Wallet",
+        "selector": "a"
+      },
+      "clues": {
+        "tag": "a",
+        "text": "DoorLoop Wallet",
+        "role": "a",
+        "href": "/wallets"
+      },
+      "title": "Click “DoorLoop Wallet”",
+      "text": "Click DoorLoop Wallet.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/wallets",
+      "target": "button[aria-label='Row actions']",
+      "clues": {
+        "tag": "button",
+        "aria": "Row actions",
+        "role": "button"
+      },
+      "title": "Click “Row actions”",
+      "text": "Click Row actions.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/wallets",
+      "target": {
+        "text": "Wire transfer details",
+        "selector": "button"
+      },
+      "clues": {
+        "tag": "button",
+        "text": "Wire transfer details",
+        "role": "menuitem"
+      },
+      "title": "Click “Wire transfer details”",
+      "text": "Click Wire transfer details.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/wallets",
+      "target": [
+        "[data-testid='WalletWireDetails-AccountName']",
+        "[data-testid='WalletWireDetails-AccountHolderName']",
+        "[data-testid='WalletWireDetails-BankName']",
+        "[data-testid='WalletWireDetails-RoutingNumber']",
+        "button[aria-label='Copy Routing number']",
+        "[data-testid='WalletWireDetails-AccountNumber']",
+        "[data-testid='WalletWireDetails-ToggleAccountNumber']"
+      ],
+      "clues": [
+        {
+          "tag": "span",
+          "text": "DoorLoop Wallet - KBM2025 LLC",
+          "role": "span"
+        },
+        {
+          "tag": "span",
+          "text": "KBM2025 LLC",
+          "role": "span"
+        },
+        {
+          "tag": "span",
+          "text": "—",
+          "role": "span"
+        },
+        {
+          "tag": "span",
+          "text": "000000000",
+          "role": "span"
+        },
+        {
+          "tag": "button",
+          "aria": "Copy Routing number",
+          "role": "button"
+        },
+        {
+          "tag": "span",
+          "text": "· · · · · · 0000",
+          "role": "span"
+        },
+        {
+          "tag": "button",
+          "aria": "Show account number",
+          "role": "button"
+        }
+      ],
+      "title": "Account details",
+      "text": "fhdfhndaa"
+    }
+  ]
+}
