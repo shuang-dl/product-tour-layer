@@ -77,7 +77,7 @@ function reportingSection() {
     if (s.error) return status.replaceChildren(el('span', { className: 'error', textContent: s.error }));
     url.value = s.url;
     status.textContent = s.url ? `Tour events go here.${s.waiting ? ` ${s.waiting} waiting to send.` : ''}`
-      : 'Off: tour events are not kept. For the test collector (npm run collector), type http://localhost:4174/events and click Save.';
+      : 'Off: tour events are not kept. Type https://tour-reports.shuang.apps.deploybay.doorloop.com/events (DeployBay, needs the VPN) or http://localhost:4174/events (npm run collector), then click Save.';
   };
   save.onclick = async () => show(await chrome.runtime.sendMessage({ type: 'tour-layer:collector-set', url: url.value }));
   url.onkeydown = (e) => {

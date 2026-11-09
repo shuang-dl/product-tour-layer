@@ -1,0 +1,12 @@
+{
+  "name": "tour-reports",
+  "private": true,
+  "type": "module",
+  "description": "Receives tour events and shows the tour report pages (DeployBay app tour-reports).",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "pg": "8.13.1"
+  }
+}

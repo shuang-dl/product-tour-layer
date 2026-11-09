@@ -103,7 +103,9 @@ async function save({ path, content, message, mode }) {
 }
 
 // Reporting (test): tour events from DoorLoop tabs are queued here and sent in batches to the collector set in the
-// extension's menu (e.g. http://localhost:4174/events from npm run collector). No collector set: events are dropped.
+// extension's menu: the tour-reports app on DeployBay, or http://localhost:4174/events (npm run collector). No collector
+// set: events are dropped. DeployBay apps need the VPN and a DoorLoop sign-in, so the request carries this browser's
+// cookies; a sign-in page instead of the app's answer counts as a failed send.
 // Unsent events wait in storage (the newest 1000) and go with the next batch.
 const COLLECTOR = 'tourLayer.collector';
 const QUEUE = 'tourLayer.events';
@@ -132,8 +134,9 @@ async function send() {
   if (!url || !queue.length) return;
   try {
     // text/plain keeps it a simple request (no CORS preflight); the body is JSON
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ events: queue }) });
-    if (!res.ok) throw new Error(`collector said ${res.status}`);
+    const res = await fetch(url, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ events: queue }) });
+    const answer = await res.json().catch(() => null);
+    if (!res.ok || !answer || !answer.ok) throw new Error(`collector said ${res.status}${answer ? '' : ' (not the collector: a sign-in page?)'}`);
     await chrome.storage.local.set({ [QUEUE]: [] });
   } catch (e) {
     console.warn('[TourLayer] could not send tour events; trying again later', e);

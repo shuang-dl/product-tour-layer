@@ -16,7 +16,7 @@ cpSync(join(root, 'dist/extension'), EXT, { recursive: true });
 const manifest = JSON.parse(readFileSync(join(EXT, 'manifest.json'), 'utf8'));
 // Chrome blocks an extension's requests to this computer (the test collector) unless it may reach localhost; the
 // copy's <all_urls> would hide that, so check the real manifest first.
-const localhostAllowed = ['http://localhost/*', 'http://127.0.0.1/*'].every((p) => manifest.host_permissions.includes(p));
+const localhostAllowed = ['http://localhost/*', 'http://127.0.0.1/*', 'https://tour-reports.shuang.apps.deploybay.doorloop.com/*'].every((p) => manifest.host_permissions.includes(p));
 manifest.host_permissions.push('<all_urls>');
 writeFileSync(join(EXT, 'manifest.json'), JSON.stringify(manifest));
 const MOCK = readFileSync(join(root, 'tests/mock-doorloop.html'), 'utf8');
@@ -1172,7 +1172,7 @@ try {
   // Reporting: tour events go from the tour, through the extension's background, to the test collector
   const evFile = join(mkdtempSync(join(tmpdir(), 'tour-layer-events-')), 'events.ndjson');
   const evPort = 4300 + Math.floor(Math.random() * 500);
-  const collector = spawn(process.execPath, [join(root, 'scripts/collector.mjs')], { env: { ...process.env, PORT: String(evPort), EVENTS_FILE: evFile }, stdio: 'ignore' });
+  const collector = spawn(process.execPath, [join(root, 'reports/server.mjs')], { env: { ...process.env, PORT: String(evPort), EVENTS_FILE: evFile }, stdio: 'ignore' });
   try {
     await new Promise((r) => setTimeout(r, 800));
     const evUrl = `http://localhost:${evPort}/events`;
@@ -1180,7 +1180,7 @@ try {
     await menu.goto(`chrome-extension://${extId}/popup.html`);
     const setTo = await menu.evaluate((url) => chrome.runtime.sendMessage({ type: 'tour-layer:collector-set', url }), evUrl);
     const refused = await menu.evaluate(() => chrome.runtime.sendMessage({ type: 'tour-layer:collector-set', url: 'javascript:alert(1)' }));
-    check('reporting: the extension may send to a collector on this computer (localhost)', localhostAllowed);
+    check('reporting: the extension may send to a collector on this computer (localhost) and to tour-reports on DeployBay', localhostAllowed);
     check('reporting: the collector address is saved; anything but http(s) is refused', setTo.url === evUrl && !!refused.error, JSON.stringify({ setTo, refused }));
     await ctx.unroute(TOURS_URL);
     await ctx.route(TOURS_URL, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ tours: [{
@@ -1223,6 +1223,18 @@ try {
     check('reporting: closing with × reports the step it was closed on; record ids are left out of the path',
       two.at(-1)?.type === 'tour_closed' && two.at(-1).step === 1 && two.at(-1).how === 'close' && two.every((e) => e.path === '/properties/:id'),
       JSON.stringify(two.map((e) => [e.type, e.step, e.path])));
+    const rep = await (await fetch(`http://localhost:${evPort}/api/report?days=7`)).json();
+    const rt = rep.tours.find((t) => t.tourId === 'report-test') || {};
+    check('reporting: the report counts views, finishes, the funnel, the failing step and why people left',
+      rt.views === 2 && rt.finished === 1 && rt.finishRate === 50 && JSON.stringify(rt.brokenSteps) === '[3]' &&
+      JSON.stringify(rt.steps.map((s) => s.reached)) === '[2,1,1,1]' && rt.exits.close === 1 && rep.totals.toursWithFailures === 1,
+      JSON.stringify({ views: rt.views, finished: rt.finished, broken: rt.brokenSteps, reached: rt.steps?.map((s) => s.reached), exits: rt.exits }));
+    const rpage = await ctx.newPage();
+    await rpage.goto(`http://localhost:${evPort}/#tour=report-test`);
+    await rpage.waitForSelector('.row', { timeout: 10000 }).catch(() => {});
+    check('reporting: the report page shows a tour\'s funnel with its failing step in red',
+      (await rpage.locator('.row').count()) === 4 && (await rpage.locator('.row.bad').count()) === 1 && (await rpage.locator('.broken').count()) === 1);
+    await rpage.close();
     const left = await menu.evaluate(() => chrome.runtime.sendMessage({ type: 'tour-layer:collector-get' }));
     check('reporting: nothing is left waiting once the collector has the events', left.waiting === 0, JSON.stringify(left));
     await rp.close();

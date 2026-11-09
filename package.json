@@ -6,7 +6,7 @@
     "build": "node scripts/build.mjs",
     "test": "node tests/extension.test.mjs",
     "serve": "node scripts/serve.mjs",
-    "collector": "node scripts/collector.mjs"
+    "collector": "node reports/server.mjs"
   },
   "devDependencies": {
     "playwright": "1.64.1"

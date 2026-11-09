@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tour Reports</title>
+  <style>
+    :root { --bg: #f6f8fb; --card: #fff; --soft: #eef2f7; --text: #1a1a1a; --muted: #5b6472; --accent: #1665d8; --border: #e2e7ef; --danger: #c62828; --danger-bg: #fdecec; --good: #2e7d32; --bar: #1665d8; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #11151c; --card: #1a2029; --soft: #232b36; --text: #e8ecf2; --muted: #9aa4b2; --accent: #5b9bff; --border: #2a323e; --danger: #ff6b6b; --danger-bg: #3a1f22; --good: #6fcf73; --bar: #5b9bff; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, sans-serif; }
+    main { max-width: 1080px; margin: 0 auto; padding: 32px 16px 48px; }
+    h1 { margin: 0; font-size: 24px; }
+    h2 { margin: 24px 0 8px; font-size: 15px; }
+    p { margin: 0; color: var(--muted); }
+    a { color: var(--accent); }
+    .top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 14px; }
+    select { font: inherit; font-size: 14px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); }
+    label { color: var(--muted); display: flex; gap: 6px; align-items: center; }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+    .kpi b { display: block; font-size: 24px; font-weight: 600; }
+    .kpi span { font-size: 13px; color: var(--muted); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 4px 14px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 620px; }
+    th { text-align: left; font-weight: 600; color: var(--muted); padding: 10px 8px; border-bottom: 1px solid var(--border); cursor: pointer; white-space: nowrap; user-select: none; }
+    td { padding: 10px 8px; border-bottom: 1px solid var(--border); }
+    tbody tr { cursor: pointer; }
+    tbody tr:hover { background: var(--soft); }
+    tbody tr:last-child td { border-bottom: 0; }
+    .mini { height: 6px; background: var(--soft); border-radius: 3px; flex: 1; }
+    .mini i { display: block; height: 6px; border-radius: 3px; background: var(--bar); }
+    .pill { font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: var(--danger-bg); color: var(--danger); white-space: nowrap; }
+    .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; margin-left: 6px; }
+    .up { color: var(--good); } .down { color: var(--danger); } .dim { color: var(--muted); }
+    .row { display: grid; grid-template-columns: minmax(120px, 220px) minmax(0, 1fr) 110px; gap: 10px; align-items: center; font-size: 14px; padding: 6px 0; }
+    .row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .track { background: var(--soft); border-radius: 0 4px 4px 0; height: 18px; }
+    .track i { display: block; height: 18px; border-radius: 0 4px 4px 0; background: var(--bar); }
+    .row.bad .name { color: var(--danger); }
+    .row.bad .track i { background: var(--danger); }
+    .num { text-align: right; color: var(--muted); }
+    .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+    .list div { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
+    .broken { border: 1px solid var(--danger); background: var(--danger-bg); color: var(--danger); border-radius: 8px; padding: 10px 12px; font-size: 14px; margin-bottom: 8px; }
+    .empty { padding: 24px 0; color: var(--muted); }
+    .back { font-size: 14px; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div id="crumb"><h1>Tour reports</h1></div>
+    <div class="filters">
+      <select id="pick" hidden aria-label="Tour"></select>
+      <select id="days" aria-label="Period"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select>
+      <label><input type="checkbox" id="previews"> Include builder previews</label>
+    </div>
+  </div>
+  <div id="view"><p class="empty">Loading…</p></div>
+</main>
+<script>
+  // Tour names come from the tours page's published lists; events only carry the tour's id.
+  const PAGES = 'https://shuang-dl.github.io/product-tour-layer/';
+  const names = {};
+  const namesReady = Promise.all(['tours.json', 'drafts.json'].map((f) => fetch(PAGES + f).then((r) => r.json()).then((d) => d.tours.forEach((t) => (names[t.id] = t))).catch(() => {})));
+  const nameOf = (id) => (names[id] && names[id].title) || id;
+  const stepName = (id, n) => { const s = names[id] && names[id].steps && names[id].steps[n - 1]; return s ? s.title : ''; };
+  const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); n.append(...kids.filter((k) => k != null)); return n; };
+  const fmtMs = (ms) => ms == null ? '—' : ms < 60000 ? `${Math.round(ms / 1000)}s` : `${Math.floor(ms / 60000)}m ${String(Math.round(ms / 1000) % 60).padStart(2, '0')}s`;
+  const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+  const trend = (t) => t == null ? el('span', { className: 'dim', textContent: 'new' }) : el('span', { className: t < 0 ? 'down' : 'up', textContent: `${t > 0 ? '+' : ''}${t}%` });
+  const kpi = (label, value, sub, cls) => el('div', { className: 'kpi' }, el('span', { textContent: label }), el('b', { textContent: value, className: cls || '' }), sub && el('span', { textContent: sub }));
+
+  const view = document.getElementById('view'), crumb = document.getElementById('crumb'), pick = document.getElementById('pick');
+  const daysSel = document.getElementById('days'), previews = document.getElementById('previews');
+  let data = null, sortKey = 'views', sortDir = -1;
+
+  // #tour=<id> opens one tour's report (the tours page links here); no hash is the overview
+  const current = () => new URLSearchParams(location.hash.slice(1)).get('tour');
+  async function load() {
+    view.replaceChildren(el('p', { className: 'empty', textContent: 'Loading…' }));
+    try {
+      const [res] = await Promise.all([fetch(`api/report?days=${daysSel.value}${previews.checked ? '&previews=1' : ''}`), namesReady]);
+      data = await res.json();
+    } catch {
+      return view.replaceChildren(el('p', { className: 'empty', textContent: "Couldn't load the report. Reload to try again." }));
+    }
+    render();
+  }
+  function render() {
+    const id = current();
+    const tour = id && data.tours.find((t) => t.tourId === id);
+    pick.replaceChildren(...data.tours.map((t) => el('option', { value: t.tourId, textContent: nameOf(t.tourId) })));
+    if (id && !tour) pick.prepend(el('option', { value: id, textContent: nameOf(id) }));
+    pick.hidden = !id;
+    if (id) pick.value = id;
+    return id ? detail(id, tour) : overview();
+  }
+
+  function overview() {
+    crumb.replaceChildren(el('h1', { textContent: 'Tour reports' }));
+    const t = data.totals;
+    const kpis = el('div', { className: 'kpis' },
+      kpi('Tour views', t.views.toLocaleString(), `${t.tours} tour${t.tours === 1 ? '' : 's'} viewed`),
+      kpi('Finished', t.finishRate == null ? '—' : `${t.finishRate}%`, 'of all views'),
+      kpi('Tours with failing steps', String(t.toursWithFailures), t.toursWithFailures ? 'need a look' : 'none', t.toursWithFailures ? 'down' : ''));
+    if (!data.tours.length) return view.replaceChildren(kpis, el('p', { className: 'empty', textContent: 'No tour views in this period yet.' }));
+    const rows = [...data.tours].sort((a, b) => {
+      const v = (x) => sortKey === 'name' ? nameOf(x.tourId).toLowerCase() : x[sortKey] ?? -Infinity;
+      return (v(a) > v(b) ? 1 : v(a) < v(b) ? -1 : 0) * sortDir;
+    });
+    const th = (key, label) => el('th', { textContent: label + (sortKey === key ? (sortDir < 0 ? ' ↓' : ' ↑') : ''), onclick: () => { sortDir = sortKey === key ? -sortDir : key === 'name' ? 1 : -1; sortKey = key; overview(); } });
+    const table = el('table', {},
+      el('thead', {}, el('tr', {}, th('name', 'Tour'), th('views', 'Views'), th('finishRate', 'Finished'), th('failures', 'Step failures'), th('trend', 'Trend'), th('lastRun', 'Last viewed'))),
+      el('tbody', {}, ...rows.map((x) => el('tr', { onclick: () => (location.hash = `tour=${encodeURIComponent(x.tourId)}`) },
+        el('td', {}, nameOf(x.tourId), x.status === 'draft' ? el('span', { className: 'tag', textContent: 'Draft' }) : null),
+        el('td', { textContent: x.views.toLocaleString() }),
+        el('td', {}, el('div', { style: 'display:flex;align-items:center;gap:8px' }, el('div', { className: 'mini' }, el('i', { style: `width:${x.finishRate}%` })), el('span', { textContent: `${x.finishRate}%`, style: 'width:38px' }))),
+        el('td', {}, x.failures ? el('span', { className: 'pill', textContent: `${x.failures} · step ${x.brokenSteps.join(', ')}` }) : el('span', { className: 'dim', textContent: '—' })),
+        el('td', {}, trend(x.trend)),
+        el('td', { className: 'dim', textContent: fmtDate(x.lastRun) })))));
+    view.replaceChildren(kpis, el('div', { className: 'card' }, table), el('p', { textContent: 'Click a column to sort, or a tour for its full report.', style: 'font-size:13px;margin-top:8px' }));
+  }
+
+  function detail(id, t) {
+    crumb.replaceChildren(el('a', { href: '#', className: 'back', textContent: '← All tours' }));
+    if (!t) return view.replaceChildren(el('h1', { textContent: nameOf(id) }), el('p', { className: 'empty', textContent: 'No views of this tour in this period.' }));
+    const head = el('div', { style: 'margin-bottom:12px' }, el('h1', { textContent: nameOf(id) }), el('p', { textContent: `${t.status} · ${t.totalSteps} steps` }));
+    const kpis = el('div', { className: 'kpis' },
+      kpi('Views', t.views.toLocaleString(), t.trend == null ? 'none in the period before' : `${t.trend > 0 ? '+' : ''}${t.trend}% vs the period before`),
+      kpi('Finished', `${t.finishRate}%`, `${t.finished} of ${t.views}${t.medianFinishMs != null ? ` · median ${fmtMs(t.medianFinishMs)}` : ''}`),
+      kpi('Step failures', String(t.failures), t.failures ? `step ${t.brokenSteps.join(', ')}` : 'none', t.failures ? 'down' : ''));
+    const max = Math.max(1, ...t.steps.map((s) => s.reached));
+    const funnel = t.steps.map((s, i) => {
+      const prev = i ? t.steps[i - 1].reached : s.reached;
+      const drop = i && prev ? Math.round(((prev - s.reached) / prev) * 100) : null;
+      return el('div', { className: s.failed ? 'row bad' : 'row', title: `${s.reached} reached this step${drop != null ? ` · ${drop}% fewer than the step before` : ''} · median ${fmtMs(s.medianMs)} on it${s.failed ? ` · failed in ${s.failed} view(s)` : ''}` },
+        el('span', { className: 'name', textContent: `${s.step} · ${stepName(id, s.step) || 'Step ' + s.step}` }),
+        el('div', { className: 'track' }, el('i', { style: `width:${Math.round((s.reached / max) * 100)}%` })),
+        el('span', { className: 'num', textContent: `${s.reached}${drop ? ` −${drop}%` : ''}` }));
+    });
+    const left = t.views - t.finished;
+    const reasons = [['Closed with ×', t.exits.close], ['Stop tour', t.exits.stop], ['Left the page', t.exits.left_page], ['No end (tab closed, another tour)', t.exits.no_end]];
+    const exits = el('div', {}, el('h2', { textContent: `Why people left early (${left})` }),
+      left ? el('div', { className: 'list' }, ...reasons.filter(([, n]) => n).map(([l, n]) => el('div', {}, el('span', { textContent: l }), el('span', { className: 'dim', textContent: `${n} · ${Math.round((n / left) * 100)}%` }))),
+        el('div', {}, el('span', { className: 'dim', textContent: 'Most left at' }), el('span', { className: 'dim', textContent: (() => { const [s, n] = Object.entries(t.leftAt).sort((a, b) => b[1] - a[1])[0] || []; return s ? `step ${s} (${n})` : '—'; })() })))
+        : el('p', { textContent: 'Everyone who started it finished.' }));
+    const broken = t.steps.filter((s) => s.failed || s.clues);
+    const breakage = el('div', {}, el('h2', { textContent: 'Breakage' }),
+      broken.length ? el('div', {}, ...broken.map((s) => el('div', { className: 'broken' },
+        el('b', { textContent: `Step ${s.step}${stepName(id, s.step) ? ` · “${stepName(id, s.step)}”` : ''}` }),
+        s.failed ? el('div', { textContent: `Target not found in ${s.failed} of ${s.reached} views (${fmtDate(s.firstFailed)} – ${fmtDate(s.lastFailed)}). It showed without a highlight.` }) : null,
+        s.clues ? el('div', { textContent: `Found only by its clues in ${s.clues} views: the step's target needs updating.` }) : null)))
+        : el('p', { textContent: 'No failing steps in this period.' }));
+    view.replaceChildren(head, kpis, el('h2', { textContent: 'Step funnel: views that reached each step' }), el('div', { className: 'card', style: 'padding:10px 14px' }, ...funnel),
+      el('div', { className: 'split' }, exits, breakage));
+  }
+
+  pick.onchange = () => (location.hash = `tour=${encodeURIComponent(pick.value)}`);
+  daysSel.onchange = previews.onchange = load;
+  addEventListener('hashchange', () => data && render());
+  load();
+</script>
+</body>
+</html>

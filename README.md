@@ -10,7 +10,7 @@ Proof of concept: guided product tours that run **on top of DoorLoop** without c
 
 Tours are JSON files in this repo. A Chrome extension built here loads into the DoorLoop tab, reads the tours, and highlights elements on the page with step-by-step popovers. Tours can also be built visually, on top of live DoorLoop, with the tour builder. Everything it runs is bundled in the extension; the only outside code is [driver.js](https://driverjs.com) (MIT), copied into `vendor/` rather than loaded from a CDN. Its stylesheet is adjusted at build time (see "Clicks" below).
 
-**Current extension version:** 0.27.2. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
+**Current extension version:** 0.28.0. A summary of the work so far, what was found on real DoorLoop and what's still open, is in [SUMMARY.md](SUMMARY.md).
 
 **Links page:** https://shuang-dl.github.io/product-tour-layer/
 
@@ -196,7 +196,13 @@ Only the extension's own menu can send these requests to the page; websites can'
 
 ## Reporting
 
-Every run of a tour reports what happened, so we can see how often each tour is viewed, how many people finish it, where they stop, and which steps break. The tour engine only reports the events; whoever loads it decides where they go. Inside DoorLoop that would be DoorLoop's own analytics, with the signed-in user and account attached. For now the extension sends them to a test collector.
+Every run of a tour reports what happened, so we can see how often each tour is viewed, how many people finish it, where they stop, and which steps break. The tour engine only reports the events; whoever loads it decides where they go. Inside DoorLoop that would be DoorLoop's own analytics, with the signed-in user and account attached. For now the extension sends them to the **tour-reports** app (`reports/`), which keeps them and shows the report pages:
+
+- **All tours:** views, finish rate and tours with failing steps, then a table (sortable) with each tour's views, finish rate, step failures, trend against the period before, and when it was last viewed.
+- **One tour** (click it, pick another from the list, or link to `#tour=<id>`): views, finish rate and median time to finish, the step funnel (views that reached each step; a failing step is red), why people left early, and which steps broke and when.
+- Filters: last 7, 30 or 90 days, and whether to count the builder's previews (off by default).
+
+It runs on DeployBay as `tour-reports` (https://tour-reports.shuang.apps.deploybay.doorloop.com, VPN and DoorLoop sign-in), built from this repo's `Dockerfile`, with its own Postgres (`DATABASE_URL`, a DeployBay setting). Run locally with `npm run collector`: it keeps events in `data/events.ndjson` instead (not committed) and serves the same pages at http://localhost:4174/.
 
 **Events** (from `TourLayer.onEvent(fn)`; steps count from 1):
 
@@ -212,10 +218,9 @@ Every run of a tour reports what happened, so we can see how often each tour is 
 Every event also has `tourId`, `tourStatus` (`live` or `draft`), `tourUpdated` (the tour file's last change, when known), `runId` (one per run, kept across page loads), `ms` (since the run started), `at` (ISO time), `path` (with record ids replaced by `:id`), and `context` (whatever the host passed to `init`; the extension sends `{ source: 'extension', extension: <version> }`). A run with no `tour_finished` or `tour_closed` was left some other way, such as closing the tab. Nothing typed into DoorLoop and no page text is ever included. Reporting can't break a tour: a failing listener is logged and skipped.
 
 **Trying it with the extension:**
-1. `npm run collector` (keeps events in `data/events.ndjson`, which isn't committed).
-2. In the extension's menu, under **Reporting (test)**, enter `http://localhost:4174/events` and click **Save**.
-3. Play a tour on DoorLoop. Events are sent in batches within a few seconds, and right away when a run ends; if the collector is down they wait (the newest 1000) and go with the next batch.
-4. See them at `http://localhost:4174/events` (one tour: `?tour=<id>`).
+1. In the extension's menu, under **Reporting (test)**, enter `https://tour-reports.shuang.apps.deploybay.doorloop.com/events` (or, with `npm run collector` running, `http://localhost:4174/events`) and click **Save**.
+2. Play a tour on DoorLoop. Events are sent in batches within a few seconds, and right away when a run ends, with this browser's DeployBay sign-in. If the app can't be reached (no VPN, signed out) they wait (the newest 1000) and go with the next batch; the menu shows how many are waiting.
+3. Open the app's address for the report pages; `/events` (one tour: `?tour=<id>`) lists the raw events.
 
 Leave the field empty to turn reporting off; nothing is kept then.
 
@@ -232,7 +237,7 @@ Leave the field empty to turn reporting off; nothing is kept then.
 | `vendor/driver.js/` | highlight/popover library (MIT), bundled into the extension |
 | `scripts/build.mjs` | validation + build site and extension into `dist/` |
 | `scripts/serve.mjs` | serves `dist/` locally the way GitHub Pages does |
-| `scripts/collector.mjs` | test collector for tour events (`npm run collector`) |
+| `reports/` | the tour-reports app: `server.mjs` (receives events, serves the pages; Postgres or a local file), `report.js` (the numbers), `index.html` (the pages). `Dockerfile` (repo root) builds it for DeployBay; `npm run collector` runs it locally |
 | `tests/` | extension test (Playwright) and the mock DoorLoop page it runs against |
 | `.github/workflows/pages.yml` | validate on PRs, publish to GitHub Pages on `main` |
 
