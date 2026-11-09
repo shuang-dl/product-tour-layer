@@ -1,0 +1,111 @@
+{
+  "id": "wallet-transfer",
+  "title": "Wallet Transfer",
+  "status": "draft",
+  "page": "/home",
+  "style": {
+    "frame": "#0b1f44",
+    "bandText": "#ffffff",
+    "button": "#d8f34a",
+    "buttonText": "#0b1f44",
+    "bodyText": "#1b1d21",
+    "bodyBg": "#ffffff",
+    "footerHeight": 56,
+    "titleSize": "h2",
+    "titleAlign": "left",
+    "textAlign": "left"
+  },
+  "steps": [
+    {
+      "target": {
+        "text": "DoorLoop Wallet",
+        "selector": "a"
+      },
+      "clues": {
+        "tag": "a",
+        "text": "DoorLoop Wallet",
+        "role": "a",
+        "href": "/wallets"
+      },
+      "title": "Click “DoorLoop Wallet”",
+      "text": "Click DoorLoop Wallet.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/wallets",
+      "target": "[data-testid='WalletsList-TransferFunds']",
+      "clues": {
+        "tag": "button",
+        "text": "Transfer funds",
+        "role": "button"
+      },
+      "title": "Click “Transfer funds”",
+      "text": "Click Transfer funds.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/wallets",
+      "target": "input#wallet-movement-amount",
+      "clues": {
+        "tag": "input",
+        "placeholder": "0.00",
+        "role": "input"
+      },
+      "title": "Enter Amount",
+      "text": "Type Amount.",
+      "fill": [
+        {
+          "target": "input#wallet-movement-amount",
+          "clues": {
+            "tag": "input",
+            "placeholder": "0.00",
+            "role": "input"
+          },
+          "value": "1000"
+        }
+      ]
+    },
+    {
+      "page": "/wallets",
+      "target": "[data-testid='WalletMovement-Memo']",
+      "clues": {
+        "tag": "textarea",
+        "role": "textarea"
+      },
+      "title": "Enter this field",
+      "text": "Type this field.",
+      "fill": [
+        {
+          "target": "[data-testid='WalletMovement-Memo']",
+          "clues": {
+            "tag": "textarea",
+            "role": "textarea"
+          },
+          "value": "for owners"
+        }
+      ]
+    },
+    {
+      "page": "/wallets",
+      "target": "[data-testid='WalletMovement-Authorize']",
+      "clues": {
+        "tag": "button",
+        "role": "checkbox"
+      },
+      "title": "Tick “I authorize this withdrawal from the selected wallet.”",
+      "text": "Tick I authorize this withdrawal from the selected wallet. if it applies."
+    },
+    {
+      "page": "/wallets",
+      "target": "[data-testid='WalletMovement-Submit']",
+      "clues": {
+        "tag": "button",
+        "text": "Withdraw",
+        "role": "button"
+      },
+      "title": "Click “Withdraw”",
+      "text": "Click Withdraw.",
+      "advanceOn": "click"
+    }
+  ]
+}
