@@ -10,6 +10,7 @@
     "buttonText": "#0b1f44",
     "bodyText": "#1b1d21",
     "bodyBg": "#ffffff",
+    "footerHeight": 56,
     "titleSize": "h2",
     "titleAlign": "left",
     "textAlign": "left"
@@ -44,67 +45,39 @@
     },
     {
       "page": "/wallets",
-      "target": "input#wallet-movement-amount",
-      "clues": {
-        "tag": "input",
-        "placeholder": "0.00",
-        "role": "input"
-      },
-      "title": "Enter Amount",
-      "text": "Type Amount.",
-      "fill": [
-        {
-          "target": "input#wallet-movement-amount",
-          "clues": {
-            "tag": "input",
-            "placeholder": "0.00",
-            "role": "input"
-          },
-          "value": "1000"
-        }
-      ]
-    },
-    {
-      "page": "/wallets",
-      "target": "[data-testid='WalletMovement-Memo']",
-      "clues": {
-        "tag": "textarea",
-        "role": "textarea"
-      },
-      "title": "Add a memo",
-      "text": "Add a short note about this transfer (up to 80 characters).",
-      "fill": [
-        {
-          "target": "[data-testid='WalletMovement-Memo']",
-          "clues": {
-            "tag": "textarea",
-            "role": "textarea"
-          },
-          "value": "Transfer to bank"
-        }
-      ]
-    },
-    {
-      "page": "/wallets",
-      "target": "[data-testid='WalletMovement-Authorize']",
+      "target": "[data-testid='WalletMovement-From']",
       "clues": {
         "tag": "button",
-        "role": "checkbox"
-      },
-      "title": "Authorize the withdrawal",
-      "text": "Tick “I authorize this withdrawal from the selected wallet.”"
-    },
-    {
-      "page": "/wallets",
-      "target": "[data-testid='WalletMovement-Submit']",
-      "clues": {
-        "tag": "button",
-        "text": "Withdraw",
+        "text": "DoorLoop Wallet - KBM2025 LLC •• 0000",
         "role": "button"
       },
-      "title": "Click Withdraw when ready.",
-      "text": "Withdraw to finish",
-      "showOnly": true
+      "title": "Click “DoorLoop Wallet - KBM2025 LL”",
+      "text": "Click DoorLoop Wallet - KBM2025 LL.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/wallets",
+      "target": "[data-testid='WalletMovement-From']",
+      "clues": {
+        "tag": "button",
+        "text": "DoorLoop Wallet - KBM2025 LLC •• 0000",
+        "role": "button"
+      },
+      "title": "Click “DoorLoop Wallet - KBM2025 LL”",
+      "text": "Click DoorLoop Wallet - KBM2025 LL.",
+      "advanceOn": "click"
+    },
+    {
+      "page": "/wallets",
+      "target": "[data-testid='WalletMovement-From-Option']",
+      "clues": {
+        "tag": "div",
+        "text": "DoorLoop Wallet - KBM2025 LLC •• 0000",
+        "role": "listbox"
+      },
+      "title": "Pick from the list",
+      "text": "Choose one, for example “9000 NE 1st Ave •• 00009000 NE 1st Ave$0.00”.",
+      "advanceOn": "click"
     }
   ]
 }
